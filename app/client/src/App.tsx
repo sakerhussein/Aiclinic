@@ -8,11 +8,11 @@ import { useI18n } from "./i18n";
 
 const TITLES: Record<string, { en: string; ar: string }> = {
   "/": {
-    en: "Limitsiz Clinic | Orchestrated AI Agents for Private Clinics",
-    ar: "Limitsiz Clinic | وكلاء ذكاء اصطناعي منسّقون للعيادات الخاصة",
+    en: "Limitsiz Clinic by Limitsiz | Orchestrated AI Agents for Private Clinics",
+    ar: "Limitsiz Clinic من Limitsiz | وكلاء ذكاء اصطناعي منسّقون للعيادات الخاصة",
   },
-  "/privacy": { en: "Privacy Policy | Limitsiz Clinic", ar: "سياسة الخصوصية | Limitsiz Clinic" },
-  "/terms": { en: "Terms of Use | Limitsiz Clinic", ar: "شروط الاستخدام | Limitsiz Clinic" },
+  "/privacy": { en: "Privacy Policy | Limitsiz", ar: "سياسة الخصوصية | Limitsiz" },
+  "/terms": { en: "Terms of Use | Limitsiz", ar: "شروط الاستخدام | Limitsiz" },
 };
 
 export default function App() {

@@ -1,6 +1,21 @@
-# Limitsiz Clinic: React + Node.js version
+# Limitsiz website (featuring Limitsiz Clinic): React + Node.js
 
-The same website as the HTML version, rebuilt as a React app (Vite + TypeScript) with an Express API in Node.js.
+Company site for **Limitsiz**. The main focus is the first product, **Limitsiz Clinic** (AI agents for private clinics), with a secondary section on AI consulting and implementation (financial audits).
+Built with React (Vite + TypeScript) and an Express API in Node.js. English and Arabic (RTL).
+
+## Version 2 changes
+
+- Outcome-led hero with rotating headline, clinic photo, and animated AI status cards
+- Animated orchestration diagram (hub and eight agents with data pulses)
+- Live WhatsApp booking demo (loops while on screen)
+- Free AI Clinic Assessment section with an animated opportunity score
+- Eight agents, including Patient Follow-Up and Insurance Verification
+- Specialties with photos; consulting section; scroll-in and count-up animations
+- Form: area of interest, clinic size, specialty (needs `supabase/leads_v2.sql`)
+- All motion stops for visitors who choose "reduce motion"
+- Photos: Pexels (free license), loaded from images.pexels.com; credits in the footer
+
+**Before deploying v2, run `supabase/leads_v2.sql` in the Supabase SQL Editor.** Until then the server still saves requests, but it puts the new fields into the message text.
 
 ## Structure
 

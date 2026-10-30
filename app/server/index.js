@@ -1,6 +1,6 @@
-// Limitsiz Clinic: Node.js (Express) server.
+// Limitsiz: Node.js (Express) server.
 // - Serves the built React site from client/dist (after `npm run build`).
-// - Exposes POST /api/leads, which validates a demo request and saves it to Supabase.
+// - Exposes POST /api/leads, which validates an assessment or consulting request and saves it to Supabase.
 
 import express from "express";
 import dotenv from "dotenv";
@@ -34,9 +34,17 @@ const leadLimiter = rateLimit({
 });
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const INTERESTS = new Set(["clinic", "consulting"]);
+const SIZES = new Set(["1", "2-5", "6-10", "10+"]);
+const SPECIALTIES = new Set(["dental", "dermatology", "family", "pediatrics", "physiotherapy", "mental", "other"]);
 
 function clean(value, max) {
   return String(value ?? "").trim().slice(0, max);
+}
+
+function pick(value, allowed) {
+  const v = clean(value, 40);
+  return allowed.has(v) ? v : null;
 }
 
 // Returns { honeypot: true } for bots, { error } for bad input, or { row } for valid data.
@@ -49,6 +57,9 @@ function validateLead(body) {
   if (!name) return { error: "Name is required." };
   if (!EMAIL_RE.test(email)) return { error: "A valid email is required." };
 
+  const interest = pick(b.interest, INTERESTS) || "clinic";
+  const isClinic = interest === "clinic";
+
   return {
     row: {
       name,
@@ -59,8 +70,47 @@ function validateLead(body) {
       language: b.language === "ar" ? "ar" : "en",
       source: "website",
       page: clean(b.page, 100) || null,
+      interest,
+      clinic_size: isClinic ? pick(b.clinic_size, SIZES) : null,
+      specialty: isClinic ? pick(b.specialty, SPECIALTIES) : null,
     },
   };
+}
+
+async function insertRow(row) {
+  return fetch(`${SUPABASE_URL}/rest/v1/${encodeURIComponent(LEADS_TABLE)}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: SUPABASE_KEY,
+      // Return nothing: the public role cannot read rows back.
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify(row),
+    signal: AbortSignal.timeout(10000),
+  });
+}
+
+// Saves the lead. If the database has not been updated with the new columns yet
+// (supabase/leads_v2.sql), it retries without them and keeps the details in the message.
+async function saveLead(row) {
+  let res = await insertRow(row);
+  if (res.ok) return { ok: true };
+
+  const body = await res.text();
+  if (res.status === 400 && body.includes("PGRST204")) {
+    console.warn("New lead columns are missing. Run supabase/leads_v2.sql. Saving without them for now.");
+    const { interest, clinic_size, specialty, ...base } = row;
+    const extra = `[interest: ${interest}; clinic size: ${clinic_size ?? "-"}; specialty: ${specialty ?? "-"}]`;
+    base.message = [row.message, extra].filter(Boolean).join("\n").slice(0, 2000);
+    res = await insertRow(base);
+    if (res.ok) return { ok: true };
+    console.error("Supabase insert failed:", res.status, await res.text());
+    return { ok: false };
+  }
+
+  console.error("Supabase insert failed:", res.status, body);
+  return { ok: false };
 }
 
 app.get("/api/health", (_req, res) => {
@@ -77,22 +127,8 @@ app.post("/api/leads", leadLimiter, async (req, res) => {
   if (result.error) return res.status(400).json({ error: result.error });
 
   try {
-    const upstream = await fetch(`${SUPABASE_URL}/rest/v1/${encodeURIComponent(LEADS_TABLE)}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: SUPABASE_KEY,
-        // Return nothing: the public role cannot read rows back.
-        Prefer: "return=minimal",
-      },
-      body: JSON.stringify(result.row),
-      signal: AbortSignal.timeout(10000),
-    });
-
-    if (!upstream.ok) {
-      console.error("Supabase insert failed:", upstream.status, await upstream.text());
-      return res.status(502).json({ error: "Could not save your request." });
-    }
+    const saved = await saveLead(result.row);
+    if (!saved.ok) return res.status(502).json({ error: "Could not save your request." });
     return res.status(201).json({ ok: true });
   } catch (err) {
     console.error("Lead request error:", err);
@@ -116,9 +152,9 @@ if (fs.existsSync(DIST_DIR)) {
 }
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.warn("SUPABASE_URL or SUPABASE_PUBLISHABLE_KEY is missing. Demo requests will not be saved.");
+  console.warn("SUPABASE_URL or SUPABASE_PUBLISHABLE_KEY is missing. Requests will not be saved.");
 }
 
 app.listen(PORT, () => {
-  console.log(`Limitsiz Clinic server running on http://localhost:${PORT}`);
+  console.log(`Limitsiz server running on http://localhost:${PORT}`);
 });
