@@ -137,7 +137,7 @@
     terms_h5: "5. Limitation of liability",
     terms_p5: "To the extent permitted by law, the website is provided \"as is,\" and we are not liable for indirect or consequential losses arising from its use.",
     terms_h6: "6. Governing law",
-    terms_p6: "These terms are governed by the laws of the Hashemite Kingdom of Jordan. [To be confirmed by counsel.]",
+    terms_p6: "These terms are governed by the laws of the Hashemite Kingdom of Jordan.",
     terms_h7: "7. Contact",
     terms_p7: "Questions about these terms: management@limitsiz.si."
   };
@@ -277,7 +277,7 @@
     terms_h5: "5. حدود المسؤولية",
     terms_p5: "إلى الحد الذي يسمح به القانون، يُقدَّم الموقع \"كما هو\"، ولا نتحمل المسؤولية عن الخسائر غير المباشرة أو التبعية الناتجة عن استخدامه.",
     terms_h6: "6. القانون الواجب التطبيق",
-    terms_p6: "تخضع هذه الشروط لقوانين المملكة الأردنية الهاشمية. [بانتظار تأكيد المستشار القانوني.]",
+    terms_p6: "تخضع هذه الشروط لقوانين المملكة الأردنية الهاشمية.",
     terms_h7: "7. التواصل",
     terms_p7: "للاستفسار عن هذه الشروط: management@limitsiz.si."
   };

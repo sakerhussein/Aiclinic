@@ -15,8 +15,7 @@ export default function Legal({ kind }: Props) {
 
   return (
     <section className="legal">
-      <div className="container narrow">
-        <p className="draft-banner">{t("draft_banner")}</p>
+      <div className="wrap narrow">
         <h1>{t(titleKey)}</h1>
         <p className="muted">{t("priv_updated")}</p>
         {sections.map((n) => (
