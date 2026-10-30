@@ -36,7 +36,8 @@ html[dir="rtl"] .marquee { animation-name: marquee-rtl; }
 .halo { animation: halo 2.4s ease-out infinite; }
 .scan { animation: scan 6s ease-in-out infinite; }
 .photo:nth-child(2) .scan { animation-delay: 2s; } .photo:nth-child(3) .scan { animation-delay: 4s; }
-.nm-ring { animation: spin 60s linear infinite; }
+/* Spin the dotted circle inside the SVG, not the SVG box: a turning box pokes past the screen edge on phones. */
+.nm-ring circle { transform-origin: 200px 200px; animation: spin 60s linear infinite; }
 .fc { animation: cardIn .7s cubic-bezier(.2, .7, .2, 1) both, floatY 6s ease-in-out infinite; }
 .fc1 { animation-delay: .3s, 1s; } .fc2 { animation-delay: .8s, 2.5s; } .fc3 { animation-delay: 1.3s, 4s; }
 .rot-word { animation: rotIn .5s cubic-bezier(.2, .7, .2, 1) both; }

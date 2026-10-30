@@ -29,6 +29,8 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 html { scroll-behavior: smooth; scroll-padding-top: 96px; }
+/* Nothing may make the page wider than the screen (stops sideways drift on phones, especially in Arabic). */
+html, body { overflow-x: clip; }
 body {
   margin: 0; background: var(--paper); color: var(--text);
   font-family: var(--font-body); font-size: 17px; line-height: 1.6;
@@ -145,6 +147,9 @@ html[dir="rtl"] .hero-art text { font-family: var(--font-ar); font-size: 13px; }
 .nm-title { font-size: clamp(34px, 4.6vw, 64px); line-height: 1.05; letter-spacing: -0.035em; }
 .rotator { display: grid; color: var(--accent-ink); }
 .rot-word { grid-area: 1 / 1; }
+.rot-word.idle { visibility: hidden; }
+/* Keep the page from jumping when anything above the screen changes size. */
+html { overflow-anchor: auto; }
 .nm-text { margin-top: 28px; max-width: 32em; font-size: 19px; color: var(--muted); }
 .nm-markets { margin-top: 24px; font-size: 15px; color: var(--muted); }
 .nm-visual { position: relative; max-width: 540px; width: 100%; margin-inline: auto; aspect-ratio: 1 / 1.02; }
