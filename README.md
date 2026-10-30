@@ -6,13 +6,15 @@ Static multi-page site in English and Arabic (RTL). Version 1, to be ported to R
 
 | File | Purpose |
 |---|---|
-| `index.html` | Home page: hero, problem, agents, how it works, security, targets, pricing, FAQ, demo form |
+| `index.html` | Home page: hero, problem, agents, in practice (photos), how it works, a day in the clinic, security, targets, pricing, FAQ, contact form |
 | `privacy.html` | Privacy Policy (draft, pending legal review) |
 | `terms.html` | Terms of Use (draft, pending legal review) |
-| `css/styles.css` | Theme (blue and teal), layout, responsive rules, RTL support |
+| `css/styles.css` | "Infinite intelligence" theme (dark ink + mint), layout, animations, responsive rules, RTL support |
+| `assets/img/` | Photos for the "In practice" section |
+| `assets/logo/` | Limitsiz mark (open infinity loop) and favicon |
 | `js/config.js` | Supabase URL and publishable key (fill in) |
 | `js/i18n.js` | English and Arabic text, language switch |
-| `js/main.js` | Demo form validation, spam check, saves leads to Supabase |
+| `js/main.js` | Demo form validation, spam check, "fix first" topic chips, saves leads to Supabase |
 | `supabase/leads.sql` | Creates the `leads` table with row-level security |
 
 ## Setup
@@ -32,3 +34,11 @@ Each demo request is saved to the `leads` table. Visitors can only insert rows. 
 - Confirm the data-handling and encryption statements on the home page.
 - Keep the "Target Outcomes" label until you have pilot data.
 - Confirm the pricing and the "Request a Trial" offer.
+
+## Design notes (October 2026 redesign)
+
+- Fonts: Unbounded (headings), Geist (text), Geist Mono (labels), IBM Plex Sans Arabic (Arabic), loaded from Google Fonts.
+- Colors: ink `#0A0F14`, paper `#F2F4F3`, mint accent `#2EE6B5` (text on light uses `#0B7A64`). All tokens are CSS variables at the top of `css/styles.css`.
+- Motion is slow and stops for visitors who turn on "reduce motion". Scroll reveals use CSS scroll-driven animations (Chrome/Edge); other browsers show the content without them.
+- The topic chosen in "What should we fix first?" is saved at the start of the lead's message (`[Focus: ...]`) until the `leads` table gets its own column.
+- Before launch: replace the reception photo (its wall sign shows an old logo) and remove the generated slogans in the photos.

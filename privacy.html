@@ -5,29 +5,37 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Privacy Policy | Limitsiz Clinic</title>
   <meta name="description" content="How Limitsiz Clinic collects and uses personal information.">
+  <meta name="theme-color" content="#0A0F14">
+  <link rel="icon" href="assets/logo/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;500;600&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
 
 <a class="skip-link" href="#main" data-i18n="skip">Skip to content</a>
 
-<header class="site-header">
-  <div class="container nav-wrap">
-    <a class="wordmark" href="index.html">Limitsiz<span>Clinic</span></a>
+<header class="site-header on-ink">
+  <div class="wrap nav-wrap">
+    <a class="brand" href="index.html" aria-label="Limitsiz Clinic home">
+      <svg width="34" height="17" viewBox="0 0 40 20" aria-hidden="true"><path d="M20 10 C16.6 5.5 13.2 2 8.8 2 A8 8 0 0 0 8.8 18 C13.2 18 16.6 14.5 20 10 C23.4 5.5 26.8 2 31.2 2 A8 8 0 0 1 38.4 12.9" fill="none" stroke="#2EE6B5" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="33.6" cy="17.2" r="1.8" fill="#2EE6B5"/></svg>
+      <span>limitsiz <small>Clinic</small></span>
+    </a>
     <nav class="nav" aria-label="Main">
-      <a href="index.html#solutions" data-i18n="nav_solutions">Solutions</a>
+      <a href="index.html#agents" data-i18n="nav_solutions">Agents</a>
       <a href="index.html#pricing" data-i18n="nav_pricing">Pricing</a>
       <a href="index.html#faq" data-i18n="nav_faq">FAQ</a>
     </nav>
     <div class="nav-actions">
       <button type="button" class="lang-toggle" id="langToggle" aria-label="Switch language">العربية</button>
-      <a class="btn btn-primary btn-sm" href="index.html#contact" data-i18n="nav_demo">Book a Demo</a>
+      <a class="btn btn-accent btn-sm" href="index.html#contact" data-i18n="nav_demo">Book a demo</a>
     </div>
   </div>
 </header>
 
 <main id="main" class="legal">
-  <div class="container narrow">
+  <div class="wrap narrow">
     <p class="draft-banner" data-i18n="draft_banner">Draft for review. Pending legal review before publication.</p>
     <h1 data-i18n="priv_title">Privacy Policy</h1>
     <p class="muted" data-i18n="priv_updated">Last updated: October 2026</p>
@@ -59,7 +67,15 @@
 </main>
 
 <footer class="site-footer">
-  <div class="container copy" data-i18n="copyright">© 2026 Limitsiz Clinic. All rights reserved.</div>
+  <div class="wrap footer-row">
+    <a class="brand" href="index.html" style="font-size: 17px;"><svg width="28" height="14" viewBox="0 0 40 20" aria-hidden="true"><path d="M20 10 C16.6 5.5 13.2 2 8.8 2 A8 8 0 0 0 8.8 18 C13.2 18 16.6 14.5 20 10 C23.4 5.5 26.8 2 31.2 2 A8 8 0 0 1 38.4 12.9" fill="none" stroke="#2EE6B5" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="33.6" cy="17.2" r="1.8" fill="#2EE6B5"/></svg><span>limitsiz</span></a>
+    <nav aria-label="Footer">
+      <a href="privacy.html" data-i18n="footer_privacy">Privacy Policy</a>
+      <a href="terms.html" data-i18n="footer_terms">Terms of Use</a>
+      <a href="mailto:management@limitsiz.si">management@limitsiz.si</a>
+    </nav>
+    <span data-i18n="copyright">© 2026 Limitsiz. All rights reserved.</span>
+  </div>
 </footer>
 
 <script src="js/config.js"></script>

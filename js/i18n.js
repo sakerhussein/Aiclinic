@@ -282,6 +282,114 @@
     terms_p7: "للاستفسار عن هذه الشروط: management@limitsiz.si."
   };
 
+  /* 2026-10 redesign ("infinite intelligence"): new and updated strings */
+  var EN_V2 = {
+    nav_solutions: "Agents", nav_how: "How it works", nav_demo: "Book a demo",
+    hero_eyebrow: "Infinite intelligence for private clinics",
+    hero_title: "Your clinic,<br>without limits.",
+    hero_btn1: "Book a free demo", hero_btn2: "See how it works",
+    hero_card_label: "8:12 AM · BOOKING AGENT",
+    hero_card_text: "Check-up confirmed for Thursday at 10:30. A reminder will go out the day before.",
+    hero_art_label: "Six AI agents connected on one continuous infinity loop",
+    tick_1: "WhatsApp booking", tick_2: "Reminders", tick_3: "Front desk", tick_4: "Clinical notes",
+    tick_5: "Reports", tick_6: "Revenue", tick_7: "Arabic + English",
+    lbl_problem: "01 — The problem", lbl_agents: "02 — The agents", lbl_practice: "In practice",
+    lbl_how: "03 — How it works", lbl_day: "04 — A day in the clinic", lbl_security: "05 — Security and privacy",
+    lbl_results: "06 — Target outcomes", lbl_pricing: "07 — Pricing", lbl_faq: "08 — FAQ",
+    agents_sub: "Most clinic software does one job. Limitsiz Clinic runs specialized agents that share information and hand tasks to each other.",
+    agent_booking_title: "Booking Agent",
+    chat_1: "Hi, can I book a check-up this week?",
+    chat_2: "Of course. Tuesday 4:00, Wednesday 11:15 or Thursday 10:30?",
+    chat_3: "Thursday please.",
+    chat_meta: "Confirmed · reminder scheduled",
+    scribe_note: "Visit note · draft ready", scribe_approve: "APPROVE",
+    orch_label: "Orchestrated",
+    orch_text: "A booking becomes a reminder, a visit becomes a note, a note becomes an invoice.",
+    practice_title: "Built for the people in the room.",
+    practice_text: "Your team stays with patients. The agents work quietly in the background.",
+    photo_1_alt: "Receptionist at a clinic front desk showing a patient the booking screen on a tablet",
+    photo_2_alt: "Doctor reviewing a visit note on a laptop in his consultation room",
+    photo_3_alt: "Patient at home in the evening booking an appointment on WhatsApp",
+    photo_3_tag: "Booking Agent",
+    how_title: "Set up once. It keeps running.",
+    step1_title: "Connect", step2_title: "Configure", step3_title: "Orchestrate",
+    day_title: "Nothing falls through the cracks.",
+    day_1: "A patient asks on WhatsApp for a check-up. The Booking Agent offers three slots and confirms her choice.",
+    day_2: "A caller asks about pricing. The Receptionist answers and passes the call to staff only when a person is needed.",
+    day_3: "The doctor finishes a consultation. The Scribe drafts the note, and the doctor approves it in one click.",
+    day_4: "Financials updates the day's revenue and flags two unpaid invoices for follow-up.",
+    am: " AM", pm: " PM",
+    security_sub: "Intelligence without limits, inside limits you set.",
+    results_title: "What we are aiming for.",
+    res_2_num: "20 h",
+    per_month: " from / month",
+    starter_agents: "Booking + Receptionist", starter_support: "Email support",
+    pro_agents: "Starter agents + Scribe and Reports", pro_support: "Priority support",
+    ent_price: "Let's talk", ent_btn: "Contact us",
+    pricing_btn: "Request a trial",
+    faq_title: "Questions clinics ask us.",
+    fix_first: "What should we fix first?",
+    topic_1: "Missed calls", topic_2: "Scheduling", topic_3: "Documentation", topic_4: "Reports", topic_5: "Finance",
+    ch_wa: "Message us on WhatsApp", ch_email: "Email the team",
+    form_submit: "Request a demo",
+    footer_terms: "Terms of Use",
+    copyright: "© 2026 Limitsiz. All rights reserved."
+  };
+  var AR_V2 = {
+    nav_solutions: "الوكلاء", nav_how: "كيف يعمل", nav_demo: "احجز عرضاً",
+    hero_eyebrow: "ذكاء بلا حدود للعيادات الخاصة",
+    hero_title: "عيادتك،<br>بلا حدود.",
+    hero_btn1: "احجز عرضاً مجانياً", hero_btn2: "شاهد كيف يعمل",
+    hero_card_label: "8:12 ص · وكيل الحجز",
+    hero_card_text: "تم تأكيد موعد الفحص يوم الخميس الساعة 10:30. سيصلك تذكير قبل الموعد بيوم.",
+    hero_art_label: "ستة وكلاء ذكاء اصطناعي متصلون في حلقة لا نهائية واحدة",
+    tick_1: "الحجز عبر واتساب", tick_2: "التذكيرات", tick_3: "الاستقبال", tick_4: "الملاحظات السريرية",
+    tick_5: "التقارير", tick_6: "الإيرادات", tick_7: "العربية والإنجليزية",
+    lbl_problem: "01 — المشكلة", lbl_agents: "02 — الوكلاء", lbl_practice: "على أرض الواقع",
+    lbl_how: "03 — كيف يعمل", lbl_day: "04 — يوم في العيادة", lbl_security: "05 — الأمان والخصوصية",
+    lbl_results: "06 — النتائج المستهدفة", lbl_pricing: "07 — الأسعار", lbl_faq: "08 — الأسئلة الشائعة",
+    agents_sub: "معظم برامج العيادات تؤدي مهمة واحدة. أما Limitsiz Clinic فتشغّل وكلاء متخصصين يتبادلون المعلومات ويسلّمون المهام لبعضهم.",
+    agent_booking_title: "وكيل الحجز",
+    chat_1: "مرحباً، هل يمكنني حجز فحص هذا الأسبوع؟",
+    chat_2: "بالتأكيد. الثلاثاء 4:00، أو الأربعاء 11:15، أو الخميس 10:30؟",
+    chat_3: "الخميس من فضلك.",
+    chat_meta: "تم التأكيد · تمت جدولة التذكير",
+    scribe_note: "ملاحظة الزيارة · المسودة جاهزة", scribe_approve: "اعتماد",
+    orch_label: "منسّق",
+    orch_text: "الحجز يصبح تذكيراً، والزيارة تصبح ملاحظة، والملاحظة تصبح فاتورة.",
+    practice_title: "مصمَّم للأشخاص داخل العيادة.",
+    practice_text: "فريقك يبقى مع المرضى، والوكلاء يعملون بهدوء في الخلفية.",
+    photo_1_alt: "موظفة استقبال في العيادة تعرض على مريض شاشة الحجز على جهاز لوحي",
+    photo_2_alt: "طبيب يراجع ملاحظة الزيارة على حاسوب محمول في غرفة الكشف",
+    photo_3_alt: "مريض في منزله مساءً يحجز موعداً عبر واتساب",
+    photo_3_tag: "وكيل الحجز",
+    how_title: "إعداد مرة واحدة، وعمل لا يتوقف.",
+    step1_title: "الربط", step2_title: "الإعداد", step3_title: "التنسيق",
+    day_title: "لا شيء يضيع.",
+    day_1: "مريضة تطلب فحصاً عبر واتساب. يعرض وكيل الحجز ثلاثة مواعيد ويؤكد اختيارها.",
+    day_2: "متصل يسأل عن الأسعار. يجيب موظف الاستقبال الذكي ويحوّل المكالمة للفريق فقط عند الحاجة إلى شخص.",
+    day_3: "ينهي الطبيب الكشف. يكتب الكاتب الذكي مسودة الملاحظة، ويعتمدها الطبيب بنقرة واحدة.",
+    day_4: "يحدّث وكيل المالية إيرادات اليوم وينبّه إلى فاتورتين غير مدفوعتين للمتابعة.",
+    am: " ص", pm: " م",
+    security_sub: "ذكاء بلا حدود، ضمن حدود تضعها أنت.",
+    results_title: "ما نسعى إلى تحقيقه.",
+    res_2_num: "20 ساعة",
+    per_month: " يبدأ من / شهرياً",
+    starter_agents: "الحجز + الاستقبال", starter_support: "دعم عبر البريد الإلكتروني",
+    pro_agents: "وكلاء الباقة الأساسية + الكاتب والتقارير", pro_support: "دعم ذو أولوية",
+    ent_price: "لنتحدث", ent_btn: "تواصل معنا",
+    pricing_btn: "اطلب تجربة",
+    faq_title: "أسئلة تطرحها علينا العيادات.",
+    fix_first: "ما الذي نبدأ بإصلاحه أولاً؟",
+    topic_1: "المكالمات الفائتة", topic_2: "الجدولة", topic_3: "التوثيق", topic_4: "التقارير", topic_5: "المالية",
+    ch_wa: "راسلنا على واتساب", ch_email: "راسل الفريق بالبريد",
+    form_submit: "اطلب عرضاً",
+    footer_terms: "شروط الاستخدام",
+    copyright: "© 2026 Limitsiz. جميع الحقوق محفوظة."
+  };
+  Object.keys(EN_V2).forEach(function (k) { EN[k] = EN_V2[k]; });
+  Object.keys(AR_V2).forEach(function (k) { AR[k] = AR_V2[k]; });
+
   var DICT = { en: EN, ar: AR };
   var TITLES = {
     "index.html": { en: "Limitsiz Clinic | Orchestrated AI Agents for Private Clinics", ar: "Limitsiz Clinic | وكلاء ذكاء اصطناعي منسّقون للعيادات الخاصة" },
@@ -325,6 +433,14 @@
     document.querySelectorAll("[data-i18n-html]").forEach(function (el) {
       var key = el.getAttribute("data-i18n-html");
       if (dict[key] !== undefined) el.innerHTML = dict[key];
+    });
+    document.querySelectorAll("[data-i18n-alt]").forEach(function (el) {
+      var key = el.getAttribute("data-i18n-alt");
+      if (dict[key] !== undefined) el.setAttribute("alt", dict[key]);
+    });
+    document.querySelectorAll("[data-i18n-aria]").forEach(function (el) {
+      var key = el.getAttribute("data-i18n-aria");
+      if (dict[key] !== undefined) el.setAttribute("aria-label", dict[key]);
     });
 
     document.title = TITLES[currentPage()][lang];

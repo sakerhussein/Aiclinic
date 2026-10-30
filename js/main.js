@@ -17,7 +17,7 @@
     return client;
   }
 
-  function setStatus(form, message, kind) {
+  function setStatus(message, kind) {
     var el = document.getElementById("formStatus");
     if (!el) return;
     el.textContent = message;
@@ -26,6 +26,29 @@
 
   function clean(value, max) {
     return String(value || "").trim().slice(0, max);
+  }
+
+  // "What should we fix first?" chips: one selected at a time.
+  function selectedTopic() {
+    var on = document.querySelector('#topicChips .chip[aria-pressed="true"]');
+    return on ? on.getAttribute("data-topic") : "";
+  }
+
+  function initChips() {
+    var wrap = document.getElementById("topicChips");
+    if (!wrap) return;
+    wrap.addEventListener("click", function (e) {
+      var chip = e.target.closest(".chip");
+      if (!chip) return;
+      wrap.querySelectorAll(".chip").forEach(function (c) {
+        c.setAttribute("aria-pressed", c === chip ? "true" : "false");
+      });
+    });
+  }
+
+  function setButtonLabel(button, text) {
+    var label = button.querySelector("[data-i18n]") || button;
+    label.textContent = text;
   }
 
   function handleSubmit(event) {
@@ -38,23 +61,28 @@
     // Honeypot: real visitors leave this empty.
     if (form.website && form.website.value) {
       form.reset();
-      setStatus(form, t("form_spam", lang), "ok");
+      setStatus(t("form_spam", lang), "ok");
       return;
     }
 
     var name = clean(form.name.value, 200);
     var email = clean(form.email.value, 320);
     if (!name || !EMAIL_RE.test(email)) {
-      setStatus(form, t("form_invalid", lang), "err");
+      setStatus(t("form_invalid", lang), "err");
       return;
     }
+
+    // The leads table has no topic column yet, so the chosen topic leads the message.
+    var topic = selectedTopic();
+    var message = clean(form.message.value, 1900);
+    if (topic) message = "[Focus: " + topic + "] " + message;
 
     var row = {
       name: name,
       clinic: clean(form.clinic.value, 200) || null,
       email: email,
       phone: clean(form.phone.value, 40) || null,
-      message: clean(form.message.value, 2000) || null,
+      message: clean(message, 2000) || null,
       language: lang,
       source: "website",
       page: location.pathname.split("/").pop() || "index.html"
@@ -62,31 +90,32 @@
 
     var supa = getClient();
     if (!supa) {
-      setStatus(form, t("form_not_configured", lang), "err");
+      setStatus(t("form_not_configured", lang), "err");
       return;
     }
 
     button.disabled = true;
-    button.textContent = t("form_sending", lang);
-    setStatus(form, "", "");
+    setButtonLabel(button, t("form_sending", lang));
+    setStatus("", "");
 
     supa.from((window.LC_CONFIG && window.LC_CONFIG.LEADS_TABLE) || "leads")
       .insert(row)
       .then(function (res) {
         if (res.error) throw res.error;
         form.reset();
-        setStatus(form, t("form_success", lang), "ok");
+        setStatus(t("form_success", lang), "ok");
       })
       .catch(function () {
-        setStatus(form, t("form_error", lang), "err");
+        setStatus(t("form_error", lang), "err");
       })
       .finally(function () {
         button.disabled = false;
-        button.textContent = t("form_submit", lang);
+        setButtonLabel(button, t("form_submit", lang));
       });
   }
 
   function init() {
+    initChips();
     var form = document.getElementById("demoForm");
     if (form) form.addEventListener("submit", handleSubmit);
   }
