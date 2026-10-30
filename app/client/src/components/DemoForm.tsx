@@ -1,10 +1,20 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useI18n } from "../i18n";
+import Icon from "./Icons";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 type Interest = "clinic" | "consulting";
+export type Plan = "starter" | "pro" | "enterprise";
+
+export const PLANS: { value: Plan; key: string }[] = [
+  { value: "starter", key: "plan_starter" },
+  { value: "pro", key: "plan_pro" },
+  { value: "enterprise", key: "plan_ent" },
+];
+
+const TOPICS = ["missed_calls", "scheduling", "documentation", "reports", "finance"] as const;
 
 const SIZES = [
   { value: "1", key: "size_1" },
@@ -14,8 +24,8 @@ const SIZES = [
 ];
 
 const SPECIALTIES = [
-  { value: "dental", key: "spec_dental" },
   { value: "dermatology", key: "spec_derm" },
+  { value: "dental", key: "spec_dental" },
   { value: "family", key: "spec_family" },
   { value: "pediatrics", key: "spec_peds" },
   { value: "physiotherapy", key: "spec_physio" },
@@ -36,14 +46,23 @@ interface FormValues {
 
 const EMPTY: FormValues = { name: "", org: "", email: "", phone: "", size: "", specialty: "", message: "", website: "" };
 
-type Status = { kind: "" | "ok" | "err"; text: string };
+type Status = { kind: "" | "err"; text: string };
 
-export default function DemoForm() {
+interface Props {
+  plan: Plan;
+  onPlanChange: (plan: Plan) => void;
+}
+
+export default function DemoForm({ plan, onPlanChange }: Props) {
   const { t, lang } = useI18n();
   const [params] = useSearchParams();
   const [interest, setInterest] = useState<Interest>(params.get("interest") === "consulting" ? "consulting" : "clinic");
+  const [focus, setFocus] = useState<string>("missed_calls");
+  const [specialties, setSpecialties] = useState<string[]>([]);
   const [values, setValues] = useState<FormValues>(EMPTY);
+  const [tried, setTried] = useState(false);
   const [sending, setSending] = useState(false);
+  const [done, setDone] = useState(false);
   const [status, setStatus] = useState<Status>({ kind: "", text: "" });
 
   // The consulting section links to /?interest=consulting#contact.
@@ -52,26 +71,54 @@ export default function DemoForm() {
     if (p === "consulting" || p === "clinic") setInterest(p);
   }, [params]);
 
-  const update =
-    (field: keyof FormValues) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
-      setValues((prev) => ({ ...prev, [field]: e.target.value }));
+  const isClinic = interest === "clinic";
+  const multiSpecialty = values.size !== "" && values.size !== "1";
+  const hasContact = values.email.trim() !== "" || values.phone.trim() !== "";
+  const contactError = tried && !hasContact;
+
+  const update = (field: keyof FormValues) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    setValues((prev) => ({ ...prev, [field]: e.target.value }));
+    // Clear an old error once the visitor starts fixing the form.
+    if (status.kind) setStatus({ kind: "", text: "" });
+  };
+
+  const toggleSpecialty = (value: string) =>
+    setSpecialties((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]));
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const name = values.name.trim();
     const email = values.email.trim();
+    const phone = values.phone.trim();
 
     if (values.website) {
+      // Bot filled the honeypot. Show success without sending anything.
       setValues(EMPTY);
-      setStatus({ kind: "ok", text: t("form_spam") });
+      setDone(true);
       return;
     }
-    if (!name || !EMAIL_RE.test(email)) {
+    setTried(true);
+    if (!name) {
       setStatus({ kind: "err", text: t("form_invalid") });
       return;
     }
+    if (!email && !phone) {
+      setStatus({ kind: "err", text: t("form_contact_error") });
+      return;
+    }
+    if (email && !EMAIL_RE.test(email)) {
+      setStatus({ kind: "err", text: t("form_email_invalid") });
+      return;
+    }
 
-    const isClinic = interest === "clinic";
+    const chosenSpecialties = isClinic
+      ? multiSpecialty
+        ? specialties
+        : values.specialty
+          ? [values.specialty]
+          : []
+      : [];
+
     setSending(true);
     setStatus({ kind: "", text: "" });
     try {
@@ -82,101 +129,194 @@ export default function DemoForm() {
           name,
           clinic: values.org.trim(),
           email,
-          phone: values.phone.trim(),
+          phone,
           message: values.message.trim(),
-          interest,
-          clinic_size: isClinic ? values.size : "",
-          specialty: isClinic ? values.specialty : "",
           language: lang,
           page: window.location.pathname,
+          interest,
+          focus: isClinic ? focus : "",
+          clinic_size: isClinic ? values.size : "",
+          specialties: chosenSpecialties,
+          package: isClinic ? plan : "",
         }),
       });
       if (!res.ok) throw new Error(`Request failed: ${res.status}`);
       setValues(EMPTY);
-      setStatus({ kind: "ok", text: t("form_success") });
+      setSpecialties([]);
+      setTried(false);
+      setDone(true);
     } catch (err) {
-      console.error("Request failed:", err);
+      console.error("Assessment request failed:", err);
       setStatus({ kind: "err", text: t("form_error") });
     } finally {
       setSending(false);
     }
   }
 
-  const isClinic = interest === "clinic";
+  if (done) {
+    return (
+      <div className="demo-form">
+        <div className="form-done" role="status">
+          <span className="ok">
+            <Icon name="check" />
+          </span>
+          <p className="display">{t("form_success_title")}</p>
+          <p className="muted">{t("form_success")}</p>
+          <button type="button" className="btn btn-outline btn-sm" onClick={() => setDone(false)}>
+            {t("form_again")}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <form className="demo-form" onSubmit={handleSubmit} noValidate>
-      <fieldset className="interest">
+      <fieldset>
         <legend>{t("form_interest")}</legend>
-        <div className="interest-opts">
-          <label>
+        <div className="f-row">
+          <label className={`opt${isClinic ? " on" : ""}`}>
             <input type="radio" name="interest" value="clinic" checked={isClinic} onChange={() => setInterest("clinic")} />
-            {t("opt_clinic")}
+            <span>
+              <b>{t("opt_clinic")}</b>
+              <small>{t("opt_clinic_sub")}</small>
+            </span>
           </label>
-          <label>
-            <input
-              type="radio"
-              name="interest"
-              value="consulting"
-              checked={!isClinic}
-              onChange={() => setInterest("consulting")}
-            />
-            {t("opt_consulting")}
+          <label className={`opt${!isClinic ? " on" : ""}`}>
+            <input type="radio" name="interest" value="consulting" checked={!isClinic} onChange={() => setInterest("consulting")} />
+            <span>
+              <b>{t("opt_consulting")}</b>
+              <small>{t("opt_consulting_sub")}</small>
+            </span>
           </label>
         </div>
       </fieldset>
 
-      <div className="form-row">
-        <label>
+      {isClinic && (
+        <>
+          <fieldset>
+            <legend>{t("fix_first")}</legend>
+            <div className="chips">
+              {TOPICS.map((topic) => (
+                <button
+                  key={topic}
+                  type="button"
+                  className="chip"
+                  aria-pressed={focus === topic}
+                  onClick={() => setFocus(topic)}
+                >
+                  {t(`topic_${topic}`)}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+
+          <div className="f-row">
+            <label className="field">
+              <span>{t("form_size")}</span>
+              <select name="clinic_size" value={values.size} onChange={update("size")}>
+                <option value="">{t("form_select")}</option>
+                {SIZES.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {t(s.key)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {!multiSpecialty && (
+              <label className="field">
+                <span>{t("form_specialty")}</span>
+                <select name="specialty" value={values.specialty} onChange={update("specialty")}>
+                  <option value="">{t("form_select")}</option>
+                  {SPECIALTIES.map((s) => (
+                    <option key={s.value} value={s.value}>
+                      {t(s.key)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <label className="field">
+              <span>{t("form_package")}</span>
+              <select name="package" value={plan} onChange={(e) => onPlanChange(e.target.value as Plan)}>
+                {PLANS.map((p) => (
+                  <option key={p.value} value={p.value}>
+                    {t(p.key)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          {multiSpecialty && (
+            <fieldset>
+              <legend style={{ marginBottom: 4, fontSize: 14 }}>{t("form_specialties")}</legend>
+              <p className="hint" style={{ marginBottom: 10 }}>
+                {t("form_specialties_hint")}
+              </p>
+              <div className="chips">
+                {SPECIALTIES.map((s) => (
+                  <button
+                    key={s.value}
+                    type="button"
+                    className="chip"
+                    aria-pressed={specialties.includes(s.value)}
+                    onClick={() => toggleSpecialty(s.value)}
+                  >
+                    {t(s.key)}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+          )}
+        </>
+      )}
+
+      <div className="f-row">
+        <label className="field">
           <span>{t("form_name")}</span>
           <input name="name" type="text" required maxLength={200} autoComplete="name" value={values.name} onChange={update("name")} />
         </label>
-        <label>
-          <span>{t("form_email")}</span>
-          <input name="email" type="email" required maxLength={320} autoComplete="email" value={values.email} onChange={update("email")} />
-        </label>
-      </div>
-      <div className="form-row">
-        <label>
+        <label className="field">
           <span>{isClinic ? t("form_clinic") : t("form_company")}</span>
           <input name="org" type="text" maxLength={200} autoComplete="organization" value={values.org} onChange={update("org")} />
         </label>
-        <label>
+      </div>
+      <div className="f-row">
+        <label className="field">
+          <span>{t("form_email")}</span>
+          <input
+            name="email"
+            type="email"
+            maxLength={320}
+            autoComplete="email"
+            value={values.email}
+            onChange={update("email")}
+            aria-describedby="contactRule"
+            aria-invalid={contactError}
+          />
+        </label>
+        <label className="field">
           <span>{t("form_phone")}</span>
-          <input name="phone" type="tel" maxLength={40} autoComplete="tel" value={values.phone} onChange={update("phone")} />
+          <input
+            name="phone"
+            type="tel"
+            maxLength={40}
+            autoComplete="tel"
+            dir="ltr"
+            value={values.phone}
+            onChange={update("phone")}
+            aria-describedby="contactRule"
+            aria-invalid={contactError}
+          />
         </label>
       </div>
-
-      {isClinic && (
-        <div className="form-row">
-          <label>
-            <span>{t("form_size")}</span>
-            <select name="size" value={values.size} onChange={update("size")}>
-              <option value="">{t("form_select")}</option>
-              {SIZES.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {t(s.key)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span>{t("form_specialty")}</span>
-            <select name="specialty" value={values.specialty} onChange={update("specialty")}>
-              <option value="">{t("form_select")}</option>
-              {SPECIALTIES.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {t(s.key)}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-      )}
-
-      <label className="full">
+      <p id="contactRule" className={`hint contact-rule${contactError ? " err" : ""}`}>
+        {contactError ? t("form_contact_error") : t("form_contact_rule")}
+      </p>
+      <label className="field">
         <span>{t("form_message")}</span>
-        <textarea name="message" rows={4} maxLength={2000} value={values.message} onChange={update("message")} />
+        <textarea name="message" rows={3} maxLength={2000} value={values.message} onChange={update("message")} />
       </label>
 
       <input
@@ -191,8 +331,9 @@ export default function DemoForm() {
       />
 
       <p className="form-note" dangerouslySetInnerHTML={{ __html: t("form_privacy") }} />
-      <button className="btn btn-primary" type="submit" disabled={sending}>
+      <button className="btn btn-ink" type="submit" disabled={sending}>
         {sending ? t("form_sending") : isClinic ? t("form_submit") : t("form_submit_consult")}
+        <Icon name="arrow" />
       </button>
       <p className={`form-status${status.kind ? ` ${status.kind}` : ""}`} role="status" aria-live="polite">
         {status.text}

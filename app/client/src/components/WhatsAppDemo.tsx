@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useI18n } from "../i18n";
 import { useInView, useReducedMotion } from "../hooks";
+import Icon from "./Icons";
 
 type Msg = { key: string; from: "patient" | "ai"; time: string };
 
@@ -11,7 +12,7 @@ const MESSAGES: Msg[] = [
   { key: "chat_4", from: "ai", time: "chat_time_4" },
 ];
 
-// Phone mockup that plays a WhatsApp booking conversation on a loop while visible.
+// Phone in WhatsApp colours that plays a booking conversation on a loop while visible.
 export default function WhatsAppDemo() {
   const { t } = useI18n();
   const reduced = useReducedMotion();
@@ -65,17 +66,20 @@ export default function WhatsAppDemo() {
     <div className="phone" ref={ref}>
       <div className="phone-screen">
         <div className="phone-head">
+          <Icon name="back" className="back" />
           <span className="avatar">AI</span>
-          <div>
-            <strong>{t("chat_name")}</strong>
+          <div className="who">
+            <b>{t("chat_name")}</b>
             <small>{typing ? t("chat_typing") : t("chat_status")}</small>
           </div>
+          <Icon name="phone" className="call" />
         </div>
-        <div className="chat-body">
+        <div className="chat-body" aria-live="polite">
+          <p className="chat-notice">{t("chat_notice")}</p>
           {MESSAGES.slice(0, shown).map((m) => (
             <div key={m.key} className={`msg ${m.from}`}>
               <p>{t(m.key)}</p>
-              <span className="msg-meta">
+              <span className="msg-meta" dir="ltr">
                 {t(m.time)}
                 {m.from === "patient" && <span className="ticks">✓✓</span>}
               </span>
@@ -90,8 +94,10 @@ export default function WhatsAppDemo() {
           )}
         </div>
         <div className="chat-input" aria-hidden="true">
-          <span />
-          <i />
+          <span>{t("chat_input")}</span>
+          <i>
+            <Icon name="mic" />
+          </i>
         </div>
       </div>
     </div>

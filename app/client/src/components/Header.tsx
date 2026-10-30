@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useI18n } from "../i18n";
+import Mark from "./Mark";
 
 const LINKS = [
-  { to: "/#solutions", key: "nav_clinic" },
+  { to: "/#agents", key: "nav_agents" },
   { to: "/#how", key: "nav_how" },
-  { to: "/#specialties", key: "nav_specialties" },
+  { to: "/#security", key: "nav_security" },
   { to: "/#pricing", key: "nav_pricing" },
   { to: "/#consulting", key: "nav_consulting" },
   { to: "/#faq", key: "nav_faq" },
@@ -20,10 +21,11 @@ export default function Header() {
   useEffect(() => setOpen(false), [pathname, hash]);
 
   return (
-    <header className="site-header">
-      <div className="container nav-wrap">
-        <Link className="wordmark" to="/" aria-label="Limitsiz home">
-          Limitsiz<span>.</span>
+    <header className="site-header on-ink">
+      <div className="wrap nav-wrap">
+        <Link className="brand" to="/" aria-label="Limitsiz Clinic home">
+          <Mark />
+          <span>Limitsiz</span>
         </Link>
         <nav id="main-nav" className={`nav${open ? " open" : ""}`} aria-label="Main">
           {LINKS.map((l) => (
@@ -41,7 +43,7 @@ export default function Header() {
           >
             {lang === "ar" ? "English" : "العربية"}
           </button>
-          <Link className="btn btn-primary btn-sm" to="/#contact">
+          <Link className="btn btn-accent btn-sm" to="/#contact">
             {t("nav_cta")}
           </Link>
           <button

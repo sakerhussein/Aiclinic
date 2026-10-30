@@ -17,6 +17,20 @@ Built with React (Vite + TypeScript) and an Express API in Node.js. English and 
 
 **Before deploying v2, run `supabase/leads_v2.sql` in the Supabase SQL Editor.** Until then the server still saves requests, but it puts the new fields into the message text.
 
+## Version 3 changes (October 2026 redesign: "infinite intelligence")
+
+- New look: dark ink hero with the open-loop Limitsiz mark, mint accent, Unbounded / Geist / IBM Plex Sans Arabic fonts (Google Fonts)
+- Hero "Your clinic, without limits." with an animated infinity loop of six agents
+- "Never miss another patient call / booking / follow-up" section with photo and floating status cards
+- Agents bento with all eight agents; WhatsApp-style live booking demo; How it works = Assess → Implement → Expand
+- Specialties (Dermatology first), A day in the clinic, In practice photos (`client/public/photos/`), security, target results
+- Pricing cards are selectable; **Starter is selected by default** and the choice carries into the form
+- Consulting section ("AI for financial audits", "AI readiness and strategy"); its button opens the form with consulting selected (`/?interest=consulting#contact`)
+- Form: interest, "what should we fix first", clinic size, specialty (one) or specialties (several, for 2+ doctors), package; **email OR phone/WhatsApp is required**
+- Motion is calm and stops for visitors who choose "reduce motion"
+
+**Before deploying v3, run `supabase/leads_v3.sql` in the Supabase SQL Editor.** It makes email optional (email or phone is required instead) and adds the `specialties`, `package` and `focus` columns. Until it runs, the server still saves requests that include an email, with the new fields written into the message; requests with only a phone number need the update.
+
 ## Structure
 
 ```
@@ -59,7 +73,7 @@ npm start                   # website and API on http://localhost:3001
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/health` | Returns `{ "ok": true }` |
-| POST | `/api/leads` | Saves a demo request. Body: `name`, `clinic`, `email`, `phone`, `message`, `language`, `page`. Returns `201`, `400` (bad input), `429` (rate limit), `502` (Supabase error), or `503` (not configured). |
+| POST | `/api/leads` | Saves an assessment or consulting request. Body: `name`, `clinic`, `email` and/or `phone` (one is required), `message`, `language`, `page`, `interest`, `focus`, `clinic_size`, `specialties` (array), `package`. Returns `201`, `400` (bad input), `429` (rate limit), `502` (Supabase error), or `503` (not configured). |
 
 The endpoint is rate limited to 10 requests per IP every 15 minutes, and it ignores requests with the hidden `website` field filled in (spam bots).
 

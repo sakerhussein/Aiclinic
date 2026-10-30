@@ -13,7 +13,15 @@ export type IconName =
   | "check"
   | "audit"
   | "strategy"
-  | "implement";
+  | "implement"
+  | "arrow"
+  | "lock"
+  | "mail"
+  | "pin"
+  | "chat"
+  | "back"
+  | "mic"
+  | "phone";
 
 type Props = { name: IconName } & SVGProps<SVGSVGElement>;
 
@@ -113,6 +121,58 @@ export default function Icon({ name, ...rest }: Props) {
         <svg {...common}>
           <circle cx="12" cy="12" r="3" />
           <path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" />
+        </svg>
+      );
+    case "arrow":
+      return (
+        <svg {...common} strokeWidth={2}>
+          <path d="M5 12h14M13 6l6 6-6 6" />
+        </svg>
+      );
+    case "lock":
+      return (
+        <svg {...common}>
+          <rect x="4" y="10" width="16" height="11" rx="2" />
+          <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+        </svg>
+      );
+    case "mail":
+      return (
+        <svg {...common}>
+          <rect x="3" y="5" width="18" height="14" rx="2" />
+          <path d="M3 7l9 6 9-6" />
+        </svg>
+      );
+    case "pin":
+      return (
+        <svg {...common}>
+          <path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z" />
+          <circle cx="12" cy="10" r="2.5" />
+        </svg>
+      );
+    case "chat":
+      return (
+        <svg {...common}>
+          <path d="M21 12a9 9 0 0 1-13.2 7.9L3 21l1.2-4.6A9 9 0 1 1 21 12z" />
+        </svg>
+      );
+    case "back":
+      return (
+        <svg {...common} strokeWidth={2.2}>
+          <path d="M15 6l-6 6 6 6" />
+        </svg>
+      );
+    case "mic":
+      return (
+        <svg {...common} strokeWidth={2}>
+          <rect x="9" y="3" width="6" height="11" rx="3" />
+          <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+        </svg>
+      );
+    case "phone":
+      return (
+        <svg {...common}>
+          <path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z" />
         </svg>
       );
   }

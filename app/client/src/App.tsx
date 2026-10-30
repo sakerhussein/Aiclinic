@@ -16,11 +16,12 @@ const TITLES: Record<string, { en: string; ar: string }> = {
 };
 
 export default function App() {
-  const { pathname, hash } = useLocation();
+  const { pathname, hash, key } = useLocation();
   const { lang } = useI18n();
 
   // Scroll to the section named in the URL hash (for example /#pricing),
-  // or to the top when the page changes.
+  // or to the top when the page changes. `key` changes on every click, so a
+  // link to the hash the address bar already shows (/#contact) still scrolls.
   useEffect(() => {
     if (hash) {
       const el = document.getElementById(hash.slice(1));
@@ -30,7 +31,7 @@ export default function App() {
       }
     }
     window.scrollTo(0, 0);
-  }, [pathname, hash]);
+  }, [pathname, hash, key]);
 
   useEffect(() => {
     const titles = TITLES[pathname] ?? TITLES["/"];
