@@ -165,7 +165,7 @@ html { overflow-anchor: auto; }
 .fc .ico { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 11px; background: var(--accent-tint); color: var(--accent-ink); flex: none; }
 .fc .ico svg { width: 20px; height: 20px; }
 .fc1 { top: 2%; inset-inline-start: -4%; }
-.fc2 { top: 44%; inset-inline-end: -6%; }
+.fc2 { top: 60%; inset-inline-end: -6%; }
 .fc3 { bottom: 0; inset-inline-start: 2%; background: var(--ink); color: var(--on-ink); }
 .fc3 b { color: var(--white); }
 .fc3 small { color: var(--on-ink-muted); }

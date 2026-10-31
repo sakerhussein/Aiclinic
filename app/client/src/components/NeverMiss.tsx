@@ -38,7 +38,7 @@ export default function NeverMiss() {
           <circle cx="200" cy="200" r="196" fill="none" stroke="#0B7A64" strokeOpacity="0.35" strokeWidth="1.5" strokeDasharray="3 10" />
         </svg>
         <div className="nm-photo">
-          <img src="/photos/never-miss.jpg" alt={t("alt_hero")} decoding="async" style={{ objectPosition: "68% center" }} />
+          <img src="/photos/never-miss.jpg" alt={t("alt_hero")} decoding="async" style={{ objectPosition: "center" }} />
           <span className="scan" aria-hidden="true" />
         </div>
         {CARDS.map((c) => (
