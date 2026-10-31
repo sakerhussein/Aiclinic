@@ -22,12 +22,6 @@ export default function Footer() {
         </nav>
         <span>{t("copyright")}</span>
       </div>
-      <p className="wrap credits">
-        {t("footer_credits")}{" "}
-        <a href="https://www.pexels.com/license/" target="_blank" rel="noopener noreferrer">
-          Pexels License
-        </a>
-      </p>
     </footer>
   );
 }

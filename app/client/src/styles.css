@@ -310,7 +310,19 @@ html[dir="rtl"] .phone-head .back { transform: scaleX(-1); }
 .cons-item .ico svg { width: 22px; height: 22px; }
 .cons-item h3 { font-size: 18px; font-weight: 600; color: var(--white); margin-bottom: 6px; }
 .cons-item p { color: var(--on-ink-muted); }
-.cons-photo { position: relative; aspect-ratio: 4 / 5; max-width: 480px; width: 100%; margin-inline: auto; border-radius: 28px; overflow: hidden; background: var(--ink-3); }
+.cons-banner { position: relative; margin-bottom: 56px; border-radius: 28px; overflow: hidden; background: var(--ink-3); aspect-ratio: 910 / 322; }
+.cons-banner img { width: 100%; height: 100%; object-fit: cover; object-position: right center; }
+.cons-sub-title { font-family: var(--font-mono); font-size: 13px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin-bottom: 16px; }
+html[dir="rtl"] .cons-sub-title { font-family: var(--font-ar); letter-spacing: 0; }
+.approach { list-style: none; margin: 0 0 40px; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.approach li { display: flex; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--ink-3); }
+.approach li:last-child { border-bottom: 0; }
+.approach .num { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--ink-3); color: var(--accent); font-weight: 600; font-size: 14px; flex: none; }
+.approach b { display: block; color: var(--white); margin-bottom: 2px; }
+.approach p { color: var(--on-ink-muted); font-size: 15px; }
+.industries { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.industries li { padding: 8px 14px; border-radius: 999px; border: 1px solid var(--ink-line); color: var(--on-ink); font-size: 14px; }
+.cons-photo { position: relative; aspect-ratio: 596 / 805; max-width: 480px; width: 100%; margin-inline: auto; border-radius: 28px; overflow: hidden; background: var(--ink-3); }
 .cons-photo img { width: 100%; height: 100%; object-fit: cover; }
 
 /* FAQ */
@@ -417,6 +429,9 @@ html[dir="rtl"] .channel .go { transform: scaleX(-1); }
   .grid-4, .f-row { grid-template-columns: minmax(0, 1fr); }
   .nav-actions .btn-sm { display: none; }
   .problem-card { min-height: 0; }
+  .fc1 { top: -5%; }
+  /* On phones show only the hand and AI icons: the title part would be cut mid-word. */
+  .cons-banner { aspect-ratio: 11 / 10; margin-bottom: 40px; }
   .fc { max-width: 240px; padding: 10px 12px; }
   .fc b { font-size: 14px; }
 }

@@ -2,9 +2,7 @@ import { useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import { useI18n } from "../i18n";
 import { useReveal } from "../hooks";
-import type { PhotoId } from "../photos";
 import Icon, { type IconName } from "../components/Icons";
-import Photo from "../components/Photo";
 import HeroLoop from "../components/HeroLoop";
 import NeverMiss from "../components/NeverMiss";
 import WhatsAppDemo from "../components/WhatsAppDemo";
@@ -25,13 +23,14 @@ const SMALL_AGENTS: { id: string; icon: IconName; row?: [string, string]; bars?:
   { id: "assist", icon: "assist" },
 ];
 
-const SPECIALTIES: { id: PhotoId; key: string }[] = [
-  { id: "derm", key: "derm" },
-  { id: "dental", key: "dental" },
-  { id: "family", key: "family" },
-  { id: "peds", key: "peds" },
-  { id: "physio", key: "physio" },
-  { id: "mental", key: "mental" },
+// Photos live in client/public/photos/. `pos` keeps the subject in frame when the card crops the photo.
+const SPECIALTIES: { key: string; src: string; pos: string }[] = [
+  { key: "derm", src: "/photos/specialty-dermatology.jpg", pos: "center" },
+  { key: "dental", src: "/photos/specialty-dental.jpg", pos: "center 40%" },
+  { key: "family", src: "/photos/specialty-family.jpg", pos: "center 30%" },
+  { key: "peds", src: "/photos/specialty-pediatrics.jpg", pos: "center 60%" },
+  { key: "physio", src: "/photos/specialty-physiotherapy.jpg", pos: "center 35%" },
+  { key: "mental", src: "/photos/specialty-mental-health.jpg", pos: "center 45%" },
 ];
 
 const PRACTICE = [
@@ -244,9 +243,9 @@ export default function Home() {
         </div>
         <div className="grid-3">
           {SPECIALTIES.map((s, i) => (
-            <article className="spec-card reveal" style={delay(i % 3)} key={s.id}>
+            <article className="spec-card reveal" style={delay(i % 3)} key={s.key}>
               <div className="spec-img">
-                <Photo id={s.id} alt={t(`alt_${s.key}`)} sizes="(max-width: 960px) 100vw, 400px" />
+                <img src={s.src} alt={t(`alt_${s.key}`)} loading="lazy" decoding="async" style={{ objectPosition: s.pos }} />
               </div>
               <div className="spec-body">
                 <h3>{t(`spec_${s.key}`)}</h3>
@@ -417,7 +416,7 @@ export default function Home() {
             </Link>
           </div>
           <div className="cons-photo reveal">
-            <Photo id="consulting" alt={t("alt_consulting")} sizes="(max-width: 960px) 90vw, 480px" />
+            <img src="/photos/consulting.jpg" alt={t("alt_consulting")} width={596} height={805} loading="lazy" decoding="async" />
             <span className="scan" aria-hidden="true" />
           </div>
         </div>

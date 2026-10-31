@@ -1,6 +1,5 @@
 import { useI18n } from "../i18n";
 import Icon, { type IconName } from "./Icons";
-import Photo from "./Photo";
 import RotatingWord from "./RotatingWord";
 
 const CARDS: { n: number; icon: IconName }[] = [
@@ -39,7 +38,7 @@ export default function NeverMiss() {
           <circle cx="200" cy="200" r="196" fill="none" stroke="#0B7A64" strokeOpacity="0.35" strokeWidth="1.5" strokeDasharray="3 10" />
         </svg>
         <div className="nm-photo">
-          <Photo id="hero" alt={t("alt_hero")} eager sizes="(max-width: 960px) 90vw, 520px" />
+          <img src="/photos/never-miss.jpg" alt={t("alt_hero")} decoding="async" style={{ objectPosition: "68% center" }} />
           <span className="scan" aria-hidden="true" />
         </div>
         {CARDS.map((c) => (
