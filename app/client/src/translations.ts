@@ -555,7 +555,7 @@ export const AR: Record<string, string> = {
   form_specialty: "التخصص",
   form_select: "اختر…",
   form_message: "رسالة (اختياري)",
-  form_privacy: "بإرسال النموذج، فإنك توافق على <a href=\"/privacy\">سياسة الخصوصية</a>.",
+  form_privacy: "بإرسال النموذج، فإنك توافق على <a href=\"/ar/privacy\">سياسة الخصوصية</a>.",
   form_submit: "احصل على تقييمي المجاني",
   form_submit_consult: "أرسل طلبي",
   form_sending: "جارٍ الإرسال…",

@@ -53,7 +53,7 @@ const PLAN_CARDS: { id: Plan; name: string; price: string; small: boolean; who: 
 ];
 
 export default function Home() {
-  const { t } = useI18n();
+  const { t, path } = useI18n();
   const [plan, setPlan] = useState<Plan>("starter");
   useReveal([]);
 
@@ -410,7 +410,7 @@ export default function Home() {
                 </div>
               ))}
             </div>
-            <Link className="btn btn-accent" to="/?interest=consulting#contact">
+            <Link className="btn btn-accent" to={path("/?interest=consulting#contact")}>
               {t("cons_btn")}
               <Icon name="arrow" />
             </Link>

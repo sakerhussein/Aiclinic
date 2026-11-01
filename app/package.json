@@ -11,12 +11,14 @@
     "install:all": "npm install && npm --prefix client install",
     "dev:server": "node --watch server/index.js",
     "dev:client": "npm --prefix client run dev",
-    "build": "npm --prefix client run build",
-    "start": "node server/index.js"
+    "build": "npm --prefix client install --no-audit --no-fund && npm --prefix client run build",
+    "start": "node server/index.js",
+    "test:alert": "node server/index.js --test-alert"
   },
   "dependencies": {
     "dotenv": "16.4.5",
     "express": "^4.22.3",
-    "express-rate-limit": "7.4.1"
+    "express-rate-limit": "7.4.1",
+    "nodemailer": "6.9.16"
   }
 }

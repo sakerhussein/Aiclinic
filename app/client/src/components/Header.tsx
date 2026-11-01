@@ -13,7 +13,7 @@ const LINKS = [
 ];
 
 export default function Header() {
-  const { t, lang, toggle } = useI18n();
+  const { t, lang, toggle, path } = useI18n();
   const { pathname, hash } = useLocation();
   const [open, setOpen] = useState(false);
 
@@ -23,13 +23,13 @@ export default function Header() {
   return (
     <header className="site-header on-ink">
       <div className="wrap nav-wrap">
-        <Link className="brand" to="/" aria-label="Limitsiz Clinic home">
+        <Link className="brand" to={path("/")} aria-label="Limitsiz Clinic home">
           <Mark />
           <span>Limitsiz</span>
         </Link>
         <nav id="main-nav" className={`nav${open ? " open" : ""}`} aria-label="Main">
           {LINKS.map((l) => (
-            <Link key={l.key} to={l.to}>
+            <Link key={l.key} to={path(l.to)}>
               {t(l.key)}
             </Link>
           ))}
@@ -43,7 +43,7 @@ export default function Header() {
           >
             {lang === "ar" ? "English" : "العربية"}
           </button>
-          <Link className="btn btn-accent btn-sm" to="/#contact">
+          <Link className="btn btn-accent btn-sm" to={path("/#contact")}>
             {t("nav_cta")}
           </Link>
           <button

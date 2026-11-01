@@ -48,6 +48,20 @@ const EMPTY: FormValues = { name: "", org: "", email: "", phone: "", size: "", s
 
 type Status = { kind: "" | "err"; text: string };
 
+// Counts a successful request in the visitor stats, if Umami or Plausible is switched on (see server/seo.js).
+function trackLead(interest: Interest) {
+  const w = window as unknown as {
+    umami?: { track: (event: string, data?: Record<string, string>) => void };
+    plausible?: (event: string, options?: { props: Record<string, string> }) => void;
+  };
+  try {
+    w.umami?.track("lead", { interest });
+    w.plausible?.("Lead", { props: { interest } });
+  } catch {
+    // Stats must never break the form.
+  }
+}
+
 interface Props {
   plan: Plan;
   onPlanChange: (plan: Plan) => void;
@@ -141,6 +155,7 @@ export default function DemoForm({ plan, onPlanChange }: Props) {
         }),
       });
       if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+      trackLead(interest);
       setValues(EMPTY);
       setSpecialties([]);
       setTried(false);

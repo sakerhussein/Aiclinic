@@ -31,19 +31,29 @@ Built with React (Vite + TypeScript) and an Express API in Node.js. English and 
 
 **Before deploying v3, run `supabase/leads_v3.sql` in the Supabase SQL Editor.** It makes email optional (email or phone is required instead) and adds the `specialties`, `package` and `focus` columns. Until it runs, the server still saves requests that include an email, with the new fields written into the message; requests with only a phone number need the update.
 
-## Structure
+## Version 4 changes (lead alerts and Google)
+
+- **Email alert for every request** (and optional WhatsApp message to your phone). If Supabase is down or paused, the email still arrives and says it is the only copy. Set the `SMTP_*` and `ALERT_EMAIL_TO` values in `.env`, then run `npm run test:alert`.
+- **Database check** at `/api/health/db` (200 when Supabase answers, 503 when not). Point a free monitor such as UptimeRobot at it. The server also pings Supabase once a day so a free project is less likely to pause.
+- **Arabic pages have their own address**: `/ar`, `/ar/privacy`, `/ar/terms`, linked to the English pages with hreflang tags. The language switch moves between them; first-time visitors with an Arabic browser go to `/ar`.
+- Each page has its own title, description and link preview (WhatsApp, LinkedIn, X), with share images in `client/public/og/`. The server writes these into the HTML.
+- `/robots.txt` and `/sitemap.xml`.
+- Optional: Google Search Console tag (`GOOGLE_SITE_VERIFICATION`) and cookie-free visitor stats (Umami or Plausible). A sent form counts as a `lead` event.
+
 
 ```
 package.json            Server scripts and dependencies (Express)
 .env.example            Copy to .env and fill in
 server/index.js         Express server: POST /api/leads, health check, serves the built site
 client/                 React app (Vite + TypeScript)
-  src/App.tsx           Routes: /, /privacy, /terms
+  src/App.tsx           Routes: /, /privacy, /terms and /ar versions
   src/i18n.tsx          English/Arabic switch (RTL) with a context provider
   src/translations.ts   All text, English and Arabic
   src/components/       Header, Footer, DemoForm, HeroArt, Icons
   src/pages/            Home (all sections), Legal (privacy and terms)
-  src/styles.css        Blue and teal theme, same as the HTML version
+  src/styles.css        Ink and mint theme
+server/alerts.js        Email and WhatsApp alerts for new requests
+server/seo.js           Titles, link previews, hreflang, robots.txt, sitemap
 ```
 
 ## Run it locally
@@ -73,7 +83,9 @@ npm start                   # website and API on http://localhost:3001
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/health` | Returns `{ "ok": true }` |
-| POST | `/api/leads` | Saves an assessment or consulting request. Body: `name`, `clinic`, `email` and/or `phone` (one is required), `message`, `language`, `page`, `interest`, `focus`, `clinic_size`, `specialties` (array), `package`. Returns `201`, `400` (bad input), `429` (rate limit), `502` (Supabase error), or `503` (not configured). |
+| GET | `/api/health/db` | `200` when the database answers, `503` when it does not. Also shows which alerts are on. |
+| GET | `/robots.txt`, `/sitemap.xml` | For search engines |
+| POST | `/api/leads` | Saves an assessment or consulting request. Body: `name`, `clinic`, `email` and/or `phone` (one is required), `message`, `language`, `page`, `interest`, `focus`, `clinic_size`, `specialties` (array), `package`. Returns `201` (saved, or not saved but an alert was sent), `400` (bad input), `429` (rate limit), `502` (not saved and no alert sent), or `503` (nothing configured). |
 
 The endpoint is rate limited to 10 requests per IP every 15 minutes, and it ignores requests with the hidden `website` field filled in (spam bots).
 

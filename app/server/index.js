@@ -1,6 +1,9 @@
 // Limitsiz: Node.js (Express) server.
-// - Serves the built React site from client/dist (after `npm run build`).
-// - Exposes POST /api/leads, which validates an assessment or consulting request and saves it to Supabase.
+// - Serves the built React site from client/dist (after `npm run build`), in English (/) and Arabic (/ar),
+//   with per-language titles, descriptions and link-preview tags written into the HTML (server/seo.js).
+// - Exposes POST /api/leads, which validates an assessment or consulting request, saves it to Supabase
+//   and sends an email/WhatsApp alert (server/alerts.js). If saving fails, the alert still carries the lead.
+// - Keeps the Supabase project awake with a small daily request, and reports its health at /api/health/db.
 
 import express from "express";
 import dotenv from "dotenv";
@@ -10,6 +13,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 dotenv.config();
+
+// Imported after dotenv so they see the .env settings.
+const { alertStatus, sendLeadAlerts, sendTestAlert } = await import("./alerts.js");
+const { renderPage, robotsTxt, sitemapXml } = await import("./seo.js");
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST_DIR = path.join(__dirname, "..", "client", "dist");
@@ -139,12 +146,35 @@ async function saveLead(row) {
   return { ok: false, needsEmail: !row.email && body.includes("23502") };
 }
 
+// A tiny read that touches the database. Used by the health check and the daily keep-awake ping.
+// The public key cannot read leads (Row Level Security), so this returns an empty list: that is fine.
+async function pingDatabase() {
+  if (!SUPABASE_URL || !SUPABASE_KEY) return { ok: false, reason: "not configured" };
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${encodeURIComponent(LEADS_TABLE)}?select=id&limit=1`, {
+      headers: { apikey: SUPABASE_KEY },
+      signal: AbortSignal.timeout(10000),
+    });
+    return res.ok ? { ok: true } : { ok: false, reason: `Supabase answered ${res.status}` };
+  } catch (err) {
+    return { ok: false, reason: err.message };
+  }
+}
+
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true });
 });
 
+// For an uptime monitor (for example UptimeRobot): 200 when Supabase answers, 503 when it does not
+// (paused project, wrong key, network problem), so you are told before a lead is lost.
+app.get("/api/health/db", async (_req, res) => {
+  const db = await pingDatabase();
+  res.status(db.ok ? 200 : 503).json({ ok: db.ok, database: db.ok ? "reachable" : db.reason, alerts: alertStatus() });
+});
+
 app.post("/api/leads", leadLimiter, async (req, res) => {
-  if (!SUPABASE_URL || !SUPABASE_KEY) {
+  const alerts = alertStatus();
+  if ((!SUPABASE_URL || !SUPABASE_KEY) && !alerts.email && !alerts.whatsapp) {
     return res.status(503).json({ error: "Lead storage is not configured." });
   }
 
@@ -152,15 +182,25 @@ app.post("/api/leads", leadLimiter, async (req, res) => {
   if (result.honeypot) return res.status(201).json({ ok: true });
   if (result.error) return res.status(400).json({ error: result.error });
 
-  try {
-    const saved = await saveLead(result.row);
-    if (saved.needsEmail) return res.status(400).json({ error: "Please add an email address." });
-    if (!saved.ok) return res.status(502).json({ error: "Could not save your request." });
-    return res.status(201).json({ ok: true });
-  } catch (err) {
-    console.error("Lead request error:", err);
-    return res.status(502).json({ error: "Could not save your request." });
+  let saved = { ok: false };
+  if (SUPABASE_URL && SUPABASE_KEY) {
+    try {
+      saved = await saveLead(result.row);
+    } catch (err) {
+      console.error("Lead save error:", err);
+    }
   }
+
+  // Alert in every case: a normal alert when saved, an "action needed" alert carrying the full lead when not.
+  const sent = await sendLeadAlerts(result.row, saved.ok);
+
+  if (saved.ok) return res.status(201).json({ ok: true });
+  if (sent.any) {
+    console.error("Lead was NOT saved in Supabase, but the alert with its details was sent.");
+    return res.status(201).json({ ok: true });
+  }
+  if (saved.needsEmail) return res.status(400).json({ error: "Please add an email address." });
+  return res.status(502).json({ error: "Could not save your request." });
 });
 
 // Unknown API paths return JSON, not the website.
@@ -168,11 +208,21 @@ app.use("/api", (_req, res) => {
   res.status(404).json({ error: "Not found" });
 });
 
-// Serve the built React site and fall back to index.html for client-side routes.
+app.get("/robots.txt", (_req, res) => {
+  res.type("text/plain").send(robotsTxt());
+});
+
+app.get("/sitemap.xml", (_req, res) => {
+  res.type("application/xml").send(sitemapXml());
+});
+
+// Serve the built React site. Every page (/, /ar, /privacy, /ar/terms, …) gets index.html with its own
+// language, title, description and preview tags written in by the server.
 if (fs.existsSync(DIST_DIR)) {
-  app.use(express.static(DIST_DIR, { index: "index.html", maxAge: "1h" }));
-  app.get(/^\/(?!api\/).*/, (_req, res) => {
-    res.sendFile(path.join(DIST_DIR, "index.html"));
+  const template = fs.readFileSync(path.join(DIST_DIR, "index.html"), "utf8");
+  app.use(express.static(DIST_DIR, { index: false, maxAge: "1h" }));
+  app.get(/^\/(?!api\/).*/, (req, res) => {
+    res.set("Cache-Control", "no-cache").type("html").send(renderPage(template, req.path));
   });
 } else {
   console.warn("client/dist not found. Run `npm run build` to serve the website here.");
@@ -181,6 +231,36 @@ if (fs.existsSync(DIST_DIR)) {
 if (!SUPABASE_URL || !SUPABASE_KEY) {
   console.warn("SUPABASE_URL or SUPABASE_PUBLISHABLE_KEY is missing. Requests will not be saved.");
 }
+
+{
+  const a = alertStatus();
+  if (!a.email && !a.whatsapp) {
+    console.warn("Lead alerts are off: set the SMTP_* and ALERT_EMAIL_TO settings in .env to get an email for every request.");
+  }
+}
+
+// `node server/index.js --test-alert` sends one test alert and exits (also: `npm run test:alert`).
+if (process.argv.includes("--test-alert")) {
+  try {
+    const sent = await sendTestAlert();
+    console.log(`Test alert sent. Email: ${sent.email ? "yes" : "no"}, WhatsApp: ${sent.whatsapp ? "yes" : "no"}`);
+    process.exit(0);
+  } catch (err) {
+    console.error("Test alert failed:", err.message);
+    process.exit(1);
+  }
+}
+
+// Keep the Supabase project awake: free projects pause after about a week without activity,
+// and then every form request fails. One small request a day is enough.
+const DAY = 24 * 60 * 60 * 1000;
+async function keepAwake() {
+  const db = await pingDatabase();
+  if (db.ok) console.log("Supabase keep-awake ping: OK");
+  else console.error(`Supabase keep-awake ping FAILED: ${db.reason}. Check the project in the Supabase dashboard.`);
+}
+setTimeout(keepAwake, 60 * 1000);
+setInterval(keepAwake, DAY);
 
 app.listen(PORT, () => {
   console.log(`Limitsiz server running on http://localhost:${PORT}`);
