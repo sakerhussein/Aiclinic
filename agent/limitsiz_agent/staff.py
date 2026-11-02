@@ -39,7 +39,7 @@ button.secondary{background:#fff;color:var(--ink);border:1px solid var(--line)}t
 """
 
 
-def create_router(connect: Callable[[], psycopg.Connection], wa: WhatsAppClient, password: str,
+def create_router(connect: Callable[[], psycopg.Connection], wa: WhatsAppClient | None, password: str,
                   now: Callable[[], datetime] = lambda: datetime.now(timezone.utc)) -> APIRouter:
     router = APIRouter(prefix="/staff")
     security = HTTPBasic(realm="Limitsiz staff")
@@ -157,6 +157,8 @@ def create_router(connect: Callable[[], psycopg.Connection], wa: WhatsAppClient,
             if not row:
                 raise HTTPException(404)
             clinic_id, phone, last_in, pnid = row
+            if wa is None:
+                return RedirectResponse(f"/staff/chat/{conversation_id}?error=WhatsApp+is+not+connected+yet", 303)
             if not (last_in and now() - last_in < timedelta(hours=24)) or not pnid:
                 return RedirectResponse(f"/staff/chat/{conversation_id}?error=Cannot+send:+outside+the+24-hour+window", 303)
             try:

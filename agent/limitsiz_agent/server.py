@@ -33,7 +33,9 @@ from .whatsapp.processor import Processor
 from .whatsapp.webhook import parse, signature_ok
 
 log = logging.getLogger("limitsiz.server")
-REQUIRED = ("DATABASE_URL", "ANTHROPIC_API_KEY", "WA_TOKEN", "WA_APP_SECRET", "WA_VERIFY_TOKEN", "STAFF_PASSWORD")
+REQUIRED = ("DATABASE_URL", "ANTHROPIC_API_KEY", "STAFF_PASSWORD")
+# Without these the service still runs (staff screen, alerts); the webhook answers 503 and reminders are off.
+WHATSAPP = ("WA_TOKEN", "WA_APP_SECRET", "WA_VERIFY_TOKEN")
 
 
 def open_checkpointer(url: str):
@@ -55,7 +57,10 @@ def create_app(env: dict) -> FastAPI:
     if missing:
         raise SystemExit(f"Missing settings: {', '.join(missing)} (see agent/.env.example)")
     url = env["DATABASE_URL"]
-    wa = WhatsAppClient(env["WA_TOKEN"], env.get("WA_GRAPH_VERSION") or "v23.0")
+    whatsapp_on = all(env.get(k) for k in WHATSAPP)
+    wa = WhatsAppClient(env["WA_TOKEN"], env.get("WA_GRAPH_VERSION") or "v23.0") if whatsapp_on else None
+    if not whatsapp_on:
+        log.warning("WhatsApp settings missing: webhook off, reminders off (staff screen and alerts still work)")
     inbox: queue.Queue = queue.Queue()
 
     @asynccontextmanager
@@ -95,10 +100,11 @@ def create_app(env: dict) -> FastAPI:
             try:
                 if conn.closed:
                     conn = connect()
-                n = reminders.send_due_reminders(conn, wa, env.get("WA_REMINDER_TEMPLATE") or "appointment_reminder",
-                                                 datetime.now(timezone.utc))
-                if n:
-                    log.info("sent %d reminders", n)
+                if wa:
+                    n = reminders.send_due_reminders(conn, wa, env.get("WA_REMINDER_TEMPLATE") or "appointment_reminder",
+                                                     datetime.now(timezone.utc))
+                    if n:
+                        log.info("sent %d reminders", n)
                 alert_new_handoffs(conn, smtp, env.get("AGENT_BASE_URL") or "", env.get("STAFF_ALERT_EMAIL"))
             except Exception:  # noqa: BLE001
                 log.exception("scheduler round failed")
@@ -106,10 +112,12 @@ def create_app(env: dict) -> FastAPI:
 
     @app.get("/health")
     def health():
-        return {"ok": True, "queued": inbox.qsize()}
+        return {"ok": True, "whatsapp": whatsapp_on, "queued": inbox.qsize()}
 
     @app.get("/whatsapp/webhook")
     def verify(request: Request):
+        if not whatsapp_on:
+            raise HTTPException(503, "WhatsApp is not connected yet")
         q = request.query_params
         if q.get("hub.mode") == "subscribe" and q.get("hub.verify_token") == env["WA_VERIFY_TOKEN"]:
             return PlainTextResponse(q.get("hub.challenge", ""))
@@ -117,6 +125,8 @@ def create_app(env: dict) -> FastAPI:
 
     @app.post("/whatsapp/webhook")
     async def receive(request: Request):
+        if not whatsapp_on:
+            raise HTTPException(503, "WhatsApp is not connected yet")
         body = await request.body()
         if not signature_ok(env["WA_APP_SECRET"], body, request.headers.get("x-hub-signature-256")):
             raise HTTPException(401)

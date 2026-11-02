@@ -296,7 +296,16 @@ ENV = {"DATABASE_URL": "postgresql://unused", "ANTHROPIC_API_KEY": "x", "WA_TOKE
 def test_server_requires_settings():
     from limitsiz_agent.server import create_app
     with pytest.raises(SystemExit):
-        create_app({**ENV, "WA_APP_SECRET": ""})
+        create_app({**ENV, "STAFF_PASSWORD": ""})
+
+
+def test_server_runs_before_whatsapp_is_set_up():
+    from limitsiz_agent.server import create_app
+    client = TestClient(create_app({k: v for k, v in ENV.items() if not k.startswith("WA_")}))
+    assert client.get("/health").json() == {"ok": True, "whatsapp": False, "queued": 0}
+    assert client.get("/whatsapp/webhook", params={"hub.mode": "subscribe"}).status_code == 503
+    assert client.post("/whatsapp/webhook", content=b"{}").status_code == 503
+    assert client.get("/staff").status_code == 401  # the staff screen is there, behind its password
 
 
 def test_server_webhook_verify_and_signature():
