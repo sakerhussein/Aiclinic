@@ -8,13 +8,41 @@ Supabase project, so a problem here never takes the website down.
 0. Prerequisites: Meta Business verification, WhatsApp Business number, a pilot clinic's real details.
 1. **Data model** (`supabase/`). Done.
 2. **Booking functions** (`limitsiz_agent/booking/`). Done.
-3. LangGraph agent: Claude with those functions, a confirmation step before any booking change, a safety step
-   for emergencies and medical questions, Arabic and English.
+3. **LangGraph agent** (`limitsiz_agent/agent/`). Done; tested offline, not yet against the real API.
 4. Test harness: chat simulator and scripted conversations.
 5. WhatsApp Cloud API webhook.
 6. Reminders 24 h and 2 h before, with Confirm / Reschedule buttons.
 7. Staff side: today's appointments and the handover inbox.
 8. Pilot.
+
+## Agent (`limitsiz_agent/agent/`)
+
+LangGraph handles the flow and remembers each conversation (one per clinic and WhatsApp number); Claude is
+called through the official Anthropic SDK (`claude-opus-5-5`, effort `medium`, server-side refusal fallback on).
+
+```
+intake ──> agent ──> tools ──> agent ... ──> reply
+  │                    └──> finish (more than 6 tool rounds: hand to staff)
+  └──> reply without AI (emergency words, or staff are handling the chat)
+```
+
+- **intake** (no AI): stays silent while the conversation is handed to staff; answers clear emergency words with a
+  fixed "call 911" message and alerts staff; settles a waiting change (`safety.py` decides yes/no from the
+  patient's exact reply, in Arabic or English, or the WhatsApp button payload); adds the current clinic time.
+- **agent**: one Claude call. The system prompt (`prompt.py`) holds the rules and the clinic's details only, so it is
+  the same on every request and cached. Per-turn facts go in as system messages patients cannot fake. Every
+  response is stored exactly as returned (thinking blocks included) and the history is append-only.
+- **tools** (`tools.py`): the patient's phone and clinic come from the conversation, never from Claude.
+  Book, cancel and reschedule are checked (and rolled back), then held until the patient replies yes; only a clear
+  yes runs them. Anything else drops the waiting change.
+
+Talk to it in the terminal (needs `ANTHROPIC_API_KEY` and `DATABASE_URL` in `.env`; bookings are real rows):
+
+```bash
+.venv/Scripts/python -m limitsiz_agent.chat
+```
+
+Conversation memory is in-process for now; step 5 moves it to Postgres (`langgraph-checkpoint-postgres`).
 
 ## Booking functions (`limitsiz_agent/booking/`)
 
@@ -45,7 +73,7 @@ python -m venv .venv && .venv/Scripts/python -m pip install -e ".[dev]"
 ```
 
 Without `TEST_DATABASE_URL` only the slot tests run (the database tests are skipped). With it pointing at a
-throwaway Postgres 17 (for example the embedded one used for `supabase/tests`), all 39 run. Never point it at
+throwaway Postgres 17 (for example the embedded one used for `supabase/tests`), all 72 run, including the agent graph end to end with a scripted stand-in for Claude (no API calls, no cost). Never point it at
 the real project: the tests create and drop a `booking_test` database.
 
 ## Data model (`supabase/`)

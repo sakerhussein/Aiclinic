@@ -4,6 +4,8 @@ version = "0.1.0"
 description = "Limitsiz Clinic WhatsApp booking agent"
 requires-python = ">=3.11"
 dependencies = [
+  "anthropic==2.4.0",
+  "langgraph==1.2.19",
   "psycopg[binary]==3.2.3",
   "tzdata==2024.2",
 ]
