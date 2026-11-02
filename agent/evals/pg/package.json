@@ -1,0 +1,6 @@
+{
+  "private": true,
+  "description": "Throwaway Postgres 17 for the agent tests and evals (never the real database).",
+  "scripts": { "start": "node start.mjs" },
+  "dependencies": { "embedded-postgres": "17.5.0-beta.15" }
+}

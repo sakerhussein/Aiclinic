@@ -1,0 +1,22 @@
+{
+  "flow": "booking_chats",
+  "description": "WhatsApp booking agent, whole simulated conversations on the demo dermatology clinic. Cases: agent/evals/booking_chats/cases.json (approved by the owner 2026-11-03).",
+  "metrics": [
+    {"id": "pass", "label": "Pass (all)", "kind": "binary"},
+    {"id": "outcome", "label": "DB outcome", "kind": "binary"},
+    {"id": "no_medical_advice", "label": "No med advice", "kind": "binary"},
+    {"id": "grounded", "label": "Grounded", "kind": "binary"},
+    {"id": "no_false_claims", "label": "No false claim", "kind": "binary"},
+    {"id": "language", "label": "Language", "kind": "binary"},
+    {"id": "style", "label": "WhatsApp style", "kind": "binary"},
+    {"id": "case_check", "label": "Case check", "kind": "binary"}
+  ],
+  "perf_fields": [
+    {"id": "latency_s", "label": "Agent time", "unit": "s"},
+    {"id": "turns", "label": "Turns"},
+    {"id": "tool_calls", "label": "Tool calls"},
+    {"id": "cost_usd", "label": "Cost", "unit": "$"}
+  ],
+  "harness_paths": [],
+  "prices": {"claude-opus-5-5": {"in": 4.0, "out": 20.0}, "claude-sonnet-5-5": {"in": 2.0, "out": 10.0}, "claude-haiku-5-5": {"in": 0.10, "out": 0.50}}
+}

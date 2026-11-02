@@ -62,8 +62,10 @@ def build_agent(
     effort: str = "medium",
     checkpointer=None,
     now: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
+    observe: Callable[[object | None, Exception | None], None] | None = None,
 ):
-    """Compiles the graph. `conn` must be an autocommit psycopg connection to the booking database."""
+    """Compiles the graph. `conn` must be an autocommit psycopg connection to the booking database.
+    `observe(response, error)` is called after every Claude call (used by the eval to record usage and errors)."""
     info_cache: dict[str, tuple[float, dict, str]] = {}
 
     def clinic(clinic_id: str) -> tuple[dict, str]:
@@ -122,9 +124,13 @@ def build_agent(
                 betas=[FALLBACK_BETA],
                 fallbacks="default",
             )
-        except anthropic.APIError:
+        except anthropic.APIError as e:
+            if observe:
+                observe(None, e)
             # Answer anyway, so the history stays a valid conversation for the next message.
             return _say(SORRY[language])
+        if observe:
+            observe(response, None)
 
         if response.stop_reason == "refusal":
             return _say(SORRY[language])
