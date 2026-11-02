@@ -4,10 +4,17 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+
+# Never run two deploys at the same time; a newer push waits for the running one.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
 
     steps:
       - name: Deploy over SSH
@@ -17,14 +24,57 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 20m
 
+          # If the build fails, or the site does not answer after the restart, the previous
+          # code and the previous build are put back and the run is marked as failed.
           script: |
-            cd /root/Aiclinic
-            git pull origin main
+            set -eu
+            REPO=/root/Aiclinic
+            BACKUP=/root/Aiclinic-backup
+            SITE=https://limitsiz.si
 
-            cd /root/Aiclinic/app
-            npm install
-            npm run build
+            cd "$REPO"
+            PREV=$(git rev-parse HEAD)
+            echo "Live version before deploy: $PREV"
+
+            # Back up the current build and settings outside the repo.
+            mkdir -p "$BACKUP"
+            echo "$PREV" > "$BACKUP/last-good-commit.txt"
+            cp -a app/.env "$BACKUP/.env"
+            rm -rf "$BACKUP/dist"
+            if [ -d app/client/dist ]; then cp -a app/client/dist "$BACKUP/dist"; fi
+
+            # Stops here, with nothing changed, if the VPS has local edits that clash with the new code.
+            git pull --ff-only origin main
+            echo "New version: $(git rev-parse HEAD)"
+
+            rollback() {
+              echo "!!! $1. Restoring $PREV"
+              cd "$REPO"
+              git reset --keep "$PREV"
+              cd app
+              npm install --no-audit --no-fund || true
+              rm -rf client/dist
+              if [ -d "$BACKUP/dist" ]; then cp -a "$BACKUP/dist" client/dist; fi
+              pm2 restart limitsiz-clinic
+              exit 1
+            }
+
+            cd "$REPO/app"
+            npm install --no-audit --no-fund || rollback "npm install failed"
+            npm run build || rollback "Build failed"
+            [ -f client/dist/index.html ] || rollback "Build produced no index.html"
 
             pm2 restart limitsiz-clinic
+
+            # Give the server up to 30 seconds to answer.
+            ok=0
+            for i in $(seq 1 15); do
+              if curl -fsS "$SITE/api/health" > /dev/null && curl -fsS "$SITE/ar" > /dev/null; then ok=1; break; fi
+              sleep 2
+            done
+            [ "$ok" = 1 ] || rollback "Site did not answer after restart"
+
             pm2 save
+            echo "Deploy finished and site is healthy."

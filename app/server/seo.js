@@ -76,6 +76,14 @@ function headTags(lang, base) {
   const plausible = (process.env.PLAUSIBLE_DOMAIN || "").trim();
   if (plausible) tags.push(`<script defer data-domain="${esc(plausible)}" src="https://plausible.io/js/script.js"></script>`);
 
+  // Microsoft Clarity (heatmaps and session recordings; it sets cookies). The ID must be letters and digits only.
+  const clarity = (process.env.CLARITY_PROJECT_ID || "").trim();
+  if (/^[a-z0-9]+$/i.test(clarity)) {
+    tags.push(
+      `<script>(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);})(window,document,"clarity","script","${clarity}");</script>`
+    );
+  }
+
   return tags.join("\n    ");
 }
 
