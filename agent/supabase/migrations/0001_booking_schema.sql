@@ -13,7 +13,9 @@
 --
 -- LangGraph keeps its own conversation-state tables (created by PostgresSaver.setup()); they are not here.
 
-create extension if not exists btree_gist;
+-- Supabase keeps extensions out of the public schema.
+create schema if not exists extensions;
+create extension if not exists btree_gist with schema extensions;
 
 -- ---------------------------------------------------------------- clinics
 
@@ -168,7 +170,7 @@ create table appointments (
 create index on appointments (clinic_id, starts_at);
 create index on appointments (patient_id, starts_at);
 
-create function set_updated_at() returns trigger language plpgsql as $$
+create function set_updated_at() returns trigger language plpgsql set search_path = '' as $$
 begin
   new.updated_at = now();
   return new;

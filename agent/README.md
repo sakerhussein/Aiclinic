@@ -47,8 +47,15 @@ npm init -y && npm install embedded-postgres@17.5.0-beta.15 pg@8.13.1
 node "<repo>/agent/supabase/tests/test_schema.mjs" ./node_modules "<repo>/agent/supabase/migrations/0001_booking_schema.sql" "<repo>/agent/supabase/seed_demo_clinic.sql" ./pgdata
 ```
 
-### Apply to Supabase
+### Supabase project
 
-In the new project's SQL editor, run `0001_booking_schema.sql`, then `seed_demo_clinic.sql`.
+- Project `limitsiz-booking-agent`, id `qwnujxelgzmzoblrenkk`, region eu-central-1 (Frankfurt),
+  organization "iintelligenz Org", free plan. Created 2026-11-02 with `0001_booking_schema` and the demo seed.
+- URL: `https://qwnujxelgzmzoblrenkk.supabase.co`. The agent server will use the secret key (never in git);
+  the publishable key can read and write nothing.
+- Free plan: no automatic backups, and the project pauses after about a week without activity.
+  Upgrade or add a nightly export before real patient data goes in.
+
+To set it up again: in the SQL editor, run `0001_booking_schema.sql`, then `seed_demo_clinic.sql`.
 Undo (removes everything this created): drop the twelve tables, the `appointment_status` type and the
 `set_updated_at` function, or delete the project.
