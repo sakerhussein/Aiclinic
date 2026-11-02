@@ -1,0 +1,16 @@
+[project]
+name = "limitsiz-agent"
+version = "0.1.0"
+description = "Limitsiz Clinic WhatsApp booking agent"
+requires-python = ">=3.11"
+dependencies = [
+  "psycopg[binary]==3.2.3",
+  "tzdata==2024.2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest==8.3.4"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

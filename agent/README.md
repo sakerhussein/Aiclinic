@@ -6,8 +6,8 @@ Supabase project, so a problem here never takes the website down.
 ## Plan
 
 0. Prerequisites: Meta Business verification, WhatsApp Business number, a pilot clinic's real details.
-1. **Data model** (this folder, `supabase/`). Done.
-2. Booking functions in plain code: free slots, book, reschedule, cancel, my appointments, clinic info, hand over to staff.
+1. **Data model** (`supabase/`). Done.
+2. **Booking functions** (`limitsiz_agent/booking/`). Done.
 3. LangGraph agent: Claude with those functions, a confirmation step before any booking change, a safety step
    for emergencies and medical questions, Arabic and English.
 4. Test harness: chat simulator and scripted conversations.
@@ -15,6 +15,38 @@ Supabase project, so a problem here never takes the website down.
 6. Reminders 24 h and 2 h before, with Confirm / Reschedule buttons.
 7. Staff side: today's appointments and the handover inbox.
 8. Pilot.
+
+## Booking functions (`limitsiz_agent/booking/`)
+
+Plain Python, no AI: the agent chooses which function to call, these decide what is allowed.
+
+| Function | What it does |
+|---|---|
+| `clinic_info` | Clinic details, services and prices, doctors with their weekly hours, FAQs |
+| `find_slots` | Free start times for a service, for all doctors, one doctor, or female/male doctors |
+| `book` | Books a free slot; creates the patient from their WhatsApp number |
+| `my_appointments` | The patient's upcoming appointments |
+| `cancel` / `reschedule` | Only the patient's own appointments, and not later than the clinic's notice (2 h in the demo) |
+| `hand_off` | Passes the conversation to staff (emergency, medical question, request, complaint, unsure) |
+
+Rules: whole appointment inside a shift and on the 15-minute grid; no leave, holidays or other bookings in the
+way; at least 1 hour notice and at most 30 days ahead (per clinic); a patient cannot be in two appointments at
+once or hold more than 3 upcoming ones. A refused request raises `BookingError` with a short code
+(`slot_unavailable`, `slot_taken`, `too_soon`, `too_late_to_change`, `not_found`, …) for the agent to explain.
+Phone numbers are accepted as `+962…`, `00962…`, `962…` or `07…`.
+
+Connections should be opened with `autocommit=True`; each change runs in its own transaction.
+
+### Run the tests
+
+```bash
+python -m venv .venv && .venv/Scripts/python -m pip install -e ".[dev]"
+.venv/Scripts/python -m pytest
+```
+
+Without `TEST_DATABASE_URL` only the slot tests run (the database tests are skipped). With it pointing at a
+throwaway Postgres 17 (for example the embedded one used for `supabase/tests`), all 39 run. Never point it at
+the real project: the tests create and drop a `booking_test` database.
 
 ## Data model (`supabase/`)
 
