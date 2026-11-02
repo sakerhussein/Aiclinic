@@ -45,6 +45,9 @@ jobs:
             rm -rf "$BACKUP/dist"
             if [ -d app/client/dist ]; then cp -a app/client/dist "$BACKUP/dist"; fi
 
+            # The VPS npm rewrites the lockfiles on install; drop that so it never blocks the pull.
+            git checkout -- app/package-lock.json app/client/package-lock.json
+
             # Stops here, with nothing changed, if the VPS has local edits that clash with the new code.
             git pull --ff-only origin main
             echo "New version: $(git rev-parse HEAD)"
