@@ -8,11 +8,12 @@ Supabase project, so a problem here never takes the website down.
 0. Prerequisites: Meta Business verification, WhatsApp Business number, a pilot clinic's real details.
 1. **Data model** (`supabase/`). Done.
 2. **Booking functions** (`limitsiz_agent/booking/`). Done.
-3. **LangGraph agent** (`limitsiz_agent/agent/`). Done; tested offline, not yet against the real API.
-4. Test harness: chat simulator and scripted conversations.
-5. WhatsApp Cloud API webhook.
-6. Reminders 24 h and 2 h before, with Confirm / Reschedule buttons.
-7. Staff side: today's appointments and the handover inbox.
+3. **LangGraph agent** (`limitsiz_agent/agent/`). Done; works against the real Claude API.
+4. **Eval** (`evals/booking_chats/`): 51 approved cases, runner and grader. Pilot of 5 passed; the full baseline
+   run and the grading sign-off are still to do.
+5. **WhatsApp** (`limitsiz_agent/whatsapp/`, `server.py`). Built and tested offline; goes live with the steps below.
+6. **Reminders** (`limitsiz_agent/whatsapp/reminders.py`). Built; needs the approved template.
+7. **Staff screen** (`limitsiz_agent/staff.py`). Built; at `/staff`.
 8. Pilot.
 
 ## Agent (`limitsiz_agent/agent/`)
@@ -42,7 +43,43 @@ Talk to it in the terminal (needs `ANTHROPIC_API_KEY` and `DATABASE_URL` in `.en
 .venv/Scripts/python -m limitsiz_agent.chat
 ```
 
-Conversation memory is in-process for now; step 5 moves it to Postgres (`langgraph-checkpoint-postgres`).
+In the service (`server.py`) conversations are saved in Postgres (`langgraph-checkpoint-postgres`) and survive
+restarts; the terminal chat keeps them in memory only.
+
+## WhatsApp service: steps 5-7 (`server.py`)
+
+One process (port 3002, behind Nginx):
+
+- `GET/POST /whatsapp/webhook`: Meta's webhook. Every POST must carry Meta's signature (`WA_APP_SECRET`); it is
+  answered at once and the messages are queued for one worker thread, so a patient's messages are handled in order.
+  Each incoming message is saved once (`messages.wa_message_id`), then: while staff handle the chat nothing is sent;
+  voice notes get "please type"; photos and documents go to staff; text and the Yes / No buttons go to the agent.
+  When a change waits for the patient's yes, the reply carries **Yes / No buttons**.
+- Every minute: **reminders** (template `appointment_reminder`, 24 h and 2 h before, once each, buttons Confirm /
+  Change; Confirm is handled without AI, Change goes to the agent) and **email alerts** for new hand-offs.
+- `/staff` (user `staff`, password `STAFF_PASSWORD`): today's appointments (Done / No-show), the hand-off inbox,
+  each chat with a reply box (only within WhatsApp's 24-hour window), "Take over" and "Hand back to the AI".
+- `GET /health`.
+
+### Going live (owner's steps)
+
+1. **Meta** (developers.facebook.com): create a Business app, add WhatsApp, add and verify the clinic's number.
+   Note the *Phone number ID*, the *App secret*, and create a permanent token (Business settings > System users,
+   permission `whatsapp_business_messaging`).
+2. **Reminder template** (WhatsApp Manager > Message templates), category *Utility*, name `appointment_reminder`,
+   in Arabic and English, two *Quick reply* buttons:
+   - ar: `تذكير بموعدك في العيادة: {{1}} مع {{2}}، يوم {{3}} الساعة {{4}}. هل ستحضر؟` buttons `تأكيد الموعد`, `تغيير الموعد`
+   - en: `Reminder of your clinic appointment: {{1}} with {{2}} on {{3}} at {{4}}. Will you attend?` buttons `Confirm`, `Change`
+3. **Database**: `update clinics set wa_phone_number_id = '<Phone number ID>', staff_alert_email = '<email>' where slug = '<clinic>';`
+4. **Server** (VPS, Python 3.12): `cd /root/Aiclinic/agent && python3 -m venv .venv && .venv/bin/pip install -e .`,
+   create `agent/.env` from `.env.example`, then `pm2 start ".venv/bin/python -m limitsiz_agent.server" --name limitsiz-agent`.
+5. **Address**: DNS `agent.limitsiz.si` → the VPS, an Nginx site proxying to `127.0.0.1:3002`, and a certificate
+   (certbot). Keep it separate from the website's Nginx site.
+6. **Webhook** in the Meta app: URL `https://agent.limitsiz.si/whatsapp/webhook`, verify token = `WA_VERIFY_TOKEN`,
+   subscribe to the `messages` field. Then send the number a WhatsApp message.
+
+Not handled yet: voice-note transcription, viewing photos inside the staff screen (staff open WhatsApp Business),
+staff logins per clinic (one shared password for now), and a separate name for family members booked from one number.
 
 ## Booking functions (`limitsiz_agent/booking/`)
 

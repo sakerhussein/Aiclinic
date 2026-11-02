@@ -203,9 +203,16 @@ def build_agent(
 
 def handle_message(graph, clinic_id: str, phone: str, text: str) -> str | None:
     """Runs one incoming patient message and returns the reply to send (None: send nothing)."""
+    return run_turn(graph, clinic_id, phone, text)[0]
+
+
+def run_turn(graph, clinic_id: str, phone: str, text: str) -> tuple[str | None, bool]:
+    """Like handle_message, and also says whether a change is now waiting for the patient's yes
+    (WhatsApp then shows Yes / No buttons under the reply)."""
     phone = normalize_phone(phone)
     config = {"configurable": {"thread_id": f"{clinic_id}:{phone}", "clinic_id": str(clinic_id), "phone": phone}}
-    return graph.invoke({"inbound": text}, config).get("reply")
+    state = graph.invoke({"inbound": text}, config)
+    return state.get("reply"), bool(state.get("pending"))
 
 
 # ---------------------------------------------------------------- helpers

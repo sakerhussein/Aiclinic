@@ -94,7 +94,8 @@ def build_template(url: str) -> None:
         admin.execute("drop database if exists eval_template with (force)")
         admin.execute("create database eval_template encoding 'UTF8' template template0")
     with psycopg.connect(make_conninfo(url, dbname="eval_template"), autocommit=True) as c:
-        c.execute((AGENT_DIR / "supabase" / "migrations" / "0001_booking_schema.sql").read_text(encoding="utf-8"))
+        for migration in sorted((AGENT_DIR / "supabase" / "migrations").glob("*.sql")):
+            c.execute(migration.read_text(encoding="utf-8"))
         c.execute((AGENT_DIR / "supabase" / "seed_demo_clinic.sql").read_text(encoding="utf-8"))
 
 
