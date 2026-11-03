@@ -1,0 +1,79 @@
+name: Deploy booking agent
+
+# Only agent changes deploy the agent; the website (deploy.yml) is not rebuilt or restarted.
+# "Run workflow" deploys by hand. Database migrations (agent/supabase/migrations) are applied separately.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "agent/**"
+      - ".github/workflows/deploy-agent.yml"
+  workflow_dispatch:
+
+# Shared with deploy.yml: never two deploys on the VPS at the same time; a newer one waits.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.0.3
+
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 10m
+
+          # If installing fails, the code does not load, or the agent does not answer after the restart,
+          # the previous code is put back, the agent restarted on it, and the run is marked as failed.
+          # Only the limitsiz-agent process is ever restarted here.
+          script: |
+            set -eu
+            REPO=/root/Aiclinic
+            AGENT=https://agent.limitsiz.si
+
+            cd "$REPO"
+            PREV=$(git rev-parse HEAD)
+            echo "$PREV" > /root/Aiclinic-agent-last-good-commit.txt
+            echo "Live version before deploy: $PREV"
+
+            # The VPS npm rewrites the website's lockfiles on install; drop that so it never blocks the pull.
+            git checkout -- app/package-lock.json app/client/package-lock.json
+
+            # Stops here, with nothing changed, if the VPS has local edits that clash with the new code.
+            git pull --ff-only origin main
+            echo "New version: $(git rev-parse HEAD)"
+
+            rollback() {
+              echo "!!! $1. Restoring $PREV"
+              cd "$REPO"
+              git reset --keep "$PREV"
+              cd agent
+              .venv/bin/pip install -q -e . || true
+              pm2 restart limitsiz-agent
+              exit 1
+            }
+
+            cd "$REPO/agent"
+            .venv/bin/pip install -q -e . || rollback "Installing the agent's packages failed"
+            .venv/bin/python -c "import limitsiz_agent.server" || rollback "The agent's code does not load"
+
+            pm2 restart limitsiz-agent
+
+            # Give the agent up to 40 seconds to answer.
+            ok=0
+            for i in $(seq 1 20); do
+              if curl -fsS "$AGENT/health" > /dev/null; then ok=1; break; fi
+              sleep 2
+            done
+            [ "$ok" = 1 ] || rollback "The agent did not answer after restart"
+
+            pm2 save
+            echo "Agent deploy finished and the agent is healthy."

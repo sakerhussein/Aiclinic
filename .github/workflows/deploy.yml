@@ -1,12 +1,17 @@
-name: Deploy to VPS
+name: Deploy website
 
+# Only website changes deploy the website. The booking agent (agent/) has its own workflow, deploy-agent.yml;
+# docs and other files deploy nothing. "Run workflow" deploys by hand.
 on:
   push:
     branches:
       - main
+    paths:
+      - "app/**"
+      - ".github/workflows/deploy.yml"
   workflow_dispatch:
 
-# Never run two deploys at the same time; a newer push waits for the running one.
+# Shared with deploy-agent.yml: never two deploys on the VPS at the same time; a newer one waits.
 concurrency:
   group: deploy-production
   cancel-in-progress: false
