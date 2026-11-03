@@ -8,6 +8,9 @@ on:
       - main
     paths:
       - "agent/**"
+      - "!agent/**/*.md"
+      - "!agent/tests/**"
+      - "!agent/evals/**"
       - ".github/workflows/deploy-agent.yml"
   workflow_dispatch:
 
