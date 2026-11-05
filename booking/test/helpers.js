@@ -79,5 +79,5 @@ export async function setup() {
       update booking_rules set min_notice_minutes = 60, window_days = 30, change_notice_minutes = 120, max_upcoming = 3 where audience = 'patient';
       update clinic_settings set idle_timeout_minutes = 60, lock_after_minutes = 10, require_2fa_all = false, audit_retention_months = null, assistant_enabled = true;
       delete from doctors where name_en like 'Test %'; delete from services where name_en like 'Test %';`); await a.reset(); }
-  return { ...a, reset, base, bookingJar: jar, login, people, seedIds, pool, async close() { server.close(); await pool.end(); await auditPool.end(); await a.close(); } };
+  return { ...a, accountsBase: a.base, reset, base, bookingJar: jar, login, people, seedIds, pool, async close() { server.close(); await pool.end(); await auditPool.end(); await a.close(); } };
 }

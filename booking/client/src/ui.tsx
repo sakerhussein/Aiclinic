@@ -17,6 +17,7 @@ export function Layout() {
             <NavLink to="/" end>{me.role === "doctor" ? t("mySchedule") : t("calendar")}</NavLink>
             {can("booking.appointments.view") && <NavLink to="/bookings">{t("bookings")}</NavLink>}
             {can("booking.patients.view") && <NavLink to="/patients">{t("patients")}</NavLink>}
+            {can("booking.audit.view") && <NavLink to="/audit">{t("auditLog")}</NavLink>}
             {can("booking.settings.view") && <NavLink to="/settings">{t("settings")}</NavLink>}
           </nav>
           <span className="grow" />

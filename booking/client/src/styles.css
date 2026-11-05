@@ -168,3 +168,19 @@ td select{font:inherit;min-height:36px;border:1px solid var(--field);border-radi
 .period input{font:inherit;min-height:38px;padding:0 8px;border:1px solid var(--field);border-radius:10px;background:#fff;direction:ltr}
 .cal-away{display:block;padding:6px 8px;font-style:normal;font-size:12px;color:var(--muted);overflow:hidden;background:repeating-linear-gradient(135deg,#ffe9c7,#ffe9c7 6px,#fff5e3 6px,#fff5e3 12px)}
 @media (max-width:820px){.setwrap{grid-template-columns:1fr}.settabs{flex-direction:row;overflow-x:auto;position:static}.settabs button{white-space:nowrap}.grid2,.grid3{grid-template-columns:1fr}}
+
+/* audit log */
+.integrity{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;background:#fff;border:1px solid var(--rule);border-radius:16px;padding:12px 16px;font-size:14px}
+.integrity.good strong{color:var(--accent-ink)}
+.integrity.bad{border-color:var(--error);background:var(--error-tint)}
+.integrity.bad strong{color:var(--error)}
+.auditt{min-width:900px}
+.nowrap{white-space:nowrap}
+.clickrow{cursor:pointer}
+.clickrow:hover td{background:var(--paper)}
+.diff{font-size:13px;max-width:280px;overflow-wrap:anywhere}
+.diff del{color:var(--error);text-decoration:line-through}
+.diff ins{color:var(--accent-ink);text-decoration:none;font-weight:500}
+.detailrow td{background:var(--paper)}
+.detailrow pre{background:#fff;border:1px solid var(--rule-soft);border-radius:10px;padding:10px;font:12px var(--font-mono);overflow:auto;max-height:280px;margin:6px 0 0;text-align:left}
+.wrapany{overflow-wrap:anywhere}

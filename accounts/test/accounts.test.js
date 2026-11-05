@@ -87,7 +87,7 @@ test("lock screen after 10 idle minutes, enforced by the server; the same person
   assert.equal((await b.post("/api/unlock", { password: "wrong wrong wrong" })).status, 401);
   assert.equal((await b.post("/api/unlock", { password: u.password })).status, 200);
   assert.equal((await b.get("/api/me")).json.state, "ok");
-  assert.deepEqual((await auditActions("session")).filter((a) => /lock/.test(a)), ["unlock_failed", "unlock"]);
+  assert.deepEqual((await auditActions("session")).filter((a) => /lock/.test(a)), ["lock", "unlock_failed", "unlock"], "the automatic lock is recorded too");
 });
 
 test("signed out after 60 idle minutes and after 12 hours in all", async () => {

@@ -5,7 +5,7 @@ export type Lang = "en" | "ar";
 // English and Arabic for every piece of text. The Arabic is a working draft for a native reader to review.
 const EN = {
   brand: "Limitsiz Clinic", product: "Booking", langSwitch: "العربية",
-  calendar: "Calendar", bookings: "Bookings", patients: "Patients", mySchedule: "My schedule", settings: "Settings", bookAnyway: "Book anyway",
+  calendar: "Calendar", bookings: "Bookings", patients: "Patients", mySchedule: "My schedule", settings: "Settings", auditLog: "Audit log", bookAnyway: "Book anyway",
   accounts: "Accounts", switchUser: "Switch user", signOut: "Sign out",
   today: "Today", prev: "Previous day", next: "Next day", newBooking: "New booking", allDoctors: "All doctors",
   noBookings: "No bookings.", loading: "Loading…", save: "Save", cancel: "Cancel", back: "Back", edit: "Edit", search: "Search", clear: "Clear",
@@ -18,6 +18,7 @@ const EN = {
   freeTimes: "Free times", noFreeTimes: "No free times that day.", otherTime: "Other time", otherTimeWarn: "This time is outside the doctor's free times. Booking here is allowed, but check it first.",
   confirmOther: "Book this other time", create: "Book", saved: "Saved.", chooseTime: "Choose a time.", lastVisit: "Last visit",
   sources: { whatsapp: "WhatsApp", phone: "Phone", walkin: "Walk-in", staff: "Staff", web: "Web" } as Record<string, string>,
+  roles: { clinic_admin: "Clinic administrator", secretary: "Secretary", doctor: "Doctor", readonly: "Read-only", platform_admin: "Limitsiz administrator" } as Record<string, string>,
   statuses: { booked: "Booked", confirmed: "Confirmed", completed: "Completed", no_show: "No-show", cancelled: "Cancelled", voided: "Voided" } as Record<string, string>,
   actions: { confirmed: "Confirm", completed: "Mark completed", no_show: "No-show", cancelled: "Cancel booking", voided: "Void (delete)", restore: "Restore" } as Record<string, string>,
   reason: "Reason", reasonNeeded: "A reason is needed.", apply: "Apply", details: "Details", history: "History", by: "by",
@@ -46,7 +47,7 @@ const EN = {
 
 const AR: typeof EN = {
   brand: "Limitsiz Clinic", product: "الحجوزات", langSwitch: "English",
-  calendar: "التقويم", bookings: "الحجوزات", patients: "المرضى", mySchedule: "جدولي", settings: "الإعدادات", bookAnyway: "احجز رغم ذلك",
+  calendar: "التقويم", bookings: "الحجوزات", patients: "المرضى", mySchedule: "جدولي", settings: "الإعدادات", auditLog: "سجل التدقيق", bookAnyway: "احجز رغم ذلك",
   accounts: "الحسابات", switchUser: "تبديل المستخدم", signOut: "تسجيل الخروج",
   today: "اليوم", prev: "اليوم السابق", next: "اليوم التالي", newBooking: "حجز جديد", allDoctors: "كل الأطباء",
   noBookings: "لا توجد حجوزات.", loading: "جارٍ التحميل…", save: "حفظ", cancel: "إلغاء", back: "رجوع", edit: "تعديل", search: "بحث", clear: "مسح",
@@ -59,6 +60,7 @@ const AR: typeof EN = {
   freeTimes: "الأوقات المتاحة", noFreeTimes: "لا توجد أوقات متاحة في هذا اليوم.", otherTime: "وقت آخر", otherTimeWarn: "هذا الوقت خارج الأوقات المتاحة للطبيب. الحجز فيه مسموح لكن تحقق منه أولاً.",
   confirmOther: "احجز في هذا الوقت الآخر", create: "احجز", saved: "تم الحفظ.", chooseTime: "اختر وقتاً.", lastVisit: "آخر زيارة",
   sources: { whatsapp: "واتساب", phone: "هاتف", walkin: "حضور مباشر", staff: "موظف", web: "الموقع" },
+  roles: { clinic_admin: "مدير العيادة", secretary: "سكرتيرة", doctor: "طبيب", readonly: "قراءة فقط", platform_admin: "مدير Limitsiz" },
   statuses: { booked: "محجوز", confirmed: "مؤكد", completed: "مكتمل", no_show: "لم يحضر", cancelled: "ملغى", voided: "مُبطل" },
   actions: { confirmed: "تأكيد", completed: "تم الحضور", no_show: "لم يحضر", cancelled: "إلغاء الحجز", voided: "إبطال (حذف)", restore: "استعادة" },
   reason: "السبب", reasonNeeded: "السبب مطلوب.", apply: "تطبيق", details: "التفاصيل", history: "السجل", by: "بواسطة",
@@ -86,7 +88,7 @@ const AR: typeof EN = {
 };
 
 const DICT = { en: EN, ar: AR };
-type Key = Exclude<keyof typeof EN, "sources" | "statuses" | "actions" | "historyActions" | "actors" | "errors">;
+type Key = Exclude<keyof typeof EN, "roles" | "sources" | "statuses" | "actions" | "historyActions" | "actors" | "errors">;
 type Ctx = { lang: Lang; setLang: (l: Lang) => void; t: (k: Key, vars?: Record<string, string | number>) => string; d: typeof EN; error: (code: string) => string };
 const C = createContext<Ctx>(null as never);
 export const useI18n = () => useContext(C);

@@ -8,13 +8,14 @@ Postgres (the `accounts` and `audit` schemas from `db/migrations`). It will run 
 
 - Sign-in with email and password (Argon2id, 12+ characters, common passwords refused), one generic error, same timing for unknown emails.
 - Server-side sessions (token stored only as a hash): lock screen after 10 idle minutes, sign-out after 60, absolute 12 hours.
-  Both idle times will come from the clinic's Settings (phase B); the defaults are in `core.js` (`getSecurity`).
+  Both idle times come from the clinic's Settings (`clinic_settings`), read in `core.js` (`getSecurity`).
 - Two-step (TOTP + 10 recovery codes), **required** for clinic and Limitsiz administrators.
 - Invitations (72 h, one use), password reset (1 h, one use, ends every session), change password, my sessions.
 - Single sign-on for the other services: `GET /authorize` -> one-time code (60 s) -> the service calls `POST /token` with its secret.
   After that the service asks `POST /introspect` on every request (this also records activity with `touch: true`), so disabling
   a person or signing out takes effect at once. `POST /app-logout` ends the service's own session.
-  A service has **no database access** to `accounts`; it only talks to this API.
+  A service has **no database access** to `accounts`; it only talks to this API. `POST /people` gives a service the names for its audit
+  page, only for people of the asking session's clinic.
 - People and access (administrators): invite, change role, "can also manage bookings", disable, sign out everywhere, send a reset link.
   Sensitive changes re-ask the password if it was last checked over 10 minutes ago. The last administrator of a clinic cannot be removed.
 - Everything that matters is in the audit trail (`audit.events`): sign-ins and failures, locks, invitations, role changes.
@@ -32,7 +33,7 @@ two-step first; compute the code with `node -e "import('./server/crypto.js').the
 ## Tests
 
 ```bash
-npm test      # 39 tests on the throwaway Postgres (TEST_DATABASE_URL, default postgresql://postgres:test@localhost:54329/postgres)
+npm test      # the tests on the throwaway Postgres (TEST_DATABASE_URL, default postgresql://postgres:test@localhost:54329/postgres)
 ```
 
 They create a fresh database, apply every migration and connect as the real least-privilege `accounts_app` login, with a

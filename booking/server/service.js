@@ -3,6 +3,7 @@
 // audit actor is that person, so the audit trail says who did it.
 import { HttpError, bad, notFound } from "./http.js";
 import { createSettings } from "./settings.js";
+import { createAudit } from "./audit.js";
 
 const ACTIVE = ["booked", "confirmed"];
 const MIN = 60_000;
@@ -381,6 +382,7 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
   }
 
   const settings = createSettings({ pool, tx, now });
-  return { settings, lookups, timeOffOn, slots, listAppointments, getAppointment, history, createAppointment, updateAppointment, setStatus, restore,
+  const audit = createAudit({ pool, auditPool, now });
+  return { settings, audit, lookups, timeOffOn, slots, listAppointments, getAppointment, history, createAppointment, updateAppointment, setStatus, restore,
            searchPatients, getPatient, createPatient: (ctx, b) => createPatient(ctx, b), updatePatient, tx };
 }

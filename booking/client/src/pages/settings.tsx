@@ -471,7 +471,7 @@ function AuditTab(p: P) {
     <SForm className="panel stack" onSubmit={onSubmit}>
       <h2>{s.tabs.audit}</h2>
       <Field label={s.retention} hint={s.retentionHint}><Pick value={f.auditRetentionMonths ?? ""} onChange={(v) => setF({ ...f, auditRetentionMonths: v ? Number(v) : null })}
-        options={[["", s.keepForever], ...withCurrent([12, 24, 36, 60, 120], f.auditRetentionMonths).map((m) => [m, `${m} ${s.monthsUnit}`] as [number, string])]} /></Field>
+        options={[["", s.keepForever], ...withCurrent([12, 24, 60, 84, 120], f.auditRetentionMonths).map((m) => [m, m % 12 ? `${m} ${s.monthsUnit}` : `${m / 12} ${m === 12 ? s.yearUnit : s.yearsUnit}`] as [number, string])]} /></Field>
       <Saver a={a} ok={ok} />
     </SForm>
   );

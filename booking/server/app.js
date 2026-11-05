@@ -215,6 +215,30 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
   app.patch("/api/settings/faqs/:id", EDIT, wrap(async (req, res) => res.json(await S.updateFaq(req.ctx, parse(uuid, req.params.id), parse(faq, req.body)))));
   app.delete("/api/settings/faqs/:id", EDIT, wrap(async (req, res) => res.json(await S.removeFaq(req.ctx, parse(uuid, req.params.id)))));
 
+  // ---------------------------------------------------------------- audit log (administrators)
+  const auditFilter = z.object({ from: day.optional(), to: day.optional(), actor: z.string().max(80).optional(),
+    type: z.enum(["bookings", "patients", "settings", "security", "audit"]).optional(), q: z.string().trim().max(80).optional() });
+  app.get("/api/audit", auth("booking.audit.view"), wrap(async (req, res) => {
+    const f = parse(auditFilter.extend({ before: z.coerce.number().int().positive().optional() }), req.query);
+    const r = await svc.audit.list(req.ctx, f);
+    // Whose access changed: names come from Accounts, and only for people of this clinic.
+    const uuidLike = /^[0-9a-f-]{36}$/i;
+    const people = r.rows.filter((x) => ["membership", "user"].includes(x.entity) && uuidLike.test(x.entity_id || ""));
+    if (people.length) {
+      const names = await accounts("/people", { token: req.token, ids: [...new Set(people.map((x) => x.entity_id))] }).catch(() => ({}));
+      for (const x of people) if (names[x.entity_id]) x.subject = names[x.entity_id];
+    }
+    res.json(r);
+  }));
+  app.get("/api/audit/facets", auth("booking.audit.view"), wrap(async (req, res) => res.json(await svc.audit.facets(req.ctx))));
+  app.get("/api/audit/status", auth("booking.audit.view"), wrap(async (req, res) => res.json(await svc.audit.status(req.ctx))));
+  app.post("/api/audit/verify", auth("booking.audit.view"), wrap(async (req, res) => res.json(await svc.audit.verify(req.ctx))));
+  app.get("/api/audit/export", auth("booking.audit.export"), wrap(async (req, res) => {
+    const csv = await svc.audit.exportCsv(req.ctx, parse(auditFilter, req.query));
+    res.set({ "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="limitsiz-audit-${new Date().toISOString().slice(0, 10)}.csv"` });
+    res.send(csv);
+  }));
+
   // ---------------------------------------------------------------- the pages (built React app)
   if (existsSync(dist)) {
     app.use(express.static(dist, { index: false, maxAge: "1h", setHeaders: (res, p) => { if (p.endsWith(".html")) res.set("Cache-Control", "no-store"); } }));

@@ -96,11 +96,17 @@ export function createCore({ pool, config, mail, now = () => new Date(), securit
     if (!s || s.revoked_at || s.status !== "active" || s.expires_at <= t) return null;
     const sec = await getSecurity(s.clinic_id);
     const idleMs = t - s.last_activity_at;
-    if (sec.idleMinutes && idleMs > sec.idleMinutes * MIN) { await revoke(s.id, "idle"); return null; }
+    const person = { type: "user", id: s.user_id, label: s.full_name };
+    if (sec.idleMinutes && idleMs > sec.idleMinutes * MIN) {
+      await revoke(s.id, "idle");
+      await audit(s.clinic_id, "session", s.id, "signed_out_idle", { after: { idle_minutes: sec.idleMinutes }, actor: person });
+      return null;
+    }
     let lockedAt = s.locked_at;
     if (!lockedAt && sec.lockMinutes && idleMs > sec.lockMinutes * MIN) {
       lockedAt = t;
       await pool.query("update accounts.sessions set locked_at = $2 where id = $1", [s.id, t]);
+      await audit(s.clinic_id, "session", s.id, "lock", { after: { why: "idle", idle_minutes: sec.lockMinutes }, actor: person });
     }
     const ms = await memberships(s.user_id);
     const needsMfa = ms.some((m) => MFA_ROLES.has(m.role_key)) || sec.requireMfaAll;
@@ -122,7 +128,9 @@ export function createCore({ pool, config, mail, now = () => new Date(), securit
     const { rows } = await pool.query("select * from accounts.users where email = $1", [email]);
     const u = rows[0];
     const fail = async (why) => {
-      await audit(null, "session", u?.id ?? "unknown", "login_failed", {
+      // A known person's failures go in their clinic's log, where its administrator sees them; an unknown email in the platform's.
+      const clinic = u ? (await memberships(u.id)).find((m) => m.clinic_id)?.clinic_id ?? null : null;
+      await audit(clinic, "session", u?.id ?? "unknown", "login_failed", {
         after: { why, ...(u ? {} : { email_tried: email.slice(0, 80) }) }, ctx, actor: u ? who(u) : { type: "system", id: "accounts", label: "Unknown email" } });
       throw new HttpError(401, "invalid_credentials");
     };
@@ -208,6 +216,7 @@ export function createCore({ pool, config, mail, now = () => new Date(), securit
       for (const rc of codes) await c.query("insert into accounts.recovery_codes (user_id, code_hash) values ($1,$2)", [session.user_id, sha256(rc)]);
       await c.query("update accounts.sessions set mfa_at = $2 where id = $1", [session.id, now()]);
     });
+    await audit(session.clinic_id, "user", session.user_id, "two_step_on", { actor: who(session.user), ctx });
     return { recoveryCodes: codes };
   }
   // Second step of a sign-in: an app code or one recovery code.
@@ -353,7 +362,8 @@ export function createCore({ pool, config, mail, now = () => new Date(), securit
     const token = randomToken();
     await pool.query("insert into accounts.password_resets (user_id, token_hash, expires_at) values ($1,$2,$3)",
       [u.id, sha256(token), new Date(now().getTime() + LIMITS.resetMs)]);
-    await audit(null, "user", u.id, "reset_link_sent", { actor: by ? who(by.user) : { type: "system", id: "accounts", label: "Password reset" }, ctx });
+    const clinic = (await memberships(u.id)).find((m) => m.clinic_id)?.clinic_id ?? null;
+    await audit(clinic, "user", u.id, "reset_link_sent", { actor: by ? who(by.user) : { type: "system", id: "accounts", label: "Password reset" }, ctx });
     const link = `${config.siteUrl}/reset?token=${token}`;
     await mail.reset({ to: email, name: u.full_name, link, language: u.language });
     return config.exposeLinks ? link : undefined;
@@ -373,7 +383,8 @@ export function createCore({ pool, config, mail, now = () => new Date(), securit
       await c.query("update accounts.users set password_hash = $2, failed_logins = 0, locked_until = null where id = $1", [r.user_id, hash]);
       await c.query("update accounts.sessions set revoked_at = $2, revoked_reason = 'password_reset' where user_id = $1 and revoked_at is null", [r.user_id, now()]);
     });
-    await audit(null, "user", r.user_id, "password_reset", { actor: { type: "user", id: r.user_id, label: r.full_name }, ctx });
+    const clinic = (await memberships(r.user_id)).find((m) => m.clinic_id)?.clinic_id ?? null;
+    await audit(clinic, "user", r.user_id, "password_reset", { actor: { type: "user", id: r.user_id, label: r.full_name }, ctx });
   }
   async function changePassword(session, current, next, ctx) {
     const { rows } = await pool.query("select password_hash, email, full_name from accounts.users where id = $1", [session.user_id]);
@@ -447,6 +458,20 @@ export function createCore({ pool, config, mail, now = () => new Date(), securit
     await pool.query("update accounts.app_sessions set last_seen_at = $2 where id = $1", [rows[0].id, now()]);
     return { active: true, ...(await describe(live)) };
   }
+  // Names for a service's audit page, by person or by membership (an audit entry for a change holds only what changed):
+  // only people of the clinic that the asking session belongs to.
+  async function peopleNames({ client, secret, token, ids }) {
+    await clientAuth(client, secret);
+    const { rows } = await pool.query(
+      `select s.token_hash from accounts.app_sessions a join accounts.sessions s on s.id = a.session_id where a.token_hash = $1 and a.app_key = $2 and a.revoked_at is null`,
+      [sha256(token || ""), client]);
+    const live = rows[0] && (await loadByHash(rows[0].token_hash));
+    if (!live || live.state !== "ok" || !live.clinic_id) return {};
+    const r = await pool.query(
+      `select u.id, m.id as membership_id, u.full_name from accounts.users u join accounts.memberships m on m.user_id = u.id
+        where m.clinic_id = $1 and (u.id = any($2::uuid[]) or m.id = any($2::uuid[]))`, [live.clinic_id, ids]);
+    return Object.fromEntries(r.rows.flatMap((x) => [[x.id, x.full_name], [x.membership_id, x.full_name]]).filter(([k]) => ids.includes(k)));
+  }
   async function appLogout({ client, secret, token }) {
     await clientAuth(client, secret);
     await pool.query("update accounts.app_sessions set revoked_at = $3 where token_hash = $1 and app_key = $2", [sha256(token || ""), client, now()]);
@@ -512,6 +537,7 @@ export function createCore({ pool, config, mail, now = () => new Date(), securit
       if (!r.rowCount) throw bad("not_active_yet");
       if (status === "disabled") await c.query("update accounts.sessions set revoked_at = $2, revoked_reason = 'disabled' where user_id = $1 and revoked_at is null", [userId, now()]);
     });
+    await audit(clinicId, "user", userId, status === "disabled" ? "user_disabled" : "user_enabled", { actor: who(session.user), ctx });
   }
   async function revokeUserSessions(session, userId, clinicId, ctx) {
     await need(session, "accounts.users.revoke_sessions", clinicId);
@@ -554,7 +580,7 @@ export function createCore({ pool, config, mail, now = () => new Date(), securit
   return {
     pool, tx, audit, login, logout, chooseClinic, loadSession, lock, unlock, confirmPassword, requireRecentPassword,
     mfaSetup, mfaEnable, mfaVerify, permissionsFor, can, need, createInvite, bootstrapInvite, inviteInfo, acceptInvite,
-    forgotPassword, resetPassword, changePassword, startAuthorize, exchangeCode, introspect, appLogout, describe,
+    forgotPassword, resetPassword, changePassword, startAuthorize, exchangeCode, introspect, peopleNames, appLogout, describe,
     listUsers, listDoctors, updateMembership, setUserStatus, revokeUserSessions, adminSendReset, mySessions, allSessions, revokeMine, updateProfile,
   };
 }

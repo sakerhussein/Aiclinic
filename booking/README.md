@@ -20,6 +20,15 @@ A locked screen answers 423 and the page goes back through Accounts to the lock 
 - Saves carry the version they were based on; a change made meanwhile (a colleague, or the WhatsApp assistant) is refused, nothing overwritten.
 - Every change is audited with the signed-in person as actor.
 
+## Audit log
+
+`/audit`, for clinic administrators (`booking.audit.view`, export `booking.audit.export`): integrity status with **Verify now**, filters
+(dates, person, type, search), every entry with who, what, the change and from where, a click opens the full before and after, CSV export.
+It reads through the `audit_reader` login, which sees only its own clinic. Looking is recorded too: exports and checks every time,
+viewing at most every 15 minutes per person. People's names come from Accounts (`POST /people`), limited to this clinic.
+A failed sign-in of a known person, automatic locks and idle sign-outs, disabling a user and password resets go into the clinic's own log,
+so its administrator sees them. A failed sign-in with an unknown email stays in the platform's log.
+
 ## Settings
 
 Clinic administrators change them; secretaries read them; every change is audited with before and after. Pages: clinic profile and the
@@ -35,7 +44,7 @@ rules for patients and for staff, reminders, WhatsApp assistant, security, audit
 
 ## Not built yet
 
-- Audit page, export and integrity check; retention job; the hand-off inbox and chat replies; "tell the patient" template; week view; support access.
+- Nightly integrity check, daily anchor email and the retention job; the hand-off inbox and chat replies; "tell the patient" template; week view; support access.
 - Changing security settings should re-ask the password (design §3.5). Booking cannot check that yet, so it does not; to do in phase C.
 
 ## Run and test
@@ -43,7 +52,7 @@ rules for patients and for staff, reminders, WhatsApp assistant, security, audit
 ```bash
 npm install && npm --prefix client install && npm --prefix client run build
 node test/dev-server.mjs     # Accounts on 3003 + Booking on 3004 on the throwaway Postgres (agent/evals/pg); open http://localhost:3004
-npm test                     # 44 tests; they start the real Accounts app too (../accounts must have its packages installed)
+npm test                     # tests; they start the real Accounts app too (../accounts must have its packages installed)
 ```
 
 The preview signs in as `sec@demo.jo` / `correct horse battery` and has four bookings today.

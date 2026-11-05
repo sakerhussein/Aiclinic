@@ -40,7 +40,7 @@ export function createApp({ core, config, now = () => Date.now(), limits = {} })
   app.use(express.json({ limit: "20kb" }));
 
   // Services call these three with their secret, not with a cookie, so there is no cookie to forge.
-  const SERVER_TO_SERVER = new Set(["/token", "/introspect", "/app-logout"]);
+  const SERVER_TO_SERVER = new Set(["/token", "/introspect", "/app-logout", "/people"]);
   app.use((req, res, next) => {
     if (!["GET", "HEAD", "OPTIONS"].includes(req.method) && !SERVER_TO_SERVER.has(req.path)) {
       if (req.get("origin") !== config.origin) return next(new HttpError(403, "bad_origin"));   // CSRF: only our own pages
@@ -230,6 +230,10 @@ export function createApp({ core, config, now = () => Date.now(), limits = {} })
     const b = parse(z.object({ client: z.string().max(40), secret: z.string().max(200), token: z.string().max(100), touch: z.boolean().optional() }), req.body);
     res.json(await core.introspect(b));
   }));
+  app.post("/people", wrap(async (req, res) => {
+    const b = parse(z.object({ client: z.string().max(40), secret: z.string().max(200), token: z.string().max(100), ids: z.array(uuid).max(200) }), req.body);
+    res.json(await core.peopleNames(b));
+  }));
   app.post("/app-logout", wrap(async (req, res) => {
     const b = parse(z.object({ client: z.string().max(40), secret: z.string().max(200), token: z.string().max(100) }), req.body);
     await core.appLogout(b);
@@ -239,7 +243,7 @@ export function createApp({ core, config, now = () => Date.now(), limits = {} })
   // ---------------------------------------------------------------- the pages (built React app), when present
   if (existsSync(dist)) {
     app.use(express.static(dist, { index: false, maxAge: "1h", setHeaders: (res, p) => { if (p.endsWith(".html")) res.set("Cache-Control", "no-store"); } }));
-    app.get(/^\/(?!api\/|authorize|token|introspect|app-logout).*/, (req, res) => res.sendFile(path.join(dist, "index.html")));
+    app.get(/^\/(?!api\/|authorize|token|introspect|app-logout|people).*/, (req, res) => res.sendFile(path.join(dist, "index.html")));
   }
 
   // ---------------------------------------------------------------- errors
