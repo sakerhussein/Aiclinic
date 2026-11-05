@@ -64,14 +64,14 @@ export function BookingForm() {
   const isOther = !!chosen && !times.includes(chosen);
   const service = look.services.find((s) => s.id === serviceId);
 
-  async function save() {
+  async function save(allowOverLimit = false) {
     if (!chosen) throw new Error("no time");
     if (editing && orig) {
       const r = await patch<Appt>(`/api/appointments/${orig.id}`, { expectedVersion: orig.row_version, serviceId, doctorId: doctorId === "any" ? undefined : doctorId,
         startsAt: chosen, internalNote: note || null, override: isOther });
       nav(`/bookings/${r.id}`);
     } else {
-      const body: Record<string, unknown> = { serviceId, doctorId, startsAt: chosen, source, internalNote: note || null, override: isOther };
+      const body: Record<string, unknown> = { serviceId, doctorId, startsAt: chosen, source, internalNote: note || null, override: isOther, allowOverLimit };
       if (isNew) body.newPatient = { fullName: np.fullName, phone: np.phone || null, language: np.language, whatsappReminders: np.whatsappReminders };
       else body.patientId = patient!.id;
       const r = await post<Appt>("/api/appointments", body);
@@ -84,7 +84,7 @@ export function BookingForm() {
   return (
     <main className="wrap page">
       <h1 className="display">{editing ? t("edit") : t("newBooking")}</h1>
-      <form className="panel formgrid" onSubmit={a.submit(save)}>
+      <form className="panel formgrid" onSubmit={a.submit(() => save())}>
         <section>
           <h2>{t("patient")}</h2>
           {editing || (patient && !isNew) ? (
@@ -127,10 +127,10 @@ export function BookingForm() {
             {serviceId && times.length === 0 && <p className="hint">{t("noFreeTimes")}</p>}
             <div className="chips">
               {times.map((s) => <button type="button" key={s} className={`chip ${!other && chosen === s ? "on" : ""}`} onClick={() => { setOther(false); setStartsAt(s); }}>{hm(s, tz)}</button>)}
-              <button type="button" className={`chip ${other ? "on" : ""}`} onClick={() => setOther(!other)}>{t("otherTime")}</button>
+              {look.rules.outsideHours !== "block" && <button type="button" className={`chip ${other ? "on" : ""}`} onClick={() => setOther(!other)}>{t("otherTime")}</button>}
             </div>
-            {other && <div className="stack"><input type="time" value={otherHm} onChange={(e) => setOtherHm(e.target.value)} step={300} required /><Banner kind="warn">{t("otherTimeWarn")}</Banner></div>}
-            {!other && isOther && chosen && <Banner kind="warn">{t("warnOutside")}: {hm(chosen, tz)}</Banner>}
+            {other && <div className="stack"><input type="time" value={otherHm} onChange={(e) => setOtherHm(e.target.value)} step={300} required />{look.rules.outsideHours === "warn" && <Banner kind="warn">{t("otherTimeWarn")}</Banner>}</div>}
+            {!other && isOther && chosen && look.rules.outsideHours === "warn" && <Banner kind="warn">{t("warnOutside")}: {hm(chosen, tz)}</Banner>}
           </div>
           {!editing && (
             <Field label={t("source")}><select value={source} onChange={(e) => setSource(e.target.value as "phone" | "walkin")}><option value="phone">{d.sources.phone}</option><option value="walkin">{d.sources.walkin}</option></select></Field>
@@ -144,7 +144,7 @@ export function BookingForm() {
             <Banner><b>{t("conflictTitle")}</b><br />{t("conflictBody", { time: a.err?.data.changedAt ? fmtDateTime(String(a.err.data.changedAt), tz, lang) : "", v: String(a.err?.data.currentVersion ?? "") })}{" "}
               <button type="button" className="link" onClick={() => window.location.reload()}>{t("reload")}</button></Banner>
           )}
-          {a.err && !conflict && <Banner>{a.message}</Banner>}
+          {a.err && !conflict && <Banner>{a.message}{a.err.code === "over_max_upcoming" && <> <button type="button" className="link" onClick={() => void a.run(() => save(true))}>{t("bookAnyway")}</button></>}</Banner>}
           <div className="row">
             <button className="btn btn-accent" disabled={a.busy || !ready || !!done}>{editing ? t("save") : isOther ? t("confirmOther") : t("create")}</button>
             <Link className="btn btn-outline" to={editing ? `/bookings/${id}` : "/"}>{t("cancel")}</Link>

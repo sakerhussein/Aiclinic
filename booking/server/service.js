@@ -2,12 +2,10 @@
 // Every query is limited to the clinic of the signed-in person (ctx.clinicId), and every change runs in a transaction whose
 // audit actor is that person, so the audit trail says who did it.
 import { HttpError, bad, notFound } from "./http.js";
+import { createSettings } from "./settings.js";
 
 const ACTIVE = ["booked", "confirmed"];
 const MIN = 60_000;
-
-// Staff booking rules. Until the Settings tables exist (phase B, Settings), these are the defaults of the design (§5.3).
-export const STAFF_RULES = { windowDays: 365, walkinHoursBack: 2, requireCancelReason: true, outsideHours: "warn" };
 
 export function normalizePhone(raw, country = "962") {
   const digits = String(raw ?? "").replace(/[\s\-().]/g, "");
@@ -37,7 +35,7 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
 
   // ---------------------------------------------------------------- lookups
   async function lookups(ctx) {
-    const clinic = await one(pool, `select id, slug, name_en, name_ar, timezone, slot_step_minutes, default_language from clinics where id = $1`, [ctx.clinicId]);
+    const clinic = await one(pool, `select id, slug, name_en, name_ar, timezone, slot_step_minutes, default_language, week_start from clinics where id = $1`, [ctx.clinicId]);
     const doctors = (await pool.query(
       `select d.id, d.name_en, d.name_ar, d.title_en, d.title_ar, d.gender,
               coalesce((select array_agg(ds.service_id) from doctor_services ds where ds.doctor_id = d.id), '{}') as service_ids,
@@ -46,31 +44,61 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
          from doctors d where d.clinic_id = $1 and d.active order by d.name_en`, [ctx.clinicId])).rows;
     const services = (await pool.query(
       `select id, name_en, name_ar, duration_minutes, price_jod, price_is_from from services where clinic_id = $1 and active order by sort, name_en`, [ctx.clinicId])).rows;
-    return { clinic, doctors, services, rules: STAFF_RULES };
+    const openingHours = (await pool.query(
+      `select weekday, to_char(start_time, 'HH24:MI') as start, to_char(end_time, 'HH24:MI') as "end" from clinic_hours where clinic_id = $1 order by weekday, start_time`, [ctx.clinicId])).rows;
+    return { clinic, doctors, services, openingHours, rules: await staffRules(pool, ctx) };
+  }
+
+  // Closures and leave touching one local day, for the calendar.
+  async function timeOffOn(ctx, day) {
+    const { rows } = await pool.query(
+      `select o.id, o.doctor_id, o.starts_at, o.ends_at, o.reason from time_off o join clinics c on c.id = o.clinic_id
+        where o.clinic_id = $1 and o.starts_at < (($2::date + 1)::timestamp at time zone c.timezone) and o.ends_at > ($2::date::timestamp at time zone c.timezone)`, [ctx.clinicId, day]);
+    return rows;
+  }
+
+  // The rules for staff, from Settings -> Booking rules (the WhatsApp assistant reads the "patient" row).
+  async function staffRules(c, ctx) {
+    const r = await one(c, "select * from booking_rules where clinic_id = $1 and audience = 'staff'", [ctx.clinicId]);
+    return { minNoticeMinutes: r.min_notice_minutes, windowDays: r.window_days, changeNoticeMinutes: r.change_notice_minutes, maxUpcoming: r.max_upcoming,
+             outsideHours: r.outside_hours, walkinBackMinutes: r.walkin_back_minutes, requireCancelReason: r.require_cancel_reason };
   }
 
   // ---------------------------------------------------------------- availability
-  // Same rule as the WhatsApp assistant (agent/limitsiz_agent/booking/slots.py): the whole appointment inside one shift, on the
-  // clinic's step grid from the start of the shift, nothing overlapping another active booking, leave or closure.
+  // Same rule as the WhatsApp assistant (agent/limitsiz_agent/booking/slots.py): the doctor's hours inside the clinic's opening hours,
+  // the whole appointment inside one period, on the doctor's interval from the start of the period, nothing overlapping leave or a
+  // closure, and the doctor's buffer kept after every booking and after this one (the buffer may run past the end of a period).
   async function freeStarts(c, clinic, doctorId, durationMin, dayFrom, dayTo, { earliest, latest, excludeId = null }) {
     const shifts = (await c.query(
-      `select (d::date + w.start_time) at time zone $4 as s, (d::date + w.end_time) at time zone $4 as e
+      `with ch as (select weekday, start_time, end_time from clinic_hours where clinic_id = $5),
+            periods as (
+              select w.weekday, w.start_time as st, w.end_time as en from working_hours w
+               where w.doctor_id = $1 and not exists (select 1 from ch)
+              union all
+              select w.weekday, greatest(w.start_time, h.start_time), least(w.end_time, h.end_time)
+                from working_hours w join ch h on h.weekday = w.weekday
+               where w.doctor_id = $1 and w.start_time < h.end_time and h.start_time < w.end_time)
+       select (d::date + p.st) at time zone $4 as s, (d::date + p.en) at time zone $4 as e
          from generate_series($2::date, $3::date, interval '1 day') d
-         join working_hours w on w.doctor_id = $1 and w.weekday = extract(dow from d)::int
-        order by 1`, [doctorId, dayFrom, dayTo, clinic.timezone])).rows;
+         join periods p on p.weekday = extract(dow from d)::int
+        order by 1`, [doctorId, dayFrom, dayTo, clinic.timezone, clinic.id])).rows;
     if (!shifts.length) return [];
     const lo = shifts[0].s, hi = shifts[shifts.length - 1].e;
-    const busy = (await c.query(
+    const doctor = await one(c, "select slot_minutes, buffer_minutes from doctors where id = $1", [doctorId]);
+    const buffer = doctor.buffer_minutes * MIN;
+    // Wider than the day by the buffer: a booking just outside can still reach in.
+    const bookings = (await c.query(
       `select starts_at, ends_at from appointments where doctor_id = $1 and status in ('booked','confirmed') and starts_at < $3 and ends_at > $2
-          and ($4::uuid is null or id <> $4::uuid)
-       union all
-       select starts_at, ends_at from time_off where clinic_id = $5 and (doctor_id is null or doctor_id = $1) and starts_at < $3 and ends_at > $2`,
-      [doctorId, lo, hi, excludeId, clinic.id])).rows.map((r) => [r.starts_at.getTime(), r.ends_at.getTime()]);
-    const step = clinic.slot_step_minutes * MIN, dur = durationMin * MIN, out = [];
+          and ($4::uuid is null or id <> $4::uuid)`, [doctorId, new Date(lo.getTime() - buffer), new Date(hi.getTime() + buffer), excludeId])).rows.map((r) => [r.starts_at.getTime(), r.ends_at.getTime()]);
+    const blocked = (await c.query(
+      `select starts_at, ends_at from time_off where clinic_id = $1 and (doctor_id is null or doctor_id = $2) and starts_at < $4 and ends_at > $3`,
+      [clinic.id, doctorId, lo, hi])).rows.map((r) => [r.starts_at.getTime(), r.ends_at.getTime()]);
+    const step = (doctor.slot_minutes ?? clinic.slot_step_minutes) * MIN, dur = durationMin * MIN, out = [];
     for (const sh of shifts) {
       for (let t = sh.s.getTime(); t + dur <= sh.e.getTime(); t += step) {
         if (t < earliest || t > latest) continue;
-        if (busy.some(([bs, be]) => bs < t + dur && t < be)) continue;
+        if (blocked.some(([bs, be]) => bs < t + dur && t < be)) continue;
+        if (bookings.some(([bs, be]) => bs < t + dur + buffer && t < be + buffer)) continue;
         out.push(t);
       }
     }
@@ -97,12 +125,12 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
   async function slots(ctx, { serviceId, doctorId, from, days = 1 }) {
     const clinic = await clinicRow(pool, ctx), service = await serviceRow(pool, ctx, serviceId);
     const docs = await doctorsFor(pool, ctx, serviceId, doctorId);
-    const t0 = now().getTime();
+    const t0 = now().getTime(), rules = await staffRules(pool, ctx);
     const dayTo = new Date(Date.parse(from + "T00:00:00Z") + (Math.min(days, 31) - 1) * 86400000).toISOString().slice(0, 10);
     const out = [];
     for (const d of docs) {
       const starts = await freeStarts(pool, clinic, d.id, service.duration_minutes, from, dayTo,
-        { earliest: t0, latest: t0 + STAFF_RULES.windowDays * 86400000 });
+        { earliest: t0 + rules.minNoticeMinutes * MIN, latest: t0 + rules.windowDays * 86400000 });
       for (const t of starts) out.push({ doctorId: d.id, startsAt: new Date(t).toISOString(), endsAt: new Date(t + service.duration_minutes * MIN).toISOString() });
     }
     return out.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
@@ -203,37 +231,42 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
   }
 
   // ---------------------------------------------------------------- creating and changing bookings
-  function checkTime(startsAt, source) {
+  function checkTime(rules, startsAt, source) {
     const t = startsAt.getTime(), n = now().getTime();
-    if (t > n + STAFF_RULES.windowDays * 86400000) throw bad("too_far_ahead");
-    const back = source === "walkin" ? STAFF_RULES.walkinHoursBack * 60 * MIN : 0;
+    if (t > n + rules.windowDays * 86400000) throw bad("too_far_ahead");
+    const back = source === "walkin" ? rules.walkinBackMinutes * MIN : 0;
     if (t < n - back - 5 * MIN) throw bad("in_the_past");     // a few minutes of grace for a form left open
+    if (source !== "walkin" && rules.minNoticeMinutes && t < n + rules.minNoticeMinutes * MIN) throw bad("too_soon");
+  }
+  // Staff may be limited too (default: no limit). A walk-in in the room is not "changing an appointment".
+  function checkChangeNotice(rules, startsAt) {
+    if (rules.changeNoticeMinutes && startsAt.getTime() - now().getTime() < rules.changeNoticeMinutes * MIN) throw new HttpError(409, "too_late_to_change");
   }
 
-  // The chosen time is either one of the free times, or an "other time" the person confirmed (outside hours is a warning here).
-  async function checkFree(c, ctx, clinic, doctorId, service, startsAt, override, excludeId) {
-    const day = startsAt.toISOString().slice(0, 10);
+  // The chosen time is one of the free times, or an "other time": what happens then is the clinic's Staff rule
+  // (block it, warn and ask for a confirmation, or allow it). Returns true for an other time.
+  async function checkFree(c, ctx, clinic, rules, doctorId, service, startsAt, override, excludeId) {
     const dayBefore = new Date(startsAt.getTime() - 86400000).toISOString().slice(0, 10);
     const dayAfter = new Date(startsAt.getTime() + 86400000).toISOString().slice(0, 10);
     const free = await freeStarts(c, clinic, doctorId, service.duration_minutes, dayBefore, dayAfter,
       { earliest: -Infinity, latest: Infinity, excludeId });
-    void day;
     if (free.includes(startsAt.getTime())) return false;
-    if (!override) throw new HttpError(409, "not_a_free_time", { warning: "outside_hours_or_grid" });
-    if (STAFF_RULES.outsideHours === "block") throw new HttpError(409, "outside_hours_blocked");
+    if (rules.outsideHours === "block") throw new HttpError(409, "outside_hours_blocked");
+    if (rules.outsideHours === "warn" && !override) throw new HttpError(409, "not_a_free_time", { warning: "outside_hours_or_grid" });
     return true;
   }
 
   async function createAppointment(ctx, b) {
     const startsAt = new Date(b.startsAt);
     if (Number.isNaN(startsAt.getTime())) throw bad("invalid_time");
-    checkTime(startsAt, b.source);
     return tx(ctx, async (c) => {
+      const rules = await staffRules(c, ctx);
+      checkTime(rules, startsAt, b.source);
       const clinic = await clinicRow(c, ctx), service = await serviceRow(c, ctx, b.serviceId);
       const docs = await doctorsFor(c, ctx, b.serviceId, b.doctorId === "any" ? null : b.doctorId);
       let doctor = null, other = false;
       for (const d of docs) {                                  // "any available": the first doctor with this time free
-        try { other = await checkFree(c, ctx, clinic, d.id, service, startsAt, b.override, null); doctor = d; break; }
+        try { other = await checkFree(c, ctx, clinic, rules, d.id, service, startsAt, b.override, null); doctor = d; break; }
         catch (e) { if (!(e instanceof HttpError) || docs.length === 1 || b.doctorId !== "any") throw e; }
       }
       if (!doctor) throw new HttpError(409, "slot_unavailable");
@@ -243,6 +276,10 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
       const dup = await one(c, `select 1 from appointments where patient_id = $1 and status in ('booked','confirmed') and starts_at < $3 and ends_at > $2`,
         [patientId, startsAt, new Date(startsAt.getTime() + service.duration_minutes * MIN)]);
       if (dup) throw new HttpError(409, "patient_already_booked_then");
+      if (rules.maxUpcoming && !b.allowOverLimit) {           // for staff this is a warning, not a wall
+        const { n } = await one(c, "select count(*)::int n from appointments where patient_id = $1 and status in ('booked','confirmed') and ends_at > $2", [patientId, now()]);
+        if (n >= rules.maxUpcoming) throw new HttpError(409, "over_max_upcoming", { limit: rules.maxUpcoming });
+      }
       try {
         const r = await one(c, `insert into appointments (clinic_id, doctor_id, service_id, patient_id, starts_at, ends_at, source, internal_note, created_by, updated_by)
           values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$9) returning id`,
@@ -272,8 +309,10 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
       await doctorsFor(c, ctx, serviceId, doctorId);
       const moved = +startsAt !== +cur.starts_at || serviceId !== cur.service_id || doctorId !== cur.doctor_id;
       if (moved) {
-        checkTime(startsAt, cur.source);
-        await checkFree(c, ctx, await clinicRow(c, ctx), doctorId, service, startsAt, b.override, id);
+        const rules = await staffRules(c, ctx);
+        checkChangeNotice(rules, cur.starts_at);
+        checkTime(rules, startsAt, cur.source);
+        await checkFree(c, ctx, await clinicRow(c, ctx), rules, doctorId, service, startsAt, b.override, id);
       }
       const patientId = b.patientId ?? cur.patient_id;
       if (patientId !== cur.patient_id) await patientRow(c, ctx, patientId);
@@ -300,8 +339,10 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
       const cur = await one(c, "select * from appointments where clinic_id = $1 and id = $2 for update", [ctx.clinicId, id]);
       if (!cur) throw notFound("appointment_not_found");
       if (cur.row_version !== expectedVersion) throw conflict(cur);
-      const needReason = status === "cancelled" ? STAFF_RULES.requireCancelReason : status === "voided";
+      const rules = await staffRules(c, ctx);
+      const needReason = status === "cancelled" ? rules.requireCancelReason : status === "voided";
       if (needReason && !(reason || "").trim()) throw bad("reason_required");
+      if (status === "cancelled" && ACTIVE.includes(cur.status)) checkChangeNotice(rules, cur.starts_at);
       const admin = perms.includes("booking.appointments.restore");
       let allowed = NEXT[cur.status] ?? [];
       if (status === "voided") allowed = ACTIVE.includes(cur.status) || ["cancelled"].includes(cur.status) ? ["voided"] : [];
@@ -339,6 +380,7 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
     });
   }
 
-  return { lookups, slots, listAppointments, getAppointment, history, createAppointment, updateAppointment, setStatus, restore,
+  const settings = createSettings({ pool, tx, now });
+  return { settings, lookups, timeOffOn, slots, listAppointments, getAppointment, history, createAppointment, updateAppointment, setStatus, restore,
            searchPatients, getPatient, createPatient: (ctx, b) => createPatient(ctx, b), updatePatient, tx };
 }

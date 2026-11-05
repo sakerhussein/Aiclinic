@@ -19,6 +19,18 @@ def pg_weekday(d: date) -> int:
     return d.isoweekday() % 7
 
 
+def within_opening_hours(doctor: list[Shift], clinic: list[Shift]) -> list[Shift]:
+    """The doctor's shifts cut down to the clinic's opening hours. No opening hours at all means they are not set: nothing is cut."""
+    if not clinic:
+        return doctor
+    out = []
+    for d in doctor:
+        for c in clinic:
+            if c.weekday == d.weekday and d.start < c.end and c.start < d.end:
+                out.append(Shift(d.weekday, max(d.start, c.start), min(d.end, c.end)))
+    return out
+
+
 def free_slots(
     *,
     day_from: date,
@@ -30,12 +42,16 @@ def free_slots(
     step: timedelta,
     earliest: datetime,
     latest: datetime,
+    bookings: list[tuple[datetime, datetime]] = (),
+    buffer: timedelta = timedelta(0),
 ) -> list[datetime]:
     """Start times (aware, in the clinic's time zone) between day_from and day_to, both included.
 
     A slot is free when the whole appointment fits inside one shift, starts on the shift's step grid,
     starts no earlier than `earliest` (minimum notice) and no later than `latest` (booking window),
-    and does not overlap anything in `busy` (other appointments, leave, holidays).
+    and does not overlap anything in `busy` (leave, holidays, or appointments when no buffer is used).
+    `bookings` are the doctor's other appointments: the doctor's `buffer` is kept after each of them and after this one,
+    though the buffer itself may run past the end of a shift.
     """
     busy = sorted(busy)
     slots: list[datetime] = []
@@ -46,7 +62,8 @@ def free_slots(
             end = datetime.combine(day, shift.end, tz)
             t = start
             while t + duration <= end:
-                if earliest <= t <= latest and not _overlaps(t, t + duration, busy):
+                if (earliest <= t <= latest and not _overlaps(t, t + duration, busy)
+                        and not _overlaps(t, t + duration + buffer, [(a, b + buffer) for a, b in bookings])):
                     slots.append(t)
                 t += step
         day += timedelta(days=1)

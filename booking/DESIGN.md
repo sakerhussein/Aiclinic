@@ -406,6 +406,12 @@ Until then the demo clinic is the only data in the system.
 > localhost. Same immediacy, but Booking's database login needs **no access to the `accounts` schema at all**, which is stricter.
 > Single sign-on and the service session are as designed otherwise.
 
+> **Refinements made while building Settings (2026-11-06):** closures and leave stay in `time_off` (no new `label`/`kind` columns: `reason` is the
+> name, `doctor_id` null means a closure). Reminders are limited to two, so the existing `reminder_24h_at` and `reminder_2h_at` columns stay and
+> mean first and second reminder. The buffer applies after a booking and after the new one, and may run past the end of a shift. The grid
+> starts at the start of the doctor's hours **inside** the opening hours. A clinic with no opening hours at all has none set: the doctors' hours
+> apply alone. The after-hours message goes into the assistant's instructions, passed on once in a conversation; the assistant keeps working.
+
 ## 14. Running it
 - **DNS** `A` records `accounts` and `booking` → `5.189.186.49` (Spaceship); two new Nginx sites with their own certificates.
 - **PM2** `limitsiz-accounts` (:3003) and `limitsiz-booking` (:3004), localhost only (~80 MB each).

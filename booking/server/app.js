@@ -4,7 +4,7 @@ import crypto from "node:crypto";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { HttpError, parseCookies, cookieString, parse, z, denied, bad } from "./http.js";
+import { HttpError, parseCookies, cookieString, parse, z, denied } from "./http.js";
 
 const uuid = z.string().uuid();
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -103,6 +103,7 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
 
   // ---------------------------------------------------------------- lookups and free times
   app.get("/api/lookups", auth("booking.appointments.view"), wrap(async (req, res) => res.json(await svc.lookups(req.ctx))));
+  app.get("/api/time-off", auth("booking.appointments.view"), wrap(async (req, res) => res.json(await svc.timeOffOn(req.ctx, parse(z.object({ date: day }), req.query).date))));
   app.get("/api/slots", auth("booking.appointments.view"), wrap(async (req, res) => {
     const q = parse(z.object({ service: uuid, doctor: uuid.optional(), date: day, days: z.coerce.number().int().min(1).max(31).optional() }), req.query);
     res.json(await svc.slots(req.ctx, { serviceId: q.service, doctorId: q.doctor, from: q.date, days: q.days }));
@@ -125,6 +126,7 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
     const b = parse(z.object({
       serviceId: uuid, doctorId: z.union([uuid, z.literal("any")]), startsAt: z.string().max(40), source: z.enum(["phone", "walkin"]),
       patientId: uuid.optional(), newPatient: newPatient.optional(), internalNote: z.string().max(500).nullish(), override: z.boolean().optional(),
+      allowOverLimit: z.boolean().optional(),
     }).refine((x) => !!x.patientId !== !!x.newPatient), req.body);
     if (b.newPatient && !can(req, "booking.patients.edit")) throw denied("forbidden");
     res.status(201).json(await svc.createAppointment(req.ctx, b));
@@ -158,6 +160,61 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
     res.json(await svc.updatePatient(req.ctx, parse(uuid, req.params.id), b));
   }));
 
+  // ---------------------------------------------------------------- settings
+  const VIEW = auth("booking.settings.view"), EDIT = auth("booking.settings.edit");
+  const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
+  const periods = z.array(z.object({ weekday: z.number().int().min(0).max(6), start: hhmm, end: hhmm })).max(70);
+  const name = z.string().trim().min(1).max(120), optText = z.string().trim().max(300).nullish();
+  const pick = (...v) => z.number().int().refine((x) => v.includes(x));
+  const S = svc.settings;
+
+  app.get("/api/settings", VIEW, wrap(async (req, res) => res.json(await S.read(req.ctx))));
+  app.patch("/api/settings/profile", EDIT, wrap(async (req, res) => res.json(await S.updateProfile(req.ctx, parse(z.object({
+    nameEn: name, nameAr: name, phone: z.string().trim().max(30).nullish(), addressEn: optText, addressAr: optText, mapsUrl: z.string().trim().url().max(500).nullish().or(z.literal("")),
+    timezone: z.string().max(60), defaultLanguage: z.enum(["ar", "en"]), weekStart: z.number().int().min(0).max(6), slotStepMinutes: pick(5, 10, 15, 20, 30, 60),
+  }), req.body)))));
+  app.put("/api/settings/hours", EDIT, wrap(async (req, res) => res.json(await S.setClinicHours(req.ctx, parse(z.object({ periods }), req.body).periods))));
+  const timeOff = z.object({ doctorId: uuid.nullish(), startsAt: z.string().datetime(), endsAt: z.string().datetime(), reason: z.string().trim().max(120).nullish() });
+  app.post("/api/settings/time-off", EDIT, wrap(async (req, res) => res.status(201).json(await S.addTimeOff(req.ctx, parse(timeOff, req.body)))));
+  app.delete("/api/settings/time-off/:id", EDIT, wrap(async (req, res) => res.json(await S.removeTimeOff(req.ctx, parse(uuid, req.params.id)))));
+
+  const doctor = z.object({ nameEn: name, nameAr: name, titleEn: optText, titleAr: optText, gender: z.enum(["f", "m"]).nullish(),
+    slotMinutes: pick(5, 10, 15, 20, 30, 60).nullish(), bufferMinutes: pick(0, 5, 10, 15).optional(), active: z.boolean().optional() });
+  app.post("/api/settings/doctors", EDIT, wrap(async (req, res) => res.status(201).json(await S.createDoctor(req.ctx, parse(doctor, req.body)))));
+  app.patch("/api/settings/doctors/:id", EDIT, wrap(async (req, res) => {
+    const b = parse(doctor.required({ bufferMinutes: true, active: true }), req.body);
+    res.json(await S.updateDoctor(req.ctx, parse(uuid, req.params.id), b));
+  }));
+  app.put("/api/settings/doctors/:id/hours", EDIT, wrap(async (req, res) => res.json(await S.setDoctorHours(req.ctx, parse(uuid, req.params.id), parse(z.object({ periods }), req.body).periods))));
+  app.put("/api/settings/doctors/:id/services", EDIT, wrap(async (req, res) => res.json(await S.setDoctorServices(req.ctx, parse(uuid, req.params.id), parse(z.object({ serviceIds: z.array(uuid).max(200) }), req.body).serviceIds))));
+
+  const service = z.object({ nameEn: name, nameAr: name, descriptionEn: optText, descriptionAr: optText, durationMinutes: z.number().int().min(5).max(480),
+    priceJod: z.number().min(0).max(100000).nullish(), priceIsFrom: z.boolean().optional(), active: z.boolean().optional() });
+  app.post("/api/settings/services", EDIT, wrap(async (req, res) => res.status(201).json(await S.createService(req.ctx, parse(service, req.body)))));
+  app.patch("/api/settings/services/:id", EDIT, wrap(async (req, res) => res.json(await S.updateService(req.ctx, parse(uuid, req.params.id), parse(service.required({ active: true }), req.body)))));
+
+  app.patch("/api/settings/rules/:audience", EDIT, wrap(async (req, res) => {
+    const audience = parse(z.enum(["patient", "staff"]), req.params.audience);
+    res.json(await S.updateRules(req.ctx, audience, parse(z.object({
+      minNoticeMinutes: z.number().int().min(0).max(43200), windowDays: z.number().int().min(1).max(730), changeNoticeMinutes: z.number().int().min(0).max(43200),
+      maxUpcoming: z.number().int().min(1).max(100).nullish(), outsideHours: z.enum(["block", "warn", "allow"]).optional(),
+      walkinBackMinutes: z.number().int().min(0).max(1440).optional(), requireCancelReason: z.boolean().optional(),
+    }), req.body)));
+  }));
+  app.patch("/api/settings/general", EDIT, wrap(async (req, res) => res.json(await S.updateGeneral(req.ctx, parse(z.object({
+    idleTimeoutMinutes: pick(15, 30, 60, 120, 240), lockAfterMinutes: pick(0, 5, 10, 15, 30), require2faAll: z.boolean(),
+    conversationVisibility: z.enum(["none", "handoff", "all"]), auditRetentionMonths: z.number().int().min(12).max(240).nullish(),
+    remindersEnabled: z.boolean(), reminderOffsetsMinutes: z.array(pick(2880, 1440, 720, 240, 120, 60)).max(2), quietStart: hhmm, quietEnd: hhmm,
+    assistantEnabled: z.boolean(), afterHoursMessageEn: z.string().trim().max(500).nullish(), afterHoursMessageAr: z.string().trim().max(500).nullish(),
+    handoffAlertEmails: z.array(z.string().trim().toLowerCase().email().max(200)).max(10),
+  }), req.body)))));
+
+  const faq = z.object({ topic: z.string().trim().min(1).max(60), questionEn: z.string().trim().min(1).max(300), questionAr: z.string().trim().min(1).max(300),
+    answerEn: z.string().trim().min(1).max(1000), answerAr: z.string().trim().min(1).max(1000) });
+  app.post("/api/settings/faqs", EDIT, wrap(async (req, res) => res.status(201).json(await S.addFaq(req.ctx, parse(faq, req.body)))));
+  app.patch("/api/settings/faqs/:id", EDIT, wrap(async (req, res) => res.json(await S.updateFaq(req.ctx, parse(uuid, req.params.id), parse(faq, req.body)))));
+  app.delete("/api/settings/faqs/:id", EDIT, wrap(async (req, res) => res.json(await S.removeFaq(req.ctx, parse(uuid, req.params.id)))));
+
   // ---------------------------------------------------------------- the pages (built React app)
   if (existsSync(dist)) {
     app.use(express.static(dist, { index: false, maxAge: "1h", setHeaders: (res, p) => { if (p.endsWith(".html")) res.set("Cache-Control", "no-store"); } }));
@@ -172,6 +229,5 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
     console.error(`[${req.ctxBase?.requestId}]`, err);
     res.status(500).json({ error: "server_error", requestId: req.ctxBase?.requestId });
   });
-  void bad;
   return app;
 }

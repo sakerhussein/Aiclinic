@@ -18,8 +18,13 @@ const MFA_ROLES = new Set(["clinic_admin", "platform_admin"]);
 export const normEmail = (e) => String(e || "").trim().toLowerCase();
 
 export function createCore({ pool, config, mail, now = () => new Date(), security }) {
-  // Lock and idle times come from the clinic's Settings (phase B); until then the defaults of the design.
-  const getSecurity = security || (async () => ({ lockMinutes: 10, idleMinutes: 60, requireMfaAll: false }));
+  // Lock and idle times come from the clinic's Settings. No clinic chosen yet, or a Limitsiz administrator: the defaults.
+  const getSecurity = security || (async (clinicId) => {
+    const { rows } = clinicId ? await pool.query(
+      "select idle_timeout_minutes, lock_after_minutes, require_2fa_all from public.clinic_settings where clinic_id = $1", [clinicId]) : { rows: [] };
+    const r = rows[0];
+    return { lockMinutes: r?.lock_after_minutes ?? 10, idleMinutes: r?.idle_timeout_minutes ?? 60, requireMfaAll: r?.require_2fa_all ?? false };
+  });
 
   // ---------------------------------------------------------------- helpers
   // One transaction whose changes are audited with the given actor (audit.set_actor is transaction-local).

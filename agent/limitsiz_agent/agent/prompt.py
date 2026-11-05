@@ -61,6 +61,13 @@ def build_system_prompt(info: dict) -> str:
     lines.append(f"- Bookings need at least {info['min_notice_minutes']} minutes notice and can be up to "
                  f"{info['booking_window_days']} days ahead. Changes and cancellations need at least "
                  f"{info['cancel_notice_minutes']} minutes notice.")
+    # Both only appear for a clinic that set them in Settings; otherwise the prompt is exactly as before.
+    if info.get("opening_hours"):
+        lines.append(f"- Clinic opening hours: {_hours(info['opening_hours'])}.")
+    notes = [n for n in (info.get("after_hours_message_en"), info.get("after_hours_message_ar")) if n]
+    if notes:
+        lines.append("- When the current clinic time is outside the opening hours, also pass on this note from the clinic "
+                     f"once in the conversation, in the patient's language: {' / '.join(notes)}")
 
     lines.append("\nServices (service_id: English / Arabic, length, price)")
     for s in info["services"]:

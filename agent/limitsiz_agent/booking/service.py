@@ -14,12 +14,11 @@ import psycopg
 from psycopg.rows import dict_row
 from zoneinfo import ZoneInfo
 
-from .slots import Shift, free_slots
+from .slots import Shift, free_slots, within_opening_hours
 
 ACTIVE = ("booked", "confirmed")
 AGENT_ACTOR = ("agent", "whatsapp", "WhatsApp assistant")
 # Stops one number from filling the calendar.
-MAX_UPCOMING_PER_PATIENT = 3
 HANDOFF_REASONS = ("emergency", "medical_question", "patient_request", "complaint", "agent_unsure")
 
 
@@ -77,8 +76,10 @@ def clinic_info(conn: psycopg.Connection, clinic_id: UUID | str) -> dict:
         for d in doctors:
             d["hours"] = [
                 {"weekday": s.weekday, "start": s.start.strftime("%H:%M"), "end": s.end.strftime("%H:%M")}
-                for s in _shifts(cur, d["id"])
+                for s in _shifts(cur, clinic_id, d["id"])
             ]
+        hours = [{"weekday": s.weekday, "start": s.start.strftime("%H:%M"), "end": s.end.strftime("%H:%M")}
+                 for s in _clinic_hours(cur, clinic_id)]
         cur.execute(
             """select topic, question_en, question_ar, answer_en, answer_ar
                from clinic_faqs where clinic_id = %s order by sort""",
@@ -86,8 +87,9 @@ def clinic_info(conn: psycopg.Connection, clinic_id: UUID | str) -> dict:
         )
         faqs = cur.fetchall()
     keys = ("id", "name_en", "name_ar", "timezone", "phone", "address_en", "address_ar", "maps_url",
-            "default_language", "booking_window_days", "min_notice_minutes", "cancel_notice_minutes")
-    return {**{k: clinic[k] for k in keys}, "services": services, "doctors": doctors, "faqs": faqs}
+            "default_language", "booking_window_days", "min_notice_minutes", "cancel_notice_minutes",
+            "after_hours_message_en", "after_hours_message_ar")
+    return {**{k: clinic[k] for k in keys}, "services": services, "doctors": doctors, "faqs": faqs, "opening_hours": hours}
 
 
 def find_slots(
@@ -176,7 +178,7 @@ def book(
             (clinic_id, phone, full_name, language),
         )
         patient_id = cur.fetchone()["id"]
-        _check_patient_free(cur, patient_id, starts_at, starts_at + duration, now, exclude_id=None, counting_new=True)
+        _check_patient_free(cur, clinic, patient_id, starts_at, starts_at + duration, now, exclude_id=None, counting_new=True)
 
         try:
             cur.execute(
@@ -238,7 +240,7 @@ def reschedule(
         _doctors_for(cur, clinic_id, appt["service_id"], doctor_id, None)
         duration = timedelta(minutes=service["duration_minutes"])
         _check_slot(cur, clinic, doctor_id, new_starts_at, duration, now, exclude_id=appt["id"])
-        _check_patient_free(cur, appt["patient_id"], new_starts_at, new_starts_at + duration, now,
+        _check_patient_free(cur, clinic, appt["patient_id"], new_starts_at, new_starts_at + duration, now,
                             exclude_id=appt["id"], counting_new=False)
         try:
             cur.execute(
@@ -306,7 +308,14 @@ def _require_aware(t: datetime) -> None:
 
 
 def _clinic(cur, clinic_id) -> dict:
-    cur.execute("select * from clinics where id = %s and active", (clinic_id,))
+    # The rules for patients come from Settings (booking_rules), under the names the code has always used.
+    cur.execute(
+        """select c.*, r.min_notice_minutes, r.window_days as booking_window_days, r.change_notice_minutes as cancel_notice_minutes,
+                  r.max_upcoming, s.after_hours_message_en, s.after_hours_message_ar
+           from clinics c
+           join booking_rules r on r.clinic_id = c.id and r.audience = 'patient'
+           join clinic_settings s on s.clinic_id = c.id
+           where c.id = %s and c.active""", (clinic_id,))
     clinic = cur.fetchone()
     if not clinic:
         raise BookingError("unknown_clinic", str(clinic_id))
@@ -346,10 +355,17 @@ def _window(clinic, now: datetime) -> tuple[datetime, datetime]:
             now + timedelta(days=clinic["booking_window_days"]))
 
 
-def _shifts(cur, doctor_id) -> list[Shift]:
+def _clinic_hours(cur, clinic_id) -> list[Shift]:
+    cur.execute("select weekday, start_time, end_time from clinic_hours where clinic_id = %s order by weekday, start_time", (clinic_id,))
+    return [Shift(r["weekday"], r["start_time"], r["end_time"]) for r in cur.fetchall()]
+
+
+def _shifts(cur, clinic_id, doctor_id) -> list[Shift]:
+    """The doctor's weekly hours inside the clinic's opening hours."""
     cur.execute("select weekday, start_time, end_time from working_hours where doctor_id = %s "
                 "order by weekday, start_time", (doctor_id,))
-    return [Shift(r["weekday"], r["start_time"], r["end_time"]) for r in cur.fetchall()]
+    doctor = [Shift(r["weekday"], r["start_time"], r["end_time"]) for r in cur.fetchall()]
+    return within_opening_hours(doctor, _clinic_hours(cur, clinic_id))
 
 
 def _doctor_slots(cur, clinic, doctor_id, duration, day_from, day_to, earliest, latest, exclude_id=None):
@@ -359,16 +375,22 @@ def _doctor_slots(cur, clinic, doctor_id, duration, day_from, day_to, earliest, 
     cur.execute(
         """select starts_at, ends_at from appointments
            where doctor_id = %s and status in ('booked', 'confirmed') and starts_at < %s and ends_at > %s
-             and (%s::uuid is null or id <> %s::uuid)
-           union all
-           select starts_at, ends_at from time_off
+             and (%s::uuid is null or id <> %s::uuid)""",
+        (doctor_id, range_to, range_from, exclude_id, exclude_id),
+    )
+    bookings = [(r["starts_at"], r["ends_at"]) for r in cur.fetchall()]
+    cur.execute(
+        """select starts_at, ends_at from time_off
            where clinic_id = %s and (doctor_id is null or doctor_id = %s) and starts_at < %s and ends_at > %s""",
-        (doctor_id, range_to, range_from, exclude_id, exclude_id, clinic["id"], doctor_id, range_to, range_from),
+        (clinic["id"], doctor_id, range_to, range_from),
     )
     busy = [(r["starts_at"], r["ends_at"]) for r in cur.fetchall()]
+    cur.execute("select slot_minutes, buffer_minutes from doctors where id = %s", (doctor_id,))
+    doctor = cur.fetchone()
     return free_slots(
-        day_from=day_from, day_to=day_to, tz=tz, shifts=_shifts(cur, doctor_id), busy=busy, duration=duration,
-        step=timedelta(minutes=clinic["slot_step_minutes"]), earliest=earliest, latest=latest,
+        day_from=day_from, day_to=day_to, tz=tz, shifts=_shifts(cur, clinic["id"], doctor_id), busy=busy, duration=duration,
+        step=timedelta(minutes=doctor["slot_minutes"] or clinic["slot_step_minutes"]), earliest=earliest, latest=latest,
+        bookings=bookings, buffer=timedelta(minutes=doctor["buffer_minutes"]),
     )
 
 
@@ -383,7 +405,7 @@ def _check_slot(cur, clinic, doctor_id, starts_at, duration, now, exclude_id=Non
         raise BookingError("slot_unavailable", starts_at.isoformat())
 
 
-def _check_patient_free(cur, patient_id, starts_at, ends_at, now, *, exclude_id, counting_new) -> None:
+def _check_patient_free(cur, clinic, patient_id, starts_at, ends_at, now, *, exclude_id, counting_new) -> None:
     cur.execute(
         """select count(*) filter (where ends_at > %s) as upcoming,
                   count(*) filter (where starts_at < %s and ends_at > %s) as overlapping
@@ -394,8 +416,9 @@ def _check_patient_free(cur, patient_id, starts_at, ends_at, now, *, exclude_id,
     row = cur.fetchone()
     if row["overlapping"]:
         raise BookingError("patient_busy", "the patient already has an appointment at that time")
-    if counting_new and row["upcoming"] >= MAX_UPCOMING_PER_PATIENT:
-        raise BookingError("too_many_upcoming", f"at most {MAX_UPCOMING_PER_PATIENT} upcoming appointments")
+    limit = clinic["max_upcoming"]
+    if counting_new and limit is not None and row["upcoming"] >= limit:
+        raise BookingError("too_many_upcoming", f"at most {limit} upcoming appointments")
 
 
 def _own_active_appointment(cur, clinic_id, phone, appointment_id) -> dict:

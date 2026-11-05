@@ -73,6 +73,11 @@ export async function setup() {
     return { services, docs, lina: docs[0].id, omar: docs[1].id };
   }
 
-  async function reset() { await a.owner.query("delete from appointments; delete from patients; delete from time_off;"); await a.reset(); }
+  async function reset() { await a.owner.query(`delete from appointments; delete from patients; delete from time_off; delete from clinic_hours;
+      update doctors set slot_minutes = null, buffer_minutes = 0, active = true;
+      update booking_rules set min_notice_minutes = 0, window_days = 365, change_notice_minutes = 0, max_upcoming = null, outside_hours = 'warn', walkin_back_minutes = 120, require_cancel_reason = true where audience = 'staff';
+      update booking_rules set min_notice_minutes = 60, window_days = 30, change_notice_minutes = 120, max_upcoming = 3 where audience = 'patient';
+      update clinic_settings set idle_timeout_minutes = 60, lock_after_minutes = 10, require_2fa_all = false, audit_retention_months = null, assistant_enabled = true;
+      delete from doctors where name_en like 'Test %'; delete from services where name_en like 'Test %';`); await a.reset(); }
   return { ...a, reset, base, bookingJar: jar, login, people, seedIds, pool, async close() { server.close(); await pool.end(); await auditPool.end(); await a.close(); } };
 }

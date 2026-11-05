@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { get, type Appt } from "../api";
-import { addDays, fmtDay, hm, localToIso, minutesOfDay, todayIn, weekdayOf } from "../lib";
+import { get, type Appt, type Block } from "../api";
+import { addDays, dayOf, fmtDay, hm, localToIso, minutesOfDay, todayIn, weekdayOf } from "../lib";
 import { useI18n } from "../i18n";
 import { useApp } from "../session";
 
@@ -19,11 +19,26 @@ export function Calendar() {
   const mine = me.role === "doctor" && me.doctorId;
   const doctors = useMemo(() => look.doctors.filter((x) => !mine || x.id === me.doctorId), [look, mine, me.doctorId]);
   const [appts, setAppts] = useState<Appt[]>([]);
-  const load = useCallback(() => { get(`/api/appointments?from=${day}&to=${day}`).then(setAppts).catch(() => {}); }, [day]);
+  const [blocks, setBlocks] = useState<Block[]>([]);
+  const load = useCallback(() => {
+    get(`/api/appointments?from=${day}&to=${day}`).then(setAppts).catch(() => {});
+    get<Block[]>(`/api/time-off?date=${day}`).then(setBlocks).catch(() => {});
+  }, [day]);
   useEffect(() => { load(); const i = window.setInterval(() => { if (!document.hidden) load(); }, 20_000); return () => window.clearInterval(i); }, [load]);
 
   const wd = weekdayOf(day);
-  const shifts = (docId: string) => look.doctors.find((x) => x.id === docId)!.hours.filter((h) => h.weekday === wd).map((h) => [toMin(h.start), toMin(h.end)] as const);
+  const open = look.openingHours.filter((h) => h.weekday === wd).map((h) => [toMin(h.start), toMin(h.end)] as const);
+  const shifts = (docId: string) => {
+    const own = look.doctors.find((x) => x.id === docId)!.hours.filter((h) => h.weekday === wd).map((h) => [toMin(h.start), toMin(h.end)] as const);
+    if (!look.openingHours.length) return own;         // opening hours not set: the doctor's own hours apply
+    return own.flatMap(([a, b]) => open.filter(([c, e]) => a < e && c < b).map(([c, e]) => [Math.max(a, c), Math.min(b, e)] as const));
+  };
+  // Closures and leave on this day, in minutes of the day.
+  const away = (docId: string) => blocks.filter((b) => !b.doctor_id || b.doctor_id === docId).map((b) => ({
+    id: b.id, reason: b.reason,
+    a: dayOf(b.starts_at, tz) < day ? 0 : minutesOfDay(b.starts_at, tz),
+    z: dayOf(new Date(Date.parse(b.ends_at) - 1).toISOString(), tz) > day ? 24 * 60 : minutesOfDay(new Date(Date.parse(b.ends_at) - 1).toISOString(), tz) + 1,
+  }));
   const all = doctors.flatMap((x) => shifts(x.id));
   const from = all.length ? Math.floor(Math.min(...all.map((s) => s[0])) / 60) * 60 - 60 : 8 * 60;
   const to = all.length ? Math.ceil(Math.max(...all.map((s) => s[1])) / 60) * 60 + 60 : 18 * 60;
@@ -61,6 +76,10 @@ export function Calendar() {
               <div key={doc.id} className="cal-col" onClick={(e) => e.target === e.currentTarget || (e.target as HTMLElement).classList.contains("cal-off") || (e.target as HTMLElement).classList.contains("cal-line") ? onGrid(e, doc.id) : undefined}>
                 {hours.map((m) => <i key={m} className="cal-line" style={{ top: (m - from) * PX }} />)}
                 {offRanges(from, to, sh).map(([a, b]) => <i key={a} className="cal-off" style={{ top: (a - from) * PX, height: (b - a) * PX }} />)}
+                {away(doc.id).map((b) => {
+                  const top = Math.max(b.a, from), bottom = Math.min(b.z, to);
+                  return bottom > top ? <i key={b.id} className="cal-off cal-away" title={b.reason || ""} style={{ top: (top - from) * PX, height: (bottom - top) * PX }}>{b.reason}</i> : null;
+                })}
                 {appts.filter((a) => a.doctor_id === doc.id && a.status !== "cancelled").map((a) => {
                   const s = minutesOfDay(a.starts_at, tz), h = Math.max(a.duration_minutes, 15);
                   return (

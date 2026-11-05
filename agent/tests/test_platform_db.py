@@ -275,43 +275,48 @@ def test_membership_changes_are_recorded_on_the_clinics_chain(conn):
 
 def test_hash_chain_verifies_and_detects_tampering(conn):
     c = new_clinic(conn)
+    base = len(events(conn, c))              # creating a clinic writes its set-up entries
     for i in range(5):
         conn.execute("insert into patients (clinic_id, phone_e164) values (%s, %s)", (c, f"+96279111003{i}"))
     ev = events(conn, c)
-    assert [e["seq"] for e in ev] == [1, 2, 3, 4, 5] and ev[0]["prev_hash"] == ""
-    assert all(ev[i]["prev_hash"] == ev[i - 1]["hash"] for i in range(1, 5))
-    assert conn.execute("select ok, checked, broken_seq from audit.verify(%s)", (c,)).fetchone() == (True, 5, None)
+    total = base + 5
+    assert [e["seq"] for e in ev] == list(range(1, total + 1)) and ev[0]["prev_hash"] == ""
+    assert all(ev[i]["prev_hash"] == ev[i - 1]["hash"] for i in range(1, total))
+    assert conn.execute("select ok, checked, broken_seq from audit.verify(%s)", (c,)).fetchone() == (True, total, None)
     head = conn.execute("select seq, hash from audit.head(%s)", (c,)).fetchone()
-    assert head == (5, ev[4]["hash"])
+    assert head == (total, ev[-1]["hash"])
 
     conn.execute("alter table audit.events disable trigger events_no_update_delete")
     try:
-        conn.execute("update audit.events set after = '{\"phone_e164\": \"+962700000000\"}' where chain_key = %s and seq = 3", (c,))
-        assert conn.execute("select ok, broken_seq from audit.verify(%s)", (c,)).fetchone() == (False, 3)
-        conn.execute("update audit.events set after = %s where chain_key = %s and seq = 3", (Jsonb(ev[2]["after"]), c))
+        conn.execute("update audit.events set after = '{\"phone_e164\": \"+962700000000\"}' where chain_key = %s and seq = %s", (c, base + 3))
+        assert conn.execute("select ok, broken_seq from audit.verify(%s)", (c,)).fetchone() == (False, base + 3)
+        conn.execute("update audit.events set after = %s where chain_key = %s and seq = %s", (Jsonb(ev[base + 2]["after"]), c, base + 3))
         assert conn.execute("select ok from audit.verify(%s)", (c,)).fetchone()[0] is True       # put back: fine again
-        conn.execute("delete from audit.events where chain_key = %s and seq = 2", (c,))            # a missing entry shows too
-        assert conn.execute("select ok, broken_seq from audit.verify(%s)", (c,)).fetchone() == (False, 3)
+        conn.execute("delete from audit.events where chain_key = %s and seq = %s", (c, base + 2))   # a missing entry shows too
+        assert conn.execute("select ok, broken_seq from audit.verify(%s)", (c,)).fetchone() == (False, base + 3)
     finally:
         conn.execute("alter table audit.events enable trigger events_no_update_delete")
 
 
 def test_each_clinic_has_its_own_chain(conn):
     a, b = new_clinic(conn), new_clinic(conn)
+    base_a, base_b = len(events(conn, a)), len(events(conn, b))
     conn.execute("insert into patients (clinic_id, phone_e164) values (%s, '+962791110040')", (a,))
     conn.execute("insert into patients (clinic_id, phone_e164) values (%s, '+962791110041')", (b,))
     conn.execute("insert into patients (clinic_id, phone_e164) values (%s, '+962791110042')", (b,))
-    assert [e["seq"] for e in events(conn, a)] == [1] and [e["seq"] for e in events(conn, b)] == [1, 2]
+    assert len(events(conn, a)) == base_a + 1 and len(events(conn, b)) == base_b + 2
+    assert [e["seq"] for e in events(conn, b)] == list(range(1, base_b + 3))
     assert events(conn, a)[0]["hash"] != events(conn, b)[0]["hash"]
 
 
 def test_audit_events_are_append_only_even_for_the_owner(conn):
     c = new_clinic(conn)
+    base = len(events(conn, c))
     conn.execute("insert into patients (clinic_id, phone_e164) values (%s, '+962791110050')", (c,))
     for sql in ("update audit.events set action = 'x'", "delete from audit.events", "truncate audit.events"):
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
             conn.execute(sql)
-    assert len(events(conn, c)) == 1
+    assert len(events(conn, c)) == base + 1
 
 
 # ---------------------------------------------------------------- database roles
@@ -350,7 +355,10 @@ def test_booking_app_can_work_but_not_delete_or_touch_the_audit_log(conn):
     denied(conn, "booking_app", "insert into audit.events (chain_key, seq, at, actor_type, db_role, entity, action, prev_hash, hash) "
                                 "values (gen_random_uuid(), 1, now(), 'user', 'x', 'x', 'x', '', 'x')")
     denied(conn, "booking_app", "select * from accounts.users")
-    denied(conn, "booking_app", "update clinics set name_en = 'x'")
+    denied(conn, "booking_app", "update clinics set wa_phone_number_id = 'x'")      # profile fields yes, WhatsApp wiring and active no
+    denied(conn, "booking_app", "update clinics set active = false")
+    denied(conn, "booking_app", "delete from doctors")
+    denied(conn, "booking_app", "delete from services")
     # What it did was audited, as the database login it used.
     with as_role(conn, "booking_app"):
         conn.execute("select audit.set_actor('user', 'u-9', 'Rana Q.', null, null, null, null, %s)", (DEMO,))

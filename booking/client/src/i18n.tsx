@@ -5,7 +5,7 @@ export type Lang = "en" | "ar";
 // English and Arabic for every piece of text. The Arabic is a working draft for a native reader to review.
 const EN = {
   brand: "Limitsiz Clinic", product: "Booking", langSwitch: "العربية",
-  calendar: "Calendar", bookings: "Bookings", patients: "Patients", mySchedule: "My schedule",
+  calendar: "Calendar", bookings: "Bookings", patients: "Patients", mySchedule: "My schedule", settings: "Settings", bookAnyway: "Book anyway",
   accounts: "Accounts", switchUser: "Switch user", signOut: "Sign out",
   today: "Today", prev: "Previous day", next: "Next day", newBooking: "New booking", allDoctors: "All doctors",
   noBookings: "No bookings.", loading: "Loading…", save: "Save", cancel: "Cancel", back: "Back", edit: "Edit", search: "Search", clear: "Clear",
@@ -37,12 +37,16 @@ const EN = {
     forbidden: "You are not allowed to do that.", doctor_does_not_offer_service: "This doctor does not offer that service.",
     invalid_input: "Please check what you typed.", server_error: "Something went wrong. Please try again.", bad_origin: "Please reload the page.",
     not_voided: "This booking is not voided.", unknown_service: "Choose a service.", version_conflict: "Someone changed this booking meanwhile.",
+    too_soon: "That is sooner than the clinic's minimum notice.", too_late_to_change: "It is too close to the appointment to change it.",
+    over_max_upcoming: "This patient has reached the clinic's limit of upcoming bookings.", outside_hours_blocked: "This clinic does not allow bookings outside the free times.",
+    hours_overlap: "Two periods overlap on the same day.", end_before_start: "The end must be after the start.", invalid_timezone: "That time zone is not valid.",
+    doctor_hours_outside_clinic: "A doctor's hours must fit inside the clinic's opening hours.", invalid_value: "One of the values is not allowed.",
   } as Record<string, string>,
 };
 
 const AR: typeof EN = {
   brand: "Limitsiz Clinic", product: "الحجوزات", langSwitch: "English",
-  calendar: "التقويم", bookings: "الحجوزات", patients: "المرضى", mySchedule: "جدولي",
+  calendar: "التقويم", bookings: "الحجوزات", patients: "المرضى", mySchedule: "جدولي", settings: "الإعدادات", bookAnyway: "احجز رغم ذلك",
   accounts: "الحسابات", switchUser: "تبديل المستخدم", signOut: "تسجيل الخروج",
   today: "اليوم", prev: "اليوم السابق", next: "اليوم التالي", newBooking: "حجز جديد", allDoctors: "كل الأطباء",
   noBookings: "لا توجد حجوزات.", loading: "جارٍ التحميل…", save: "حفظ", cancel: "إلغاء", back: "رجوع", edit: "تعديل", search: "بحث", clear: "مسح",
@@ -74,6 +78,10 @@ const AR: typeof EN = {
     forbidden: "غير مسموح لك بهذا الإجراء.", doctor_does_not_offer_service: "هذا الطبيب لا يقدّم هذه الخدمة.",
     invalid_input: "تحقق مما كتبته.", server_error: "حدث خطأ. حاول مرة أخرى.", bad_origin: "أعد تحميل الصفحة.",
     not_voided: "هذا الحجز ليس مُبطلاً.", unknown_service: "اختر الخدمة.", version_conflict: "شخص آخر غيّر هذا الحجز.",
+    too_soon: "هذا أقرب من أقل مدة تسمح بها العيادة.", too_late_to_change: "الموعد قريب جداً ولا يمكن تغييره.",
+    over_max_upcoming: "وصل هذا المريض إلى حد الحجوزات القادمة في العيادة.", outside_hours_blocked: "لا تسمح هذه العيادة بالحجز خارج الأوقات المتاحة.",
+    hours_overlap: "فترتان متداخلتان في اليوم نفسه.", end_before_start: "يجب أن تكون النهاية بعد البداية.", invalid_timezone: "المنطقة الزمنية غير صالحة.",
+    doctor_hours_outside_clinic: "يجب أن تكون ساعات الطبيب ضمن ساعات دوام العيادة.", invalid_value: "إحدى القيم غير مسموحة.",
   },
 };
 

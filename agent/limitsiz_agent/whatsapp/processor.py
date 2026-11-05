@@ -85,6 +85,8 @@ class Processor:
             return
         if status == "handed_off":
             return  # staff are answering; they see this message on their screen
+        if not self.conn.execute("select assistant_enabled from clinic_settings where clinic_id = %s", (clinic_id,)).fetchone()[0]:
+            return  # the clinic switched the assistant off in Settings; the message is saved for staff
         if m.kind in ("audio", "other"):
             self.send(ctx, m, FIXED[m.kind][lang])
             return

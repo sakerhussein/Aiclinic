@@ -203,8 +203,9 @@ def alert_new_handoffs(conn: psycopg.Connection, smtp: dict, base_url: str, defa
     """Emails the clinic about each new hand-off once. smtp: host, port, user, password, sender."""
     with conn.transaction():
         rows = conn.execute(
-            """select h.id, h.reason, h.summary, c.id, c.wa_phone, coalesce(cl.staff_alert_email, %s), cl.name_en
+            """select h.id, h.reason, h.summary, c.id, c.wa_phone, coalesce(nullif(array_to_string(s.handoff_alert_emails, ', '), ''), cl.staff_alert_email, %s), cl.name_en
                from handoffs h join conversations c on c.id = h.conversation_id join clinics cl on cl.id = h.clinic_id
+               join clinic_settings s on s.clinic_id = cl.id
                where h.alerted_at is null and h.status = 'open' for update of h skip locked""", (default_to,)).fetchall()
         for row in rows:
             conn.execute("update handoffs set alerted_at = now() where id = %s", (row[0],))

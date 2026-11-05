@@ -10,8 +10,10 @@ from these files in order, then add the demo clinic (`agent/supabase/seed_demo_c
 | 0004 | `audit` schema: append-only, hash-chained events; triggers on appointments, patients, memberships, users |
 | 0005, 0006 | Booking additions: `voided` status and reason rule, `row_version`, internal note, phone optional, reminder consent |
 | 0007 | database logins `accounts_app`, `booking_app`, `audit_reader` with least privilege and explicit policies |
+| 0008 | Settings: `clinic_hours`, `booking_rules`, `clinic_settings`, doctor interval and buffer, week start; defaults trigger for new clinics; audit triggers on the settings tables |
 
 ## Rules
+- **The agent code after commit `372f0bd` needs migration 0008.** Apply 0008 to Supabase before pushing that code: without it the assistant cannot read a clinic.
 - Changes only add; they must keep the running services working (the code that needs a change is deployed **after** it).
 - A new enum value cannot be used in the migration that adds it: put what uses it in the next file.
 - Apply to Supabase in order, each as its own migration. **Passwords** of the service logins are set by the owner outside

@@ -187,10 +187,57 @@ def test_reminders_24h_and_2h_once_each(conn, wired):
     assert first[2:5] == ("appointment_reminder", "ar", ["استشارة جلدية", "د. لينا حداد", "الاثنين 07/12", "04:00"])
     assert first[5] == [f"REMIND_CONFIRM:{tomorrow}", f"REMIND_CHANGE:{tomorrow}"]
     assert reminders.send_due_reminders(conn, wa, "appointment_reminder", NOW) == 0  # never twice
+    conn.execute("update clinic_settings set quiet_start = '00:00', quiet_end = '00:00'")   # this step runs at 02:30: no quiet hours here
     later = NOW + timedelta(hours=18, minutes=30)  # tomorrow's appointment is now < 2 h away
     assert reminders.send_due_reminders(conn, wa, "appointment_reminder", later) == 2  # its 2 h one, and just_booked's 24 h one
     assert conn.execute("select count(*) from messages where author = 'reminder'").fetchone()[0] == 4
     assert just_booked and soon
+
+
+def test_no_reminders_when_the_clinic_switched_them_off(conn, wired):
+    _, wa, _ = wired()
+    make_appointment(conn, NOW + timedelta(hours=20), NOW - timedelta(days=2))
+    conn.execute("update clinic_settings set reminders_enabled = false")
+    assert reminders.send_due_reminders(conn, wa, "appointment_reminder", NOW) == 0
+    conn.execute("update clinic_settings set reminders_enabled = true")
+    assert reminders.send_due_reminders(conn, wa, "appointment_reminder", NOW) == 1
+
+
+def test_quiet_hours_hold_a_reminder_until_they_end(conn, wired):
+    _, wa, _ = wired()
+    make_appointment(conn, NOW + timedelta(hours=20), NOW - timedelta(days=2))
+    night = NOW - timedelta(hours=9)                      # 23:00 the evening before, inside 21:00-08:00, 29 hours away
+    conn.execute("update clinic_settings set reminder_offsets_minutes = '{2880,120}'")
+    assert reminders.send_due_reminders(conn, wa, "appointment_reminder", night) == 0
+    assert reminders.send_due_reminders(conn, wa, "appointment_reminder", NOW) == 1      # 08:00: sent
+
+
+def test_reminder_timing_is_a_setting(conn, wired):
+    _, wa, _ = wired()
+    make_appointment(conn, NOW + timedelta(hours=10), NOW - timedelta(days=2))
+    conn.execute("update clinic_settings set reminder_offsets_minutes = '{480,60}'")      # 8 h and 1 h
+    assert reminders.send_due_reminders(conn, wa, "appointment_reminder", NOW) == 0       # 10 h away: too early
+    assert reminders.send_due_reminders(conn, wa, "appointment_reminder", NOW + timedelta(hours=3)) == 1
+    assert reminders.send_due_reminders(conn, wa, "appointment_reminder", NOW + timedelta(hours=3)) == 0
+    assert reminders.send_due_reminders(conn, wa, "appointment_reminder", NOW + timedelta(hours=9, minutes=30)) == 1
+
+
+def test_one_reminder_only_and_none_at_all(conn, wired):
+    _, wa, _ = wired()
+    make_appointment(conn, NOW + timedelta(hours=5), NOW - timedelta(days=2))
+    conn.execute("update clinic_settings set reminder_offsets_minutes = '{}'")
+    assert reminders.send_due_reminders(conn, wa, "appointment_reminder", NOW) == 0
+    conn.execute("update clinic_settings set reminder_offsets_minutes = '{1440}'")
+    assert reminders.send_due_reminders(conn, wa, "appointment_reminder", NOW) == 1
+    assert reminders.send_due_reminders(conn, wa, "appointment_reminder", NOW + timedelta(hours=4)) == 0
+
+
+def test_assistant_switched_off_saves_the_message_and_stays_quiet(conn, wired):
+    proc, wa, fake = wired()
+    conn.execute("update clinic_settings set assistant_enabled = false")
+    proc.handle(Inbound(PNID, "wamid.off", PHONE, None, "text", "hello"))
+    assert wa.sent == [] and fake.calls == []
+    assert conn.execute("select count(*) from messages where direction = 'in'").fetchone()[0] == 1
 
 
 def test_no_reminder_without_consent_or_number(conn, wired):

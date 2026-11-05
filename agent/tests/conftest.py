@@ -39,5 +39,11 @@ def conn(db_url):
                   "delete from accounts.invites; delete from accounts.password_resets; delete from accounts.recovery_codes; "
                   "delete from accounts.memberships; delete from accounts.users; "
                   "delete from clinics where slug <> 'demo-derma'; "
-                  "update clinics set wa_phone_number_id = null, staff_alert_email = null")
+                  "update clinics set wa_phone_number_id = null, staff_alert_email = null; "
+                  # Settings back to the defaults
+                  "delete from clinic_hours; update doctors set slot_minutes = null, buffer_minutes = 0; "
+                  "update booking_rules set min_notice_minutes = 60, window_days = 30, change_notice_minutes = 120, max_upcoming = 3 where audience = 'patient'; "
+                  "update booking_rules set min_notice_minutes = 0, window_days = 365, change_notice_minutes = 0, max_upcoming = null where audience = 'staff'; "
+                  "update clinic_settings set reminders_enabled = true, reminder_offsets_minutes = '{1440,120}', quiet_start = '21:00', quiet_end = '08:00', "
+                  "assistant_enabled = true, after_hours_message_en = null, after_hours_message_ar = null, handoff_alert_emails = '{}'")
         yield c

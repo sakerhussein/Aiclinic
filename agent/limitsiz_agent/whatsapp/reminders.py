@@ -1,7 +1,10 @@
 """Appointment reminders (step 6), sent as an approved WhatsApp template with Confirm / Change buttons.
 
-- 24 hours before: once, when the appointment is 2 to 24 hours away, unless it was booked in the last hour.
-- 2 hours before: once, when the appointment is less than 2 hours away.
+Timing comes from each clinic's Settings (default 24 hours and 2 hours before; at most two reminders):
+- first: once, when the appointment is closer than the first offset but not yet inside the second, unless it was booked in the last hour;
+- second: once, when the appointment is closer than the second offset.
+Nothing goes out in the clinic's quiet hours (default 21:00-08:00 local); what is still due is sent when they end.
+The columns keep their old names (reminder_24h_at = first, reminder_2h_at = second).
 A reminder is marked as sent before it goes out, so a crash can cost a reminder but never repeat one.
 
 Buttons come back as REMIND_CONFIRM:<appointment id> (confirmed here, no AI) and REMIND_CHANGE:<appointment id>
@@ -39,18 +42,25 @@ _DUE = """
     join patients p on p.id = a.patient_id
     join doctors d on d.id = a.doctor_id
     join services s on s.id = a.service_id
+    join clinic_settings cs on cs.clinic_id = c.id
     where a.status in ('booked', 'confirmed') and c.active and c.wa_phone_number_id is not null
-      and p.phone_e164 is not null and p.whatsapp_reminders
+      and p.phone_e164 is not null and p.whatsapp_reminders and cs.reminders_enabled
+      and not (case when cs.quiet_start <= cs.quiet_end
+                    then (%(now)s at time zone c.timezone)::time >= cs.quiet_start and (%(now)s at time zone c.timezone)::time < cs.quiet_end
+                    else (%(now)s at time zone c.timezone)::time >= cs.quiet_start or (%(now)s at time zone c.timezone)::time < cs.quiet_end end)
       and {condition}
     order by a.starts_at
     for update of a skip locked"""
 
 KINDS = {
-    "24h": ("reminder_24h_at",
-            "a.reminder_24h_at is null and a.starts_at > %(now)s + interval '2 hours' "
-            "and a.starts_at <= %(now)s + interval '24 hours' and a.created_at <= %(now)s - interval '1 hour'"),
-    "2h": ("reminder_2h_at",
-           "a.reminder_2h_at is null and a.starts_at > %(now)s and a.starts_at <= %(now)s + interval '2 hours'"),
+    "first": ("reminder_24h_at",
+              "a.reminder_24h_at is null and cardinality(cs.reminder_offsets_minutes) >= 1 "
+              "and a.starts_at > %(now)s + make_interval(mins => coalesce(cs.reminder_offsets_minutes[2], 0)) "
+              "and a.starts_at <= %(now)s + make_interval(mins => cs.reminder_offsets_minutes[1]) "
+              "and a.created_at <= %(now)s - interval '1 hour'"),
+    "second": ("reminder_2h_at",
+               "a.reminder_2h_at is null and cardinality(cs.reminder_offsets_minutes) = 2 and a.starts_at > %(now)s "
+               "and a.starts_at <= %(now)s + make_interval(mins => cs.reminder_offsets_minutes[2])"),
 }
 
 

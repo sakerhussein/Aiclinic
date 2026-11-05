@@ -23,6 +23,8 @@ export async function api<T = any>(method: string, url: string, body?: unknown):
 export const get = <T = any>(u: string) => api<T>("GET", u);
 export const post = <T = any>(u: string, b: unknown = {}) => api<T>("POST", u, b);
 export const patch = <T = any>(u: string, b: unknown) => api<T>("PATCH", u, b);
+export const put = <T = any>(u: string, b: unknown) => api<T>("PUT", u, b);
+export const del = <T = any>(u: string) => api<T>("DELETE", u);
 
 export type Me = {
   user: { id: string; email: string; name: string; language: "ar" | "en" };
@@ -31,7 +33,9 @@ export type Me = {
 };
 export type Doctor = { id: string; name_en: string; name_ar: string; service_ids: string[]; hours: { weekday: number; start: string; end: string }[] };
 export type Service = { id: string; name_en: string; name_ar: string; duration_minutes: number; price_jod: string | null; price_is_from: boolean };
-export type Lookups = { clinic: { id: string; timezone: string; slot_step_minutes: number }; doctors: Doctor[]; services: Service[]; rules: { outsideHours: string; requireCancelReason: boolean } };
+export type Period = { weekday: number; start: string; end: string };
+export type Lookups = { clinic: { id: string; timezone: string; slot_step_minutes: number; week_start: number }; doctors: Doctor[]; services: Service[]; openingHours: Period[]; rules: { outsideHours: string; requireCancelReason: boolean } };
+export type Block = { id: string; doctor_id: string | null; starts_at: string; ends_at: string; reason: string | null };
 export type Appt = {
   id: string; doctor_id: string; service_id: string; patient_id: string; starts_at: string; ends_at: string; status: string; source: string;
   cancel_reason: string | null; internal_note: string | null; row_version: number; updated_at: string; void_reason: string | null;

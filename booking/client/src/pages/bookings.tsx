@@ -70,7 +70,7 @@ export function BookingDetail() {
   const active = a.status === "booked" || a.status === "confirmed";
   const NEEDS: Record<string, string> = { confirmed: "booking.appointments.edit", completed: "booking.appointments.edit", no_show: "booking.appointments.edit", cancelled: "booking.appointments.cancel", voided: "booking.appointments.void" };
   const options = (active ? ["confirmed", "completed", "no_show", "cancelled", "voided"] : a.status === "cancelled" ? ["voided"] : []).filter((s) => !(s === "confirmed" && a.status === "confirmed") && can(NEEDS[s]));
-  const needsReason = (s: string) => s === "cancelled" || s === "voided";
+  const needsReason = (s: string) => s === "voided" || (s === "cancelled" && look.rules.requireCancelReason);
   const apply = (s: string) => act.run(async () => {
     const r = await post<Appt>(`/api/appointments/${a.id}/status`, { status: s, reason: reason || undefined, expectedVersion: a.row_version });
     setA(r); setAsking(null); setReason(""); load();
