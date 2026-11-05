@@ -9,6 +9,7 @@ import pytest
 from psycopg.conninfo import make_conninfo
 
 SUPABASE_DIR = Path(__file__).resolve().parents[1] / "supabase"
+MIGRATIONS_DIR = Path(__file__).resolve().parents[2] / "db" / "migrations"
 TEST_DB = "booking_test"
 
 
@@ -22,7 +23,7 @@ def db_url():
         admin.execute(f"create database {TEST_DB} encoding 'UTF8' template template0")
     url = make_conninfo(admin_url, dbname=TEST_DB)
     with psycopg.connect(url, autocommit=True) as conn:
-        for migration in sorted((SUPABASE_DIR / "migrations").glob("*.sql")):
+        for migration in sorted(MIGRATIONS_DIR.glob("*.sql")):
             conn.execute(migration.read_text(encoding="utf-8"))
         conn.execute((SUPABASE_DIR / "seed_demo_clinic.sql").read_text(encoding="utf-8"))
     return url
@@ -34,6 +35,9 @@ def conn(db_url):
     with psycopg.connect(db_url, autocommit=True) as c:
         c.execute("delete from handoffs; delete from messages; delete from conversations; "
                   "delete from appointments; delete from time_off; delete from patients; "
+                  "delete from accounts.sso_codes; delete from accounts.app_sessions; delete from accounts.sessions; "
+                  "delete from accounts.invites; delete from accounts.password_resets; delete from accounts.recovery_codes; "
+                  "delete from accounts.memberships; delete from accounts.users; "
                   "delete from clinics where slug <> 'demo-derma'; "
                   "update clinics set wa_phone_number_id = null, staff_alert_email = null")
         yield c

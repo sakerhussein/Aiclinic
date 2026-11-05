@@ -162,10 +162,11 @@ def test_unknown_whatsapp_number_is_ignored(conn, wired):
 
 # ---------------------------------------------------------------- reminders
 
-def make_appointment(conn, start, created, phone=PHONE, status="booked"):
-    pid = conn.execute("""insert into patients (clinic_id, phone_e164, preferred_language) values (%s, %s, 'ar')
+def make_appointment(conn, start, created, phone=PHONE, status="booked", consent=True):
+    pid = conn.execute("""insert into patients (clinic_id, phone_e164, preferred_language, whatsapp_reminders)
+                          values (%s, %s, 'ar', %s)
                           on conflict (clinic_id, phone_e164) do update set phone_e164 = excluded.phone_e164 returning id""",
-                       (CLINIC, phone)).fetchone()[0]
+                       (CLINIC, phone, consent)).fetchone()[0]
     return conn.execute(
         """insert into appointments (clinic_id, doctor_id, service_id, patient_id, starts_at, ends_at, status, created_at)
            values (%s, %s, %s, %s, %s, %s, %s, %s) returning id::text""",
@@ -190,6 +191,15 @@ def test_reminders_24h_and_2h_once_each(conn, wired):
     assert reminders.send_due_reminders(conn, wa, "appointment_reminder", later) == 2  # its 2 h one, and just_booked's 24 h one
     assert conn.execute("select count(*) from messages where author = 'reminder'").fetchone()[0] == 4
     assert just_booked and soon
+
+
+def test_no_reminder_without_consent_or_number(conn, wired):
+    _, wa, _ = wired()
+    make_appointment(conn, NOW + timedelta(hours=20), NOW - timedelta(days=2), phone="+962797000001", consent=False)
+    walk_in = make_appointment(conn, NOW + timedelta(hours=21), NOW - timedelta(days=2), phone="+962797000002")
+    conn.execute("update patients set phone_e164 = null where phone_e164 = '+962797000002'")  # a walk-in without a number
+    assert reminders.send_due_reminders(conn, wa, "appointment_reminder", NOW) == 0
+    assert wa.sent == [] and walk_in
 
 
 def test_reminder_confirm_and_change_buttons(conn, wired):

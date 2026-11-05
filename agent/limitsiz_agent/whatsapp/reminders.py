@@ -15,6 +15,7 @@ from zoneinfo import ZoneInfo
 import psycopg
 
 from ..agent import run_turn
+from ..booking import set_actor
 from ..agent.tools import WEEKDAYS_AR, WEEKDAYS_EN
 from .client import WhatsAppClient
 from .webhook import Inbound
@@ -39,6 +40,7 @@ _DUE = """
     join doctors d on d.id = a.doctor_id
     join services s on s.id = a.service_id
     where a.status in ('booked', 'confirmed') and c.active and c.wa_phone_number_id is not null
+      and p.phone_e164 is not null and p.whatsapp_reminders
       and {condition}
     order by a.starts_at
     for update of a skip locked"""
@@ -80,14 +82,16 @@ def handle_button(proc, ctx: dict, m: Inbound) -> bool:
     """Processor hook for reminder buttons. Returns False for any other button (e.g. Yes / No)."""
     if m.text.startswith(CONFIRM):
         appt_id, lang = m.text[len(CONFIRM):], ctx["language"]
-        row = proc.conn.execute(
-            """update appointments a set status = 'confirmed', confirmed_at = %s
-               from patients p, clinics c
-               where a.id::text = %s and p.id = a.patient_id and c.id = a.clinic_id
-                 and a.clinic_id = %s and p.phone_e164 = %s
-                 and a.status in ('booked', 'confirmed') and a.starts_at > %s
-               returning a.starts_at, c.timezone""",
-            (proc.now(), appt_id, ctx["clinic_id"], m.sender, proc.now())).fetchone()
+        with proc.conn.transaction():
+            set_actor(proc.conn, ctx["clinic_id"], "Patient confirmed from the reminder")
+            row = proc.conn.execute(
+                """update appointments a set status = 'confirmed', confirmed_at = %s
+                   from patients p, clinics c
+                   where a.id::text = %s and p.id = a.patient_id and c.id = a.clinic_id
+                     and a.clinic_id = %s and p.phone_e164 = %s
+                     and a.status in ('booked', 'confirmed') and a.starts_at > %s
+                   returning a.starts_at, c.timezone""",
+                (proc.now(), appt_id, ctx["clinic_id"], m.sender, proc.now())).fetchone()
         if row:
             local = row[0].astimezone(ZoneInfo(row[1]))
             day = WEEKDAYS_AR[local.weekday()] if lang == "ar" else WEEKDAYS_EN[local.weekday()]

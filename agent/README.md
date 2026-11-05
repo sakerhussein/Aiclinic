@@ -115,7 +115,7 @@ the real project: the tests create and drop a `booking_test` database.
 
 ## Data model (`supabase/`)
 
-- `migrations/0001_booking_schema.sql`: clinics, FAQs, doctors, services, which doctor offers which service,
+- `db/migrations/0001_booking_schema.sql` (now in the shared `db/migrations/` folder, see `db/README.md`): clinics, FAQs, doctors, services, which doctor offers which service,
   weekly hours, time off, patients (contact details only, no medical records), appointments, conversations,
   messages, handovers.
 - `seed_demo_clinic.sql`: a made-up dermatology clinic (2 doctors, 5 services, hours, FAQs) for building and
@@ -141,7 +141,7 @@ above (19 checks). From an empty folder outside the repo:
 
 ```bash
 npm init -y && npm install embedded-postgres@17.5.0-beta.15 pg@8.13.1
-node "<repo>/agent/supabase/tests/test_schema.mjs" ./node_modules "<repo>/agent/supabase/migrations/0001_booking_schema.sql" "<repo>/agent/supabase/seed_demo_clinic.sql" ./pgdata
+node "<repo>/agent/supabase/tests/test_schema.mjs" ./node_modules "<repo>/db/migrations/0001_booking_schema.sql" "<repo>/agent/supabase/seed_demo_clinic.sql" ./pgdata
 ```
 
 ### Supabase project

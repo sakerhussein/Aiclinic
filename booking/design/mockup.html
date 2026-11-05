@@ -1,0 +1,881 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Limitsiz Clinic: Booking and Accounts design mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;500;600&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap">
+<style>
+:root{
+  --ink:#0A0F14;--ink-2:#121A21;--ink-3:#1E2A33;--ink-line:#2A3640;--on-ink:#E8EEF0;--on-ink-muted:#93A3AD;
+  --paper:#F2F4F3;--white:#fff;--text:#0A0F14;--muted:#4B5863;--rule:#C9D6D2;--rule-soft:#E1E6E4;--field:#8A99A3;
+  --accent:#2EE6B5;--accent-ink:#0B7A64;--accent-tint:#DDF7EE;--amber:#FFB23E;--amber-tint:#FFF0D6;--error:#B42318;--error-tint:#FDE7E4;
+  --font-display:"Unbounded","Geist",system-ui,sans-serif;--font-body:"Geist",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"Geist Mono",ui-monospace,Menlo,monospace;--font-ar:"IBM Plex Sans Arabic","Segoe UI",Tahoma,sans-serif;
+}
+*{box-sizing:border-box}
+html{overflow-x:clip}
+body{margin:0;background:var(--paper);color:var(--text);font:15px/1.5 var(--font-body);overflow-x:clip}
+html[lang="ar"] body,html[lang="ar"] button,html[lang="ar"] input,html[lang="ar"] select,html[lang="ar"] textarea{font-family:var(--font-ar)}
+html[lang="ar"] .display{font-family:var(--font-ar);font-weight:600}
+.display{font-family:var(--font-display);font-weight:500;letter-spacing:-.01em}
+.mono{font-family:var(--font-mono);direction:ltr;unicode-bidi:isolate}
+h1,h2,h3,p{margin:0}
+.wrap{max-width:1240px;margin-inline:auto;padding-inline:16px}
+.spacer{flex:1}
+
+/* mockup chrome */
+.topnote{position:sticky;top:0;z-index:40;background:var(--ink);color:var(--on-ink);border-bottom:1px solid var(--ink-3)}
+.topnote .wrap{display:flex;gap:12px;align-items:center;justify-content:space-between;min-height:54px;flex-wrap:wrap;padding-block:6px}
+.topnote span{color:var(--on-ink-muted);font-size:13px}
+.lang-toggle{min-height:38px;padding:0 16px;border-radius:999px;border:1px solid var(--ink-line);background:transparent;color:var(--on-ink);font:inherit;cursor:pointer}
+.idx{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:12px 0;border-bottom:1px solid var(--rule)}
+.idx b{font-size:12px;color:var(--muted);font-family:var(--font-mono);letter-spacing:.06em;text-transform:uppercase;margin-inline-end:4px}
+.idx a{min-width:30px;height:30px;padding:0 8px;border-radius:999px;border:1px solid var(--rule);background:#fff;color:var(--text);text-decoration:none;display:inline-grid;place-items:center;font:500 13px var(--font-mono)}
+.idx a:hover{background:var(--ink);color:#fff}
+.idx .sep{width:14px}
+.group{margin:56px 0 0;padding-top:24px;border-top:2px solid var(--ink);font-family:var(--font-display);font-size:26px;font-weight:500}
+html[lang="ar"] .group{font-family:var(--font-ar)}
+.group small{display:block;font:400 14px var(--font-body);color:var(--muted);margin-top:4px}
+.frame-title{margin:44px 0 6px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-ink);font-family:var(--font-mono);font-weight:500}
+.frame-h{font-size:21px;margin-bottom:6px}
+.frame-p{color:var(--muted);max-width:780px;margin-bottom:14px}
+.scroll{overflow-x:auto;border-radius:20px;border:1px solid var(--rule)}
+.scroll>.shot{min-width:980px}
+.shot{background:var(--paper);overflow:hidden;position:relative}
+.shot.dark{background:var(--ink);color:var(--on-ink)}
+.legend{margin-top:10px;display:flex;flex-wrap:wrap;gap:6px 20px;color:var(--muted);font-size:14px}
+.legend b{color:var(--text)}
+
+/* website components */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:52px;padding:0 26px;border-radius:999px;border:1px solid transparent;font:inherit;font-weight:600;cursor:pointer;text-decoration:none;white-space:nowrap}
+.btn-sm{min-height:44px;padding:0 20px;font-size:15px}.btn-xs{min-height:36px;padding:0 14px;font-size:14px}
+.btn-accent{background:var(--accent);color:var(--ink)}.btn-ink{background:var(--ink);color:#fff}
+.btn-outline{border-color:var(--text);color:var(--text);background:transparent}
+.btn-danger{background:var(--error);color:#fff}.btn-block{width:100%}
+.btn-ghost{border-color:var(--rule);color:var(--text);background:#fff}
+.field{display:flex;flex-direction:column;gap:6px;font-size:14px;font-weight:600}
+.field input,.field select,.field textarea,.fakein{font:inherit;font-weight:400;min-height:48px;padding:0 14px;border:1px solid var(--field);border-radius:12px;background:#fff;color:var(--text);width:100%;display:flex;align-items:center}
+.field textarea{padding:12px 14px;min-height:76px;resize:vertical}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent-ink);outline:none;box-shadow:0 0 0 3px var(--accent-tint)}
+.field .hint,.hint{font-weight:400;color:var(--muted);font-size:13px}
+.field.err input{border:2px solid var(--error)}.err-msg{color:var(--error);font-size:13px;font-weight:500}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;background:var(--rule-soft);color:var(--text);white-space:nowrap}
+.pill.ok{background:var(--accent-tint);color:var(--accent-ink)}.pill.warn{background:var(--amber-tint);color:#8a5200}
+.pill.bad{background:var(--error-tint);color:var(--error)}.pill.ink{background:var(--ink);color:var(--on-ink)}
+.dot{width:8px;height:8px;border-radius:50%;background:currentColor;flex:none}
+a{color:var(--accent-ink)}
+.mark{display:block}
+.row-between{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.pagefoot{display:flex;gap:6px 16px;justify-content:center;flex-wrap:wrap;padding:16px;font-size:13px;color:var(--muted);border-top:1px solid var(--rule)}
+.dark .pagefoot{color:var(--on-ink-muted);border-color:var(--ink-3)}
+.pagefoot a{color:inherit}
+.tg{display:inline-block;width:42px;height:24px;border-radius:999px;background:var(--rule);position:relative;flex:none}
+.tg::after{content:"";position:absolute;top:3px;inset-inline-start:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.2s}
+.tg.on{background:var(--accent-ink)}.tg.on::after{inset-inline-start:21px}
+.opts{display:flex;flex-wrap:wrap;gap:6px}
+.opts span{padding:6px 12px;border-radius:999px;border:1px solid var(--rule);background:#fff;font-size:13.5px;font-weight:500}
+.opts span.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:14px}
+.check i{flex:none;width:20px;height:20px;border:2px solid var(--field);border-radius:6px;background:#fff;margin-top:2px;display:grid;place-items:center;font-style:normal;font-size:13px;line-height:1}
+.check i.on{background:var(--accent-ink);border-color:var(--accent-ink);color:#fff}
+.seg{display:flex;border:1px solid var(--field);border-radius:999px;overflow:hidden;background:#fff}
+.seg span{flex:1;text-align:center;padding:10px 8px;font-weight:600;font-size:14px;cursor:pointer}
+.seg span.on{background:var(--ink);color:#fff}
+.banner{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:14px;font-size:14px;border:1px solid}
+.banner.warn{background:var(--amber-tint);border-color:var(--amber);color:#5c3700}
+.banner.info{background:var(--accent-tint);border-color:var(--accent-ink);color:var(--accent-ink)}
+.banner.bad{background:var(--error-tint);border-color:var(--error);color:#7a1a12}
+.audit-note{font-size:13px;color:var(--muted);display:flex;gap:8px;align-items:center}
+
+/* centered screens */
+.center{display:grid;place-items:center;padding:48px 16px;min-height:560px;position:relative}
+.center::before{content:"";position:absolute;inset:0;background:radial-gradient(60% 50% at 50% 0%,rgba(46,230,181,.14),transparent 70%)}
+.pair{display:flex;gap:20px;flex-wrap:wrap;justify-content:center;align-items:flex-start;position:relative}
+.signin{position:relative;background:var(--paper);color:var(--text);border-radius:28px;padding:clamp(24px,4vw,36px);width:min(100%,440px);display:flex;flex-direction:column;gap:16px}
+.signin.wide{width:min(100%,520px)}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--font-display);font-weight:500;font-size:19px}
+html[lang="ar"] .brand{font-family:var(--font-ar)}
+.signin h1{font-size:24px;line-height:1.2}.signin .sub{color:var(--muted)}
+.foot{display:flex;justify-content:space-between;align-items:center;gap:12px;color:var(--muted);font-size:14px;border-top:1px solid var(--rule);padding-top:14px;flex-wrap:wrap}
+.code-row{display:flex;gap:8px;direction:ltr}
+.code-row span{flex:1;min-height:54px;border:1px solid var(--field);border-radius:12px;background:#fff;display:grid;place-items:center;font-family:var(--font-mono);font-size:22px}
+.code-row span.on{border-color:var(--accent-ink);box-shadow:0 0 0 3px var(--accent-tint)}
+.strength{display:flex;gap:4px}.strength i{flex:1;height:6px;border-radius:3px;background:var(--rule)}.strength i.on{background:var(--accent-ink)}
+.rules{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-size:13px;color:var(--muted)}
+.rules li::before{content:"✓";color:var(--accent-ink);font-weight:700;margin-inline-end:8px}
+.qr{width:168px;height:168px;border:1px solid var(--rule);border-radius:12px;background:
+ conic-gradient(from 90deg at 3px 3px,#0000 90deg,var(--ink) 0) 0 0/12px 12px,#fff;position:relative}
+.qr::before,.qr::after{content:"";position:absolute;width:40px;height:40px;border:6px solid var(--ink);background:#fff}
+.qr::before{top:8px;inset-inline-start:8px}.qr::after{top:8px;inset-inline-end:8px}
+.codes{display:grid;grid-template-columns:1fr 1fr;gap:8px;font:14px var(--font-mono);direction:ltr}
+.codes span{background:#fff;border:1px dashed var(--field);border-radius:8px;padding:8px 10px;text-align:center}
+.launch{padding:40px 24px 56px;min-height:480px;position:relative}
+.launch h1{font-size:28px;margin:8px 0 6px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-top:26px;max-width:880px}
+.tile{background:var(--ink-2);border:1px solid var(--ink-line);border-radius:22px;padding:24px;display:flex;flex-direction:column;gap:14px;min-height:190px;justify-content:space-between;color:var(--on-ink)}
+.tile.live{border-color:var(--accent);background:linear-gradient(180deg,rgba(46,230,181,.10),transparent 60%),var(--ink-2)}
+.tile.soon{opacity:.55}
+.ico{display:grid;place-items:center;width:44px;height:44px;border-radius:12px;background:var(--accent-tint);color:var(--accent-ink)}
+.tile.soon .ico{background:var(--ink-3);color:var(--on-ink-muted)}
+.lock{position:relative;text-align:center;align-items:center}
+.lock .avatar{width:64px;height:64px;font-size:20px}
+
+/* app shell */
+.appbar{background:var(--ink);color:var(--on-ink);display:flex;align-items:center;gap:18px;padding:0 20px;min-height:64px;border-bottom:1px solid var(--ink-3);position:relative}
+.appbar .brand,.appbar .where,.appbar .user{white-space:nowrap}
+.appbar .brand{font-size:16px}
+.appbar .where{color:var(--on-ink-muted);font-size:14px;border-inline-start:1px solid var(--ink-line);padding-inline-start:18px}
+.tabs{display:flex;gap:4px;margin-inline-start:8px;flex-wrap:wrap}
+.tabs a{color:var(--on-ink-muted);text-decoration:none;white-space:nowrap;padding:8px 12px;border-radius:999px;font-size:14px;font-weight:500}
+.tabs a.on{background:var(--ink-3);color:#fff}
+.user{display:flex;align-items:center;gap:10px;font-size:14px}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--accent);color:var(--ink);display:grid;place-items:center;font-weight:700;font-size:13px;flex:none}
+.menu{position:absolute;inset-inline-end:14px;top:58px;width:230px;background:#fff;color:var(--text);border:1px solid var(--rule);border-radius:14px;box-shadow:0 14px 34px rgba(10,15,20,.2);z-index:9;padding:6px;font-size:14px}
+.menu div{padding:9px 12px;border-radius:9px}.menu div:hover{background:var(--paper)}.menu hr{border:0;border-top:1px solid var(--rule-soft);margin:4px 0}
+.menu small{display:block;color:var(--muted);font-size:12px;padding:6px 12px 4px}
+.body{padding:20px;position:relative}
+.toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.toolbar .day{font-size:18px;font-weight:600;min-width:210px;text-align:center}
+.iconbtn{width:40px;height:40px;border-radius:50%;border:1px solid var(--rule);background:#fff;display:grid;place-items:center;cursor:pointer;color:var(--text)}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chipbtn{padding:6px 14px;border-radius:999px;border:1px solid var(--rule);background:#fff;font-size:14px;cursor:pointer}
+.chipbtn.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.h2{font-size:20px}
+
+/* calendar */
+.cal{display:grid;grid-template-columns:64px 1fr 1fr;background:#fff;border:1px solid var(--rule);border-radius:18px;overflow:hidden}
+.cal.one{grid-template-columns:64px 1fr}
+.cal .hd{padding:12px 14px;font-weight:600;border-bottom:1px solid var(--rule);background:#fff;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.cal .hd small{font-weight:400;color:var(--muted)}.cal .hd.t{background:var(--paper)}
+.cal .times{position:relative;height:576px;background:var(--paper);border-inline-end:1px solid var(--rule)}
+.cal .times span{position:absolute;inset-inline-end:8px;transform:translateY(-50%);font:12px var(--font-mono);color:var(--muted);direction:ltr}
+.cal .times span:first-child{transform:none;top:4px!important}
+.col{position:relative;height:576px;border-inline-start:1px solid var(--rule-soft)}
+.col.i15{background:repeating-linear-gradient(to bottom,var(--rule) 0 1px,transparent 1px 96px),repeating-linear-gradient(to bottom,var(--rule-soft) 0 1px,transparent 1px 24px)}
+.col.i20{background:repeating-linear-gradient(to bottom,var(--rule) 0 1px,transparent 1px 96px),repeating-linear-gradient(to bottom,var(--rule-soft) 0 1px,transparent 1px 32px)}
+.off{position:absolute;inset-inline:0;background:repeating-linear-gradient(135deg,rgba(10,15,20,.05) 0 6px,rgba(10,15,20,.10) 6px 7px),var(--paper);display:grid;place-items:center;color:var(--muted);font-size:12px}
+.now{position:absolute;inset-inline:0;height:2px;background:var(--amber);z-index:3}
+.now::before{content:attr(data-label);position:absolute;inset-inline-start:0;top:-18px;background:var(--amber);color:var(--ink);font:600 11px var(--font-mono);padding:1px 6px;border-radius:6px 6px 6px 0;direction:ltr}
+.appt{position:absolute;inset-inline:6px;border-radius:10px;background:#fff;border:1px solid var(--rule);border-inline-start:5px solid var(--field);padding:4px 8px;font-size:12.5px;line-height:1.3;overflow:hidden;cursor:pointer}
+.appt b{display:block;font-weight:600;font-size:13px}.appt span{color:var(--muted)}
+.appt .chip{position:absolute;inset-inline-end:6px;top:5px;font-style:normal;font-size:10.5px;font-weight:600;padding:1px 7px;border-radius:999px}
+.appt.s{display:flex;gap:8px;align-items:center;padding-block:2px}.appt.s b{font-size:12.5px;display:inline}
+.appt.confirmed{border-inline-start-color:var(--accent-ink);background:#F6FDFA}.appt.noshow{border-inline-start-color:var(--amber)}
+.appt.ro{cursor:default}
+.chip.wa{background:var(--accent-tint);color:var(--accent-ink)}.chip.ph{background:var(--rule-soft);color:var(--text)}.chip.wk{background:var(--amber-tint);color:#8a5200}
+.keyline{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;color:var(--muted);font-size:13px;align-items:center}
+.keyline i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-inline-end:6px;vertical-align:-1px;border:1px solid var(--rule)}
+
+/* forms and cards */
+.formpage{display:grid;grid-template-columns:1.25fr .75fr;gap:20px;padding:20px;align-items:start}
+.card{background:#fff;border:1px solid var(--rule);border-radius:20px;padding:22px}
+.card h2{font-size:18px;margin-bottom:14px}
+.stack{display:flex;flex-direction:column;gap:14px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.match{border:1px solid var(--accent-ink);background:var(--accent-tint);border-radius:12px;padding:10px 12px;display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:14px}
+.slots{display:flex;flex-wrap:wrap;gap:8px}
+.slots .s{min-height:40px;padding:0 14px;border-radius:999px;border:1px solid var(--field);background:#fff;font:500 14px var(--font-mono);display:inline-flex;align-items:center;direction:ltr}
+.slots .s.on{background:var(--accent);border-color:var(--accent);color:var(--ink);font-weight:600}.slots .s.x{opacity:.4;text-decoration:line-through}
+.kv{display:grid;grid-template-columns:140px 1fr;gap:10px 16px;font-size:14.5px}.kv dt{color:var(--muted)}.kv dd{margin:0;font-weight:500}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px;padding-top:16px;border-top:1px solid var(--rule-soft)}
+.timeline{list-style:none;margin:0;padding:0}
+.timeline li{position:relative;padding-inline-start:26px;padding-bottom:16px;font-size:14px}
+.timeline li::before{content:"";position:absolute;inset-inline-start:5px;top:6px;width:10px;height:10px;border-radius:50%;background:var(--accent-ink)}
+.timeline li::after{content:"";position:absolute;inset-inline-start:9px;top:18px;bottom:-4px;width:2px;background:var(--rule)}
+.timeline li:last-child::after{display:none}.timeline .agent::before{background:var(--amber)}
+.timeline .when{font:12px var(--font-mono);color:var(--muted);display:block;direction:ltr;text-align:start}
+.dim{background:rgba(10,15,20,.55);padding:28px;display:grid;place-items:center}
+.dialog{background:var(--paper);border-radius:24px;padding:26px;width:min(100%,460px);display:flex;flex-direction:column;gap:14px}
+.dialog h2{font-size:19px}
+.statecards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;padding:0 20px 20px}
+.statecards .card{padding:16px}.statecards h3{font-size:13px;font-family:var(--font-mono);color:var(--accent-ink);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px;font-weight:500}
+.two{display:grid;grid-template-columns:1.1fr .9fr;gap:20px;padding:20px}
+.cols{display:grid;grid-template-columns:1.4fr 1fr;gap:20px;padding:20px;align-items:start}
+.device{width:768px;margin:24px auto;border:10px solid var(--ink);border-radius:30px;overflow:hidden;background:var(--paper)}
+.device .appbar{padding:0 14px;gap:12px}.device .body{padding:16px}
+
+/* tables */
+table{width:100%;border-collapse:collapse;background:#fff;font-size:14px}
+th,td{padding:10px 12px;border-bottom:1px solid var(--rule-soft);text-align:start;vertical-align:top}
+th{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);background:var(--paper);font-weight:600}
+.tablewrap{border:1px solid var(--rule);border-radius:18px;overflow:hidden;background:#fff}
+.diff{font:12.5px var(--font-mono);direction:ltr;text-align:start}.diff del{color:var(--error)}.diff ins{color:var(--accent-ink);text-decoration:none;font-weight:500}
+.filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:end}
+.filters .field{min-width:150px}.filters .field input,.filters .field select{min-height:42px}
+.integrity{display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:var(--accent-tint);border:1px solid var(--accent-ink);color:var(--accent-ink);padding:10px 14px;border-radius:14px;font-size:14px;margin-bottom:14px}
+.roles{display:flex;flex-direction:column;gap:8px}
+.role{display:flex;gap:12px;border:1px solid var(--rule);border-radius:14px;padding:10px 14px;background:#fff;font-size:14px}
+.role.on{border-color:var(--accent-ink);background:var(--accent-tint)}
+.role i{flex:none;width:18px;height:18px;border-radius:50%;border:2px solid var(--field);margin-top:2px;background:#fff}
+.role.on i{border-color:var(--accent-ink);background:radial-gradient(circle,var(--accent-ink) 0 40%,#fff 45%)}
+.role b{display:block}.role span{color:var(--muted)}
+
+/* settings */
+.settings{display:grid;grid-template-columns:230px 1fr;min-height:640px}
+.snav{background:#fff;border-inline-end:1px solid var(--rule);padding:16px 10px;display:flex;flex-direction:column;gap:2px}
+.snav h3{font:500 12px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:6px 12px}
+.snav a{padding:9px 12px;border-radius:10px;text-decoration:none;color:var(--text);font-size:14px;font-weight:500}
+.snav a.on{background:var(--ink);color:#fff}
+.spage{padding:22px;display:flex;flex-direction:column;gap:16px;min-width:0}
+.spage h2.display{font-size:21px}
+.setrow{display:grid;grid-template-columns:minmax(180px,1fr) 2fr;gap:8px 20px;align-items:center;padding:12px 0;border-bottom:1px solid var(--rule-soft)}
+.setrow:last-child{border-bottom:0}.setrow .lbl{font-weight:600;font-size:14px}.setrow .lbl small{display:block;font-weight:400;color:var(--muted);font-size:12.5px}
+.rule-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.savebar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;position:sticky;bottom:0;background:var(--paper);padding-top:6px}
+.hoursrow{display:grid;grid-template-columns:120px 1fr 90px;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--rule-soft)}
+.hoursrow .iv{display:flex;gap:8px;flex-wrap:wrap}.hoursrow .iv span{font:500 13.5px var(--font-mono);background:var(--paper);border:1px solid var(--rule);padding:6px 10px;border-radius:10px;direction:ltr}
+.doclist{display:flex;flex-direction:column;gap:8px}
+.docitem{background:#fff;border:1px solid var(--rule);border-radius:14px;padding:12px 14px;display:flex;justify-content:space-between;gap:10px;align-items:center}
+.docitem.on{border-color:var(--accent-ink);background:var(--accent-tint)}
+.cards3{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+@media (max-width:760px){.two,.cols,.formpage,.rule-cols,.settings{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="loop" viewBox="0 0 40 20"><path d="M20 10 C16.6 5.5 13.2 2 8.8 2 A8 8 0 0 0 8.8 18 C13.2 18 16.6 14.5 20 10 C23.4 5.5 26.8 2 31.2 2 A8 8 0 0 1 38.4 12.9" fill="none" stroke="#2EE6B5" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="33.6" cy="17.2" r="1.8" fill="#2EE6B5"/></symbol>
+  <symbol id="arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="cal" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="chat" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+  <symbol id="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 11V8a4 4 0 018 0v3" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+</svg>
+
+<div class="topnote"><div class="wrap">
+  <div><strong data-ar="نموذج تصميم: لا يعمل فعلياً">Design mockup, version 2: not the real app</strong> <span data-ar="· جميع الأسماء والبيانات وهمية والنصوص العربية مسودة للمراجعة">· all names and data are made up; Arabic text is a draft for review</span></div>
+  <button class="lang-toggle" id="lang" type="button">العربية</button>
+</div></div>
+
+<div class="wrap">
+<nav class="idx" aria-label="Screens">
+  <b>Accounts</b><a href="#s1" title="Sign in">1</a><a href="#s2" title="Second step">2</a><a href="#s3" title="Launcher">3</a><a href="#s4" title="Accept invitation">4</a><a href="#s5" title="Forgot password">5</a><a href="#s6" title="Reset password">6</a><a href="#s7" title="Two-step setup">7</a><a href="#s8" title="My account">8</a><a href="#s9" title="Users">9</a><a href="#s10" title="Sessions">10</a><a href="#s11" title="Lock and switch user">11</a>
+  <span class="sep"></span><b>Booking</b><a href="#s12" title="Calendar">12</a><a href="#s13" title="Booking form">13</a><a href="#s14" title="Bookings list">14</a><a href="#s15" title="Patients">15</a><a href="#s16" title="Patient form">16</a><a href="#s17" title="Appointment detail">17</a><a href="#s18" title="Doctor: My schedule">18</a><a href="#s19" title="Audit log">19</a><a href="#s20" title="Tablet">20</a>
+  <span class="sep"></span><b>Settings</b><a href="#s21" title="Clinic profile">21</a><a href="#s22" title="Working hours">22</a><a href="#s23" title="Doctors">23</a><a href="#s24" title="Services">24</a><a href="#s25" title="Booking rules">25</a><a href="#s26" title="Reminders and conversations">26</a><a href="#s27" title="Security and audit">27</a>
+</nav>
+
+<h2 class="group display"><span data-ar="الحسابات · accounts.limitsiz.si">Accounts · accounts.limitsiz.si</span><small data-ar="تسجيل دخول واحد لكل خدمات Limitsiz Clinic">One sign-in for every Limitsiz Clinic service. Screens 1–11.</small></h2>
+
+<!-- 1 -->
+<section id="s1"><p class="frame-title">1 · Sign in</p>
+<p class="frame-p" data-ar="صفحة واحدة لكل الخدمات. لا يوجد زر إنشاء حساب: المستخدمون يُدعَون من مدير العيادة.">One page for every service. No "create account" button: users are invited by their clinic's administrator. "Limitsiz" (the company) appears only in the footer.</p>
+<div class="scroll"><div class="shot dark" style="min-width:0"><div class="center">
+  <form class="signin" onsubmit="return false">
+    <div class="brand"><svg class="mark" width="40" height="20"><use href="#loop"/></svg><span>Limitsiz Clinic</span></div>
+    <div><h1 class="display" data-ar="تسجيل الدخول إلى Limitsiz Clinic">Sign in to Limitsiz Clinic</h1><p class="sub" data-ar="استخدم الحساب الذي أنشأه لك مدير عيادتك.">Use the account your clinic administrator created for you.</p></div>
+    <label class="field"><span data-ar="البريد الإلكتروني">Email</span><input type="email" value="rana@derma-clinic.example" dir="ltr"></label>
+    <label class="field"><span data-ar="كلمة المرور">Password</span><input type="password" value="••••••••••••" dir="ltr"></label>
+    <div class="row-between"><a href="#s5" data-ar="نسيت كلمة المرور؟">Forgot password?</a></div>
+    <button class="btn btn-accent btn-block" type="button"><span data-ar="تسجيل الدخول">Sign in</span><svg width="18" height="18"><use href="#arrow"/></svg></button>
+    <div class="foot"><span data-ar="تحتاج وصولاً؟ اطلب من مدير العيادة.">Need access? Ask your clinic administrator.</span></div>
+  </form>
+</div><div data-foot></div></div></div></section>
+
+<!-- 2 -->
+<section id="s2"><p class="frame-title">2 · Second step (administrators, or clinics that require it)</p>
+<div class="scroll"><div class="shot dark" style="min-width:0"><div class="center" style="min-height:440px">
+  <form class="signin" onsubmit="return false">
+    <div class="brand"><svg class="mark" width="40" height="20"><use href="#loop"/></svg><span>Limitsiz Clinic</span></div>
+    <div><h1 class="display" data-ar="رمز التحقق">Enter your code</h1><p class="sub" data-ar="افتح تطبيق المصادقة واكتب الرمز المكوّن من 6 أرقام.">Open your authenticator app and type the 6-digit code.</p></div>
+    <div class="code-row"><span>4</span><span>7</span><span>1</span><span class="on">9</span><span></span><span></span></div>
+    <button class="btn btn-accent btn-block" type="button" data-ar="تأكيد">Verify</button>
+    <div class="foot"><a href="#" data-ar="استخدم رمز استرداد">Use a recovery code</a></div>
+  </form>
+</div><div data-foot></div></div></div></section>
+
+<!-- 3 -->
+<section id="s3"><p class="frame-title">3 · Launcher</p>
+<p class="frame-p" data-ar="بلاطات للخدمات المسموحة. من لديه خدمة واحدة يدخلها مباشرة. الوكلاء القادمون يظهرون هنا.">A tile for each service the user may use; a user with one service goes straight in. Future agents appear here without a new login.</p>
+<div class="scroll"><div class="shot dark" style="min-width:0"><div class="launch">
+  <div class="brand" style="margin-bottom:24px"><svg class="mark" width="40" height="20"><use href="#loop"/></svg><span>Limitsiz Clinic</span></div>
+  <p style="color:var(--on-ink-muted)" data-ar="عيادة Limitsiz التجريبية للجلدية">Limitsiz Demo Dermatology</p>
+  <h1 class="display" data-ar="أهلاً رنا">Hello Rana</h1>
+  <div class="tiles">
+    <div class="tile live"><div class="ico"><svg width="22" height="22"><use href="#cal"/></svg></div><div><h2 class="display" style="font-size:19px;margin-bottom:6px" data-ar="الحجوزات">Booking</h2><p style="color:var(--on-ink-muted);font-size:14px" data-ar="حجوزات واتساب والهاتف والزيارات المباشرة">WhatsApp, phone and walk-in appointments</p></div><span class="btn btn-accent btn-sm" style="align-self:flex-start"><span data-ar="فتح">Open</span><svg width="18" height="18"><use href="#arrow"/></svg></span></div>
+    <div class="tile soon"><div class="ico"><svg width="22" height="22"><use href="#chat"/></svg></div><div><h2 class="display" style="font-size:19px;margin-bottom:6px" data-ar="وكيل قادم">Next agent</h2><p style="color:var(--on-ink-muted);font-size:14px" data-ar="سيظهر هنا بدون تسجيل دخول جديد">Appears here, no new login</p></div><span class="pill ink" style="align-self:flex-start" data-ar="قريباً">Coming soon</span></div>
+  </div>
+</div><div data-foot></div></div></div></section>
+
+<!-- 4 -->
+<section id="s4"><p class="frame-title">4 · Accept an invitation (link from the email)</p>
+<div class="scroll"><div class="shot dark" style="min-width:0"><div class="center">
+  <form class="signin wide" onsubmit="return false">
+    <div class="brand"><svg class="mark" width="40" height="20"><use href="#loop"/></svg><span>Limitsiz Clinic</span></div>
+    <div><h1 class="display" data-ar="دعوة للانضمام إلى Limitsiz Clinic">You're invited to Limitsiz Clinic</h1><p class="sub"><span data-ar="عيادة Limitsiz التجريبية للجلدية · سكرتيرة">Limitsiz Demo Dermatology · Secretary</span> · <span class="mono">maha@derma-clinic.example</span></p></div>
+    <label class="field"><span data-ar="الاسم الكامل">Full name</span><input value="Maha K."></label>
+    <label class="field"><span data-ar="اختر كلمة مرور">Choose a password</span><input type="password" value="••••••••••••••••" dir="ltr"></label>
+    <div class="strength"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div>
+    <ul class="rules"><li data-ar="12 حرفاً على الأقل">At least 12 characters</li><li data-ar="ليست من كلمات المرور الشائعة">Not a common password</li></ul>
+    <label class="field"><span data-ar="أعد كتابة كلمة المرور">Repeat the password</span><input type="password" value="••••••••••••••••" dir="ltr"></label>
+    <div class="field"><span data-ar="اللغة">Language</span><div class="seg"><span class="on">العربية</span><span>English</span></div></div>
+    <button class="btn btn-accent btn-block" type="button" data-ar="إنشاء حسابي">Create my account</button>
+    <div class="foot"><span data-ar="الرابط صالح 72 ساعة ويعمل مرة واحدة.">This link is valid for 72 hours and works once.</span></div>
+  </form>
+</div><div data-foot></div></div></div></section>
+
+<!-- 5 -->
+<section id="s5"><p class="frame-title">5 · Forgot password</p>
+<div class="scroll"><div class="shot dark" style="min-width:0"><div class="center" style="min-height:440px"><div class="pair">
+  <form class="signin" onsubmit="return false">
+    <div class="brand"><svg class="mark" width="40" height="20"><use href="#loop"/></svg><span>Limitsiz Clinic</span></div>
+    <h1 class="display" data-ar="نسيت كلمة المرور؟">Forgot your password?</h1>
+    <label class="field"><span data-ar="البريد الإلكتروني">Email</span><input value="rana@derma-clinic.example" dir="ltr"></label>
+    <button class="btn btn-accent btn-block" type="button" data-ar="إرسال رابط إعادة التعيين">Send reset link</button>
+  </form>
+  <div class="signin"><div class="brand"><svg class="mark" width="40" height="20"><use href="#loop"/></svg><span>Limitsiz Clinic</span></div>
+    <h1 class="display" data-ar="تحقق من بريدك">Check your email</h1>
+    <p class="sub" data-ar="إذا كان لهذا البريد حساب، فقد أرسلنا رابطاً صالحاً لمدة ساعة. نعرض الرسالة نفسها دائماً.">If this email has an account, we sent a link, valid for 1 hour. We show this same message either way.</p></div>
+</div></div><div data-foot></div></div></div></section>
+
+<!-- 6 -->
+<section id="s6"><p class="frame-title">6 · Reset password</p>
+<div class="scroll"><div class="shot dark" style="min-width:0"><div class="center" style="min-height:500px">
+  <form class="signin" onsubmit="return false">
+    <div class="brand"><svg class="mark" width="40" height="20"><use href="#loop"/></svg><span>Limitsiz Clinic</span></div>
+    <h1 class="display" data-ar="كلمة مرور جديدة">Choose a new password</h1>
+    <label class="field"><span data-ar="كلمة المرور الجديدة">New password</span><input type="password" value="••••••••••••••" dir="ltr"></label>
+    <div class="strength"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div>
+    <label class="field err"><span data-ar="أعد كتابة كلمة المرور">Repeat the password</span><input type="password" value="••••••••••" dir="ltr"><span class="err-msg" data-ar="كلمتا المرور غير متطابقتين">The passwords do not match</span></label>
+    <button class="btn btn-accent btn-block" type="button" data-ar="حفظ كلمة المرور">Save password</button>
+    <div class="foot"><span data-ar="سيُسجَّل خروجك من كل الأجهزة الأخرى.">You will be signed out everywhere else.</span></div>
+  </form>
+</div><div data-foot></div></div></div></section>
+
+<!-- 7 -->
+<section id="s7"><p class="frame-title">7 · Set up two-step verification</p>
+<div class="scroll"><div class="shot">
+  <div data-bar="accounts:account:nadia"></div>
+  <div class="two">
+    <div class="card"><h2 class="display" data-ar="1. اربط تطبيق المصادقة">1. Link your authenticator app</h2>
+      <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:center"><div class="qr"></div>
+      <div class="stack" style="flex:1;min-width:200px"><p style="color:var(--muted);font-size:14px" data-ar="امسح الرمز، أو أدخل المفتاح يدوياً.">Scan the code, or type the key by hand.</p><div class="fakein mono" style="min-height:44px">JBSW Y3DP EHPK 3PXP</div>
+      <label class="field"><span data-ar="اكتب الرمز المكوّن من 6 أرقام">Type the 6-digit code</span><div class="code-row"><span>3</span><span>0</span><span class="on">8</span><span></span><span></span><span></span></div></label></div></div></div>
+    <div class="card"><h2 class="display" data-ar="2. احفظ رموز الاسترداد">2. Save your recovery codes</h2>
+      <p style="color:var(--muted);font-size:14px;margin-bottom:12px" data-ar="تُظهر مرة واحدة. كل رمز يعمل مرة واحدة إذا فقدت هاتفك.">Shown once. Each works one time if you lose your phone.</p>
+      <div class="codes"><span>7KQ2-XM4D</span><span>PD93-W8RA</span><span>HT5N-2LCV</span><span>Z6BE-9QYF</span><span>M3UA-K7SJ</span><span>R8GC-41XW</span><span>V2DH-6NPT</span><span>C9LK-AE35</span><span>Y4FX-B72M</span><span>N5WQ-TG8Z</span></div>
+      <div class="actions"><button class="btn btn-outline btn-xs" type="button" data-ar="تنزيل">Download</button><button class="btn btn-outline btn-xs" type="button" data-ar="طباعة">Print</button></div>
+      <div class="check" style="margin-top:12px"><i class="on">✓</i><span data-ar="حفظتها في مكان آمن">I saved them somewhere safe</span></div>
+      <button class="btn btn-accent btn-sm" type="button" style="margin-top:14px" data-ar="تفعيل">Turn on</button></div>
+  </div><div data-foot></div></div></div></section>
+
+<!-- 8 -->
+<section id="s8"><p class="frame-title">8 · My account (every user)</p>
+<div class="scroll"><div class="shot">
+  <div data-bar="accounts:account:rana"></div>
+  <div class="two">
+    <div class="stack">
+      <div class="card"><h2 class="display" data-ar="ملفي">My profile</h2><div class="stack">
+        <label class="field"><span data-ar="الاسم">Name</span><input value="Rana Q."></label>
+        <label class="field"><span data-ar="البريد الإلكتروني">Email</span><input value="rana@derma-clinic.example" dir="ltr" disabled style="background:var(--paper)"><span class="hint" data-ar="يغيّره مدير العيادة.">Changed by your clinic administrator.</span></label>
+        <div class="field"><span data-ar="اللغة">Language</span><div class="seg"><span class="on">العربية</span><span>English</span></div></div></div></div>
+      <div class="card"><h2 class="display" data-ar="كلمة المرور">Password</h2><div class="stack">
+        <label class="field"><span data-ar="الحالية">Current</span><input type="password" value="••••••••••••" dir="ltr"></label>
+        <div class="g2"><label class="field"><span data-ar="الجديدة">New</span><input type="password" value="" dir="ltr"></label><label class="field"><span data-ar="إعادة الكتابة">Repeat</span><input type="password" value="" dir="ltr"></label></div>
+        <button class="btn btn-ink btn-sm" type="button" style="align-self:flex-start" data-ar="تغيير كلمة المرور">Change password</button></div></div>
+    </div>
+    <div class="stack">
+      <div class="card"><div class="row-between"><h2 class="display" style="margin:0" data-ar="التحقق بخطوتين">Two-step verification</h2><span class="pill">Off</span></div><p style="color:var(--muted);font-size:14px;margin:10px 0 14px" data-ar="اختياري لهذه العيادة. إلزامي للمدراء.">Optional in this clinic. Always required for administrators.</p><button class="btn btn-outline btn-sm" type="button" data-ar="تفعيل">Turn on</button></div>
+      <div class="card"><h2 class="display" data-ar="جلساتي">My sessions</h2>
+        <div class="stack" style="gap:10px">
+          <div class="row-between" style="gap:8px"><div><b data-ar="هذا الحاسوب">This computer</b> <span class="pill ok" data-ar="الحالية">Current</span><br><span class="hint">Chrome · Windows · <span class="mono">192.0.2.14</span> · <span data-ar="الآن">now</span></span></div></div>
+          <div class="row-between" style="gap:8px"><div><b>iPad</b><br><span class="hint">Safari · iPadOS · <span class="mono">192.0.2.52</span> · 2 h</span></div><button class="btn btn-ghost btn-xs" type="button" data-ar="خروج">Sign out</button></div>
+          <button class="btn btn-outline btn-xs" type="button" style="align-self:flex-start" data-ar="خروج من كل الأجهزة الأخرى">Sign out of all other devices</button></div></div>
+    </div>
+  </div><div data-foot></div></div></div></section>
+
+<!-- 9 -->
+<section id="s9"><p class="frame-title">9 · Users and roles (clinic administrator)</p>
+<p class="frame-p" data-ar="المدير يدعو الموظفين، ويحدد الدور، ويمنح الطبيب صلاحية إدارة الحجوزات عند الحاجة.">The administrator invites staff, picks the role, and, when needed, lets a doctor also manage bookings. Every change is audited.</p>
+<div class="scroll"><div class="shot">
+  <div data-bar="accounts:users:nadia"></div>
+  <div class="cols">
+    <div>
+      <div class="row-between" style="margin-bottom:14px"><h2 class="display h2" data-ar="موظفو العيادة">Clinic staff</h2><button class="btn btn-accent btn-sm" type="button">+ <span data-ar="دعوة مستخدم">Invite user</span></button></div>
+      <div class="tablewrap"><table>
+        <thead><tr><th data-ar="الاسم">Name</th><th data-ar="الدور">Role</th><th data-ar="خطوتان">2-step</th><th data-ar="آخر دخول">Last sign-in</th><th data-ar="الحالة">Status</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Dr. Nadia A.</strong><br><span class="mono hint">nadia@derma-clinic.example</span></td><td><span class="pill ink" data-ar="مدير العيادة">Clinic administrator</span></td><td><span class="pill ok">✓</span></td><td class="mono">06 Dec 08:02</td><td><span class="pill ok" data-ar="نشط">Active</span></td></tr>
+          <tr><td><strong>Rana Q.</strong><br><span class="mono hint">rana@derma-clinic.example</span></td><td><span class="pill" data-ar="سكرتيرة">Secretary</span></td><td><span class="pill">—</span></td><td class="mono">06 Dec 08:30</td><td><span class="pill ok" data-ar="نشط">Active</span></td></tr>
+          <tr><td><strong>Hiba N.</strong><br><span class="mono hint">hiba@derma-clinic.example</span></td><td><span class="pill" data-ar="سكرتيرة">Secretary</span></td><td><span class="pill">—</span></td><td class="mono">05 Dec 17:44</td><td><span class="pill ok">Active</span></td></tr>
+          <tr style="background:var(--accent-tint)"><td><strong>Dr. Lina Haddad</strong><br><span class="mono hint">lina@derma-clinic.example</span></td><td><span class="pill" data-ar="طبيبة">Doctor</span></td><td><span class="pill">—</span></td><td class="mono">06 Dec 07:55</td><td><span class="pill ok">Active</span></td></tr>
+          <tr><td><strong>Dr. Omar Khalil</strong><br><span class="mono hint">omar@derma-clinic.example</span></td><td><span class="pill" data-ar="طبيب">Doctor</span> <span class="pill warn" data-ar="+ إدارة الحجوزات">+ bookings</span></td><td><span class="pill">—</span></td><td class="mono">04 Dec 13:10</td><td><span class="pill ok">Active</span></td></tr>
+          <tr><td><strong>Maha K.</strong><br><span class="mono hint">maha@derma-clinic.example</span></td><td><span class="pill" data-ar="سكرتيرة">Secretary</span></td><td><span class="pill">—</span></td><td class="mono">—</td><td><span class="pill warn" data-ar="دعوة معلّقة">Invited</span></td></tr>
+          <tr style="opacity:.6"><td><strong>Fadi M.</strong><br><span class="mono hint">fadi@derma-clinic.example</span></td><td><span class="pill">Secretary</span></td><td><span class="pill">—</span></td><td class="mono">30 Nov 12:10</td><td><span class="pill bad" data-ar="موقوف">Disabled</span></td></tr>
+        </tbody></table></div>
+    </div>
+    <div class="stack">
+      <div class="card"><h2 class="display" data-ar="تعديل: د. لينا حداد">Edit: Dr. Lina Haddad</h2><div class="stack">
+        <div class="field"><span data-ar="الدور">Role</span><div class="roles">
+          <div class="role"><i></i><div><b data-ar="مدير العيادة">Clinic administrator</b><span data-ar="كل شيء بما فيه الإعدادات والمستخدمون وسجل التدقيق">Everything, including Settings, users and the audit log</span></div></div>
+          <div class="role"><i></i><div><b data-ar="سكرتيرة">Secretary</b><span data-ar="تدير الحجوزات والمرضى">Manages bookings and patients</span></div></div>
+          <div class="role on"><i></i><div><b data-ar="طبيب">Doctor</b><span data-ar="للقراءة فقط افتراضياً؛ يفتح على «جدولي»">Read-only by default; opens on "My schedule"</span></div></div>
+          <div class="role"><i></i><div><b data-ar="قراءة فقط">Read-only</b><span data-ar="يرى الحجوزات والمرضى ولا يغيّر شيئاً">Sees bookings and patients, changes nothing</span></div></div></div></div>
+        <label class="field"><span data-ar="سجل الطبيب المرتبط">Linked doctor record</span><select><option>Dr. Lina Haddad</option></select></label>
+        <div class="row-between"><div><b data-ar="يمكنه أيضاً إدارة الحجوزات">Can also manage bookings</b><div class="hint" data-ar="يضيف إنشاء الحجوزات وتعديلها وإلغاءها">Adds create, change, cancel and void</div></div><span class="tg"></span></div>
+        <div class="actions" style="margin-top:4px"><button class="btn btn-ink btn-xs" type="button" data-ar="حفظ">Save</button><button class="btn btn-outline btn-xs" type="button" data-ar="رابط إعادة كلمة المرور">Send password-reset link</button><button class="btn btn-outline btn-xs" type="button" data-ar="خروج من كل الأجهزة">Sign out everywhere</button><button class="btn btn-outline btn-xs" type="button" style="border-color:var(--error);color:var(--error)" data-ar="إيقاف">Disable</button></div>
+      </div></div>
+      <div class="card"><h2 class="display" data-ar="دعوة مستخدم">Invite a user</h2><div class="stack">
+        <label class="field"><span data-ar="الاسم">Name</span><input value="Maha K."></label>
+        <label class="field"><span data-ar="البريد الإلكتروني">Email</span><input value="maha@derma-clinic.example" dir="ltr"></label>
+        <div class="field"><span data-ar="الدور">Role</span><select><option>Secretary</option></select></div>
+        <button class="btn btn-accent btn-sm" type="button" data-ar="إرسال الدعوة">Send invitation</button>
+        <p class="hint" data-ar="يصلها بريد برابط صالح 72 ساعة لاختيار كلمة مرور.">She gets an email with a link, valid 72 hours, to choose a password.</p></div></div>
+    </div>
+  </div><div data-foot></div></div></div></section>
+
+<!-- 10 -->
+<section id="s10"><p class="frame-title">10 · Sessions of all users (clinic administrator)</p>
+<div class="scroll"><div class="shot">
+  <div data-bar="accounts:sessions:nadia"></div>
+  <div class="body">
+    <div class="filters"><label class="field"><span data-ar="المستخدم">User</span><select><option>All users</option></select></label><label class="field"><span data-ar="الحالة">State</span><select><option>Active and locked</option></select></label></div>
+    <div class="tablewrap"><table>
+      <thead><tr><th data-ar="المستخدم">User</th><th data-ar="الجهاز">Device</th><th>IP</th><th data-ar="بدأت">Signed in</th><th data-ar="آخر نشاط">Last activity</th><th data-ar="الحالة">State</th><th></th></tr></thead>
+      <tbody>
+        <tr><td><strong>Rana Q.</strong></td><td>Chrome · Windows <span class="hint">(front desk PC)</span></td><td class="mono">192.0.2.14</td><td class="mono">06 Dec 08:30</td><td class="mono">11:24</td><td><span class="pill ok" data-ar="نشطة">Active</span></td><td><button class="btn btn-ghost btn-xs" type="button" data-ar="خروج">Sign out</button></td></tr>
+        <tr><td><strong>Hiba N.</strong></td><td>Chrome · Windows <span class="hint">(front desk PC)</span></td><td class="mono">192.0.2.14</td><td class="mono">05 Dec 17:44</td><td class="mono">17:58</td><td><span class="pill warn" data-ar="مقفلة">Locked</span></td><td><button class="btn btn-ghost btn-xs" type="button" data-ar="خروج">Sign out</button></td></tr>
+        <tr><td><strong>Dr. Lina Haddad</strong></td><td>Safari · iPadOS</td><td class="mono">192.0.2.52</td><td class="mono">06 Dec 07:55</td><td class="mono">11:02</td><td><span class="pill ok">Active</span></td><td><button class="btn btn-ghost btn-xs" type="button" data-ar="خروج">Sign out</button></td></tr>
+        <tr><td><strong>Dr. Nadia A.</strong></td><td>Edge · Windows</td><td class="mono">192.0.2.30</td><td class="mono">06 Dec 08:02</td><td class="mono">11:25</td><td><span class="pill ok">Active</span> <span class="pill">this session</span></td><td></td></tr>
+      </tbody></table></div>
+    <p class="audit-note" style="margin-top:12px"><svg width="16" height="16"><use href="#lock"/></svg><span data-ar="الخروج يسري فوراً. كل إجراء يُسجَّل في سجل التدقيق.">Signing out takes effect immediately. Every action is recorded in the audit log.</span></p>
+  </div><div data-foot></div></div></div></section>
+
+<!-- 11 -->
+<section id="s11"><p class="frame-title">11 · Lock screen and switch user (shared front-desk computer)</p>
+<p class="frame-p" data-ar="يُقفل بعد دقائق من عدم النشاط. يفتح الشخص نفسه بكلمة مروره، أو يبدّل المستخدم. القفل مفروض من الخادم.">The screen locks after a few idle minutes (default 10, set in Settings → Security). The same person unlocks with their password, or switches user. The lock is enforced by the server, not just drawn on screen.</p>
+<div class="scroll"><div class="shot dark" style="min-width:0"><div class="center" style="min-height:520px"><div class="pair">
+  <form class="signin lock" onsubmit="return false">
+    <div class="avatar">RQ</div>
+    <div><h1 class="display" style="font-size:22px" data-ar="الشاشة مقفلة">Screen locked</h1><p class="sub" data-ar="رنا · لا نشاط منذ 10 دقائق. عملك محفوظ.">Rana Q. · no activity for 10 minutes. Your work is kept.</p></div>
+    <label class="field" style="width:100%;text-align:start"><span data-ar="كلمة المرور">Password</span><input type="password" value="" dir="ltr"></label>
+    <button class="btn btn-accent btn-block" type="button" data-ar="فتح القفل">Unlock</button>
+    <a href="#" data-ar="لست رنا؟ بدّل المستخدم">Not Rana? Switch user</a>
+  </form>
+  <form class="signin" onsubmit="return false">
+    <div class="banner info" data-ar="تم تسجيل خروج رنا. سجّل الدخول كمستخدم آخر.">Rana Q. was signed out. Sign in as another user.</div>
+    <div><h1 class="display" data-ar="تسجيل الدخول إلى Limitsiz Clinic">Sign in to Limitsiz Clinic</h1></div>
+    <label class="field"><span data-ar="البريد الإلكتروني">Email</span><input value="" dir="ltr"></label>
+    <label class="field"><span data-ar="كلمة المرور">Password</span><input type="password" value="" dir="ltr"></label>
+    <button class="btn btn-accent btn-block" type="button" data-ar="تسجيل الدخول">Sign in</button>
+  </form>
+</div></div><div data-foot></div></div></div></section>
+
+<h2 class="group display"><span data-ar="الحجوزات · booking.limitsiz.si">Booking · booking.limitsiz.si</span><small data-ar="الشاشات 12–20">Screens 12–20.</small></h2>
+
+<!-- 12 -->
+<section id="s12"><p class="frame-title">12 · Calendar (secretary)</p>
+<p class="frame-p" data-ar="كل الحجوزات في مكان واحد. شبكة كل طبيب تتبع فاصله الزمني (15 و20 دقيقة هنا). القائمة المفتوحة تظهر أدوات الحاسوب المشترك.">Every booking in one place. Each doctor's grid follows their own appointment interval (15 and 20 minutes here). The open user menu shows the shared-computer tools.</p>
+<div class="scroll"><div class="shot">
+  <div data-bar="booking:calendar:rana"></div>
+  <div class="menu"><small>Rana Q. · rana@derma-clinic.example</small><div data-ar="حسابي">My account</div><div data-ar="قفل الشاشة">Lock screen</div><div data-ar="تبديل المستخدم">Switch user</div><hr><div data-ar="تسجيل الخروج">Sign out</div></div>
+  <div class="body" style="min-height:760px">
+    <div class="toolbar">
+      <button class="iconbtn" type="button" aria-label="Previous day"><svg width="18" height="18" style="transform:scaleX(-1)"><use href="#chev"/></svg></button>
+      <div class="day"><span data-ar="الأحد 6 كانون الأول 2026">Sunday 6 December 2026</span></div>
+      <button class="iconbtn" type="button" aria-label="Next day"><svg width="18" height="18"><use href="#chev"/></svg></button>
+      <button class="btn btn-outline btn-xs" type="button" data-ar="اليوم">Today</button>
+      <div class="chips"><span class="chipbtn on" data-ar="كل الأطباء">All doctors</span><span class="chipbtn">Dr. Lina</span><span class="chipbtn">Dr. Omar</span></div>
+      <span class="spacer"></span>
+      <button class="btn btn-accent btn-sm" type="button">+ <span data-ar="حجز جديد">New booking</span></button>
+    </div>
+    <div class="cal">
+      <div class="hd t"></div>
+      <div class="hd">Dr. Lina Haddad <small data-ar="10:00–14:00 · كل 15 دقيقة">10:00–14:00 · every 15 min</small></div>
+      <div class="hd">Dr. Omar Khalil <small data-ar="12:00–20:00 · كل 20 دقيقة">12:00–20:00 · every 20 min</small></div>
+      <div class="times"><span style="top:0">10:00</span><span style="top:96px">11:00</span><span style="top:192px">12:00</span><span style="top:288px">13:00</span><span style="top:384px">14:00</span><span style="top:480px">15:00</span></div>
+      <div class="col i15">
+        <div class="off" style="top:384px;height:192px" data-ar="استراحة">Break</div>
+        <div class="now" style="top:136px" data-label="11:25"></div>
+        <div class="appt confirmed" style="top:0;height:48px"><b>Rana Q.</b><span>Laser · 10:00</span><i class="chip wa">WhatsApp</i></div>
+        <div class="appt s" style="top:96px;height:32px"><b>Khalid M.</b><span>Consult · 11:00</span><i class="chip ph" data-ar="هاتف">Phone</i></div>
+        <div class="appt s" style="top:144px;height:32px"><b>Samer J.</b><span>Consult · 11:30</span><i class="chip wk" data-ar="زيارة مباشرة">Walk-in</i></div>
+        <div class="appt s" style="top:216px;height:24px"><b>Hiba S.</b><span>12:15</span></div>
+        <div class="appt" style="top:288px;height:48px"><b>Dana H.</b><span>Acne · 13:00</span><i class="chip wa">WhatsApp</i></div>
+      </div>
+      <div class="col i20">
+        <div class="off" style="top:0;height:192px" data-ar="خارج الدوام">Outside hours</div>
+        <div class="now" style="top:136px" data-label="11:25"></div>
+        <div class="appt s confirmed" style="top:192px;height:32px"><b>Ali T.</b><span>Consult · 12:00</span><i class="chip ph">Phone</i></div>
+        <div class="appt" style="top:256px;height:48px"><b>Lama K.</b><span>Laser · 12:40</span><i class="chip wa">WhatsApp</i></div>
+        <div class="appt s noshow" style="top:384px;height:32px"><b>Omar Z.</b><span>Consult · 14:00</span><i class="chip ph">Phone</i></div>
+      </div>
+    </div>
+    <div class="keyline"><span><i style="border-inline-start:4px solid var(--accent-ink)"></i><span data-ar="مؤكد">Confirmed</span></span><span><i style="border-inline-start:4px solid var(--field)"></i><span data-ar="محجوز">Booked</span></span><span><i style="border-inline-start:4px solid var(--amber)"></i><span data-ar="لم يحضر">No-show</span></span><span><i style="background:repeating-linear-gradient(135deg,#eee 0 5px,#ccc 5px 6px)"></i><span data-ar="خارج الدوام / إجازة / إغلاق">Outside hours / leave / closure</span></span><span data-ar="اضغط على خانة فارغة لبدء حجز · يتحدث تلقائياً كل 20 ثانية">Click an empty slot to start a booking · refreshes every 20 s</span></div>
+  </div><div data-foot></div></div></div></section>
+
+<!-- 13 -->
+<section id="s13"><p class="frame-title">13 · Booking form (new and edit), with its states</p>
+<p class="frame-p" data-ar="النموذج الكامل. تحته الحالات: تجاوز الوقت، تعارض مع تغيير آخر، ومريض بلا رقم هاتف.">The full form, and below it the states: other-time override, a conflict with someone else's change, and a patient without a phone number.</p>
+<div class="scroll"><div class="shot">
+  <div data-bar="booking:calendar:rana"></div>
+  <div class="body" style="padding-bottom:0"><div class="row-between"><h2 class="display h2"><span data-ar="حجز جديد">New booking</span></h2><a href="#" data-ar="← عودة إلى التقويم">← Back to the calendar</a></div></div>
+  <div class="formpage">
+    <div class="card"><div class="stack">
+      <label class="field"><span data-ar="المريض">Patient</span><input value="0791234" dir="ltr"></label>
+      <div class="match"><div><strong>Sara Haddad</strong><br><span class="mono">+962 79 123 4567</span> · <span data-ar="آخر زيارة 12 تشرين الثاني">last visit 12 Nov</span></div><span class="pill ok" data-ar="محدد">Selected</span></div>
+      <div class="g2"><label class="field"><span data-ar="الخدمة">Service</span><select><option>Dermatology consultation · 20 min · 30 JOD</option></select></label>
+      <label class="field"><span data-ar="الطبيب">Doctor</span><select><option>Dr. Lina Haddad</option></select></label></div>
+      <label class="field"><span data-ar="التاريخ">Date</span><input value="Sun 6 Dec 2026"></label>
+      <div class="field"><span data-ar="الوقت">Time</span><div class="slots"><span class="s x">11:00</span><span class="s on">11:45</span><span class="s">12:00</span><span class="s">12:15</span><span class="s">12:30</span><span class="s">12:45</span><span class="s">13:00</span></div>
+        <span class="hint"><span data-ar="الأوقات الحرة على فاصل الطبيب (15 دقيقة) · ">Free times on this doctor's interval (15 min) · </span><a href="#" data-ar="وقت آخر (تجاوز)">Other time (override)</a></span></div>
+      <div class="field"><span data-ar="كيف تم الحجز">How was it booked</span><div class="seg"><span class="on" data-ar="مكالمة هاتفية">Phone call</span><span data-ar="زيارة مباشرة">Walk-in</span></div></div>
+      <label class="field"><span data-ar="ملاحظة داخلية">Internal note</span><textarea>Prefers a female doctor.</textarea><span class="hint" data-ar="للموظفين فقط. لا تكتب معلومات طبية.">Staff only. No medical details.</span></label>
+      <div class="check"><i></i><span data-ar="المريضة توافق على تذكيرات واتساب لموعدها">Patient agrees to appointment reminders on WhatsApp</span></div>
+      <div class="actions" style="margin-top:0"><button class="btn btn-accent btn-sm" type="button" data-ar="حفظ الحجز">Save booking</button><button class="btn btn-outline btn-sm" type="button" data-ar="إلغاء">Cancel</button></div>
+    </div></div>
+    <div class="stack">
+      <div class="card"><h2 class="display" data-ar="الملخص">Summary</h2><dl class="kv" style="grid-template-columns:110px 1fr">
+        <dt data-ar="المريضة">Patient</dt><dd>Sara Haddad</dd><dt data-ar="الموعد">When</dt><dd class="mono">Sun 6 Dec · 11:45–12:05</dd><dt data-ar="الطبيب">Doctor</dt><dd>Dr. Lina Haddad</dd><dt data-ar="السعر">Price</dt><dd>30.00 JOD</dd><dt data-ar="التذكيرات">Reminders</dt><dd data-ar="لا (لم توافق بعد)">No (consent not given)</dd></dl></div>
+      <div class="card"><h2 class="display" data-ar="القواعد المطبقة">Rules applied</h2><p style="font-size:14px;color:var(--muted)" data-ar="قواعد الموظفين لهذه العيادة (الإعدادات ← قواعد الحجز). لا يتداخل حجزان لنفس الطبيب أبداً.">This clinic's <b>Staff</b> rules (Settings → Booking rules). Two bookings of one doctor never overlap, whatever the settings.</p>
+      <p class="audit-note" style="margin-top:10px"><svg width="16" height="16"><use href="#lock"/></svg><span data-ar="سيُسجَّل اسمك والوقت في سجل التدقيق.">Your name and the time are recorded in the audit log.</span></p></div>
+    </div>
+  </div>
+  <div class="statecards">
+    <div class="card"><h3>State · other time</h3><div class="slots" style="margin-bottom:10px"><span class="s on">13:50</span></div><div class="banner warn"><span><b data-ar="خارج ساعات الدوام">Outside working hours.</b> <span data-ar="دوام الطبيبة ينتهي 14:00. سيُسجَّل التجاوز.">Dr. Lina works until 14:00 (break 14:00–16:00). Saving records the override.</span></span></div></div>
+    <div class="card"><h3>State · conflict</h3><div class="banner bad"><span><b data-ar="تغيّر هذا الحجز">This booking was changed.</b> <span data-ar="نقلته مساعدة واتساب إلى 12:00 في 10:41. لم يُحفَظ شيء.">The WhatsApp assistant moved it to 12:00 at 10:41. Nothing was saved.</span></span></div><div class="actions" style="margin-top:12px"><button class="btn btn-ink btn-xs" type="button" data-ar="تحميل الجديد">Reload</button></div></div>
+    <div class="card"><h3>State · new patient, no phone</h3><div class="stack"><label class="field"><span data-ar="الاسم الكامل">Full name</span><input value="Samer J."></label><label class="field"><span data-ar="الهاتف (اختياري)">Phone (optional)</span><input value="" dir="ltr"></label><div class="banner info"><span data-ar="بدون رقم لن تصل تذكيرات واتساب.">Without a number, no WhatsApp reminders can be sent.</span></div></div></div>
+  </div><div data-foot></div></div></div></section>
+
+<!-- 14 -->
+<section id="s14"><p class="frame-title">14 · Bookings list</p>
+<div class="scroll"><div class="shot">
+  <div data-bar="booking:list:rana"></div>
+  <div class="body">
+    <div class="filters"><label class="field"><span data-ar="من">From</span><input value="6 Dec 2026"></label><label class="field"><span data-ar="إلى">To</span><input value="13 Dec 2026"></label><label class="field"><span data-ar="الطبيب">Doctor</span><select><option>All</option></select></label><label class="field"><span data-ar="الحالة">Status</span><select><option>Active</option></select></label><label class="field"><span data-ar="المصدر">Source</span><select><option>All</option></select></label><label class="field" style="flex:1;min-width:200px"><span data-ar="بحث بالاسم أو الهاتف">Search name or phone</span><input value=""></label><button class="btn btn-accent btn-sm" type="button">+ <span data-ar="حجز جديد">New booking</span></button></div>
+    <div class="tablewrap"><table>
+      <thead><tr><th data-ar="الموعد">When</th><th data-ar="المريض">Patient</th><th data-ar="الخدمة">Service</th><th data-ar="الطبيب">Doctor</th><th data-ar="المصدر">Source</th><th data-ar="الحالة">Status</th><th></th></tr></thead>
+      <tbody>
+        <tr><td class="mono">Sun 6 · 10:00</td><td><strong>Rana Q.</strong><br><span class="mono hint">+962 79 555 0123</span></td><td>Laser</td><td>Dr. Lina</td><td><span class="pill ok">WhatsApp</span></td><td><span class="pill ok" data-ar="مؤكد">Confirmed</span></td><td><a href="#s17" data-ar="فتح">Open</a></td></tr>
+        <tr><td class="mono">Sun 6 · 11:00</td><td><strong>Khalid M.</strong><br><span class="mono hint">+962 78 222 0199</span></td><td>Consultation</td><td>Dr. Lina</td><td><span class="pill">Phone</span></td><td><span class="pill" data-ar="محجوز">Booked</span></td><td><a href="#s17">Open</a></td></tr>
+        <tr><td class="mono">Sun 6 · 11:30</td><td><strong>Samer J.</strong><br><span class="hint" data-ar="بلا رقم">no number</span></td><td>Consultation</td><td>Dr. Lina</td><td><span class="pill warn" data-ar="زيارة مباشرة">Walk-in</span></td><td><span class="pill">Booked</span></td><td><a href="#s17">Open</a></td></tr>
+        <tr><td class="mono">Sun 6 · 12:00</td><td><strong>Ali T.</strong><br><span class="mono hint">+962 77 410 8821</span></td><td>Consultation</td><td>Dr. Omar</td><td><span class="pill">Phone</span></td><td><span class="pill ok">Confirmed</span></td><td><a href="#s17">Open</a></td></tr>
+        <tr><td class="mono">Sun 6 · 12:40</td><td><strong>Lama K.</strong><br><span class="mono hint">+962 79 700 4410</span></td><td>Laser</td><td>Dr. Omar</td><td><span class="pill ok">WhatsApp</span></td><td><span class="pill">Booked</span></td><td><a href="#s17">Open</a></td></tr>
+        <tr><td class="mono">Mon 7 · 16:30</td><td><strong>Dana H.</strong><br><span class="mono hint">+962 79 311 2020</span></td><td>Acne session</td><td>Dr. Lina</td><td><span class="pill ok">WhatsApp</span></td><td><span class="pill">Booked</span></td><td><a href="#s17">Open</a></td></tr>
+      </tbody></table></div>
+    <div class="row-between" style="margin-top:12px"><span class="hint" data-ar="1–6 من 38">1–6 of 38</span><div class="chips"><span class="chipbtn on">1</span><span class="chipbtn">2</span><span class="chipbtn">3</span></div></div>
+  </div><div data-foot></div></div></div></section>
+
+<!-- 15 -->
+<section id="s15"><p class="frame-title">15 · Patients</p>
+<div class="scroll"><div class="shot">
+  <div data-bar="booking:patients:rana"></div>
+  <div class="body">
+    <div class="filters"><label class="field" style="flex:1;min-width:260px"><span data-ar="بحث بالاسم أو الهاتف">Search name or phone</span><input value="sara"></label><button class="btn btn-accent btn-sm" type="button">+ <span data-ar="مريض جديد">New patient</span></button></div>
+    <div class="tablewrap"><table>
+      <thead><tr><th data-ar="الاسم">Name</th><th data-ar="الهاتف">Phone</th><th data-ar="اللغة">Language</th><th data-ar="تذكيرات واتساب">WhatsApp reminders</th><th data-ar="القادم">Upcoming</th><th data-ar="آخر زيارة">Last visit</th></tr></thead>
+      <tbody>
+        <tr><td><a href="#s16"><strong>Sara Haddad</strong></a></td><td class="mono">+962 79 123 4567</td><td>العربية</td><td><span class="pill ok" data-ar="موافقة">Agreed</span></td><td>2</td><td class="mono">12 Nov 2026</td></tr>
+        <tr><td><strong>Sara Nasser</strong></td><td class="mono">+962 77 600 1212</td><td>English</td><td><span class="pill">—</span></td><td>0</td><td class="mono">02 Oct 2026</td></tr>
+        <tr><td><strong>Sarah B.</strong></td><td><span class="hint" data-ar="بلا رقم">no number</span></td><td>العربية</td><td><span class="pill">—</span></td><td>0</td><td class="mono">28 Sep 2026</td></tr>
+      </tbody></table></div>
+    <p class="audit-note" style="margin-top:12px"><svg width="16" height="16"><use href="#lock"/></svg><span data-ar="بيانات التواصل فقط. لا سجلات طبية في هذا المنتج.">Contact details only. No medical records are kept in this product.</span></p>
+  </div><div data-foot></div></div></div></section>
+
+<!-- 16 -->
+<section id="s16"><p class="frame-title">16 · Patient form (new and edit)</p>
+<div class="scroll"><div class="shot">
+  <div data-bar="booking:patients:rana"></div>
+  <div class="body" style="padding-bottom:0"><div class="row-between"><h2 class="display h2">Sara Haddad</h2><a href="#s15" data-ar="← عودة إلى المرضى">← Back to patients</a></div></div>
+  <div class="two">
+    <div class="card"><div class="stack">
+      <label class="field"><span data-ar="الاسم الكامل">Full name</span><input value="Sara Haddad"></label>
+      <label class="field err"><span data-ar="رقم الهاتف">Phone</span><div style="display:flex;gap:8px;direction:ltr"><span class="fakein" style="width:84px;justify-content:center">+962</span><input value="79 123 4567" dir="ltr"></div><span class="err-msg" data-ar="يوجد مريض بهذا الرقم: سارة حداد. افتحه بدلاً من إنشاء مكرر.">A patient with this number already exists: Sara Haddad. Open that record instead of creating a duplicate.</span></label>
+      <div class="field"><span data-ar="اللغة المفضلة">Preferred language</span><div class="seg"><span class="on">العربية</span><span>English</span></div></div>
+      <div class="check"><i class="on">✓</i><span><span data-ar="توافق على تذكيرات واتساب لمواعيدها.">Agrees to appointment reminders on WhatsApp.</span><br><span class="hint" data-ar="وُثّقت هاتفياً في 6 كانون الأول 2026 بواسطة رنا">Recorded by phone on 6 Dec 2026 by Rana Q.</span></span></div>
+      <label class="field"><span data-ar="ملاحظة داخلية">Internal note</span><textarea></textarea><span class="hint" data-ar="للموظفين فقط. لا معلومات طبية.">Staff only. No medical details.</span></label>
+      <div class="actions" style="margin-top:0"><button class="btn btn-accent btn-sm" type="button" data-ar="حفظ">Save</button><button class="btn btn-outline btn-sm" type="button" data-ar="إلغاء">Cancel</button></div>
+    </div></div>
+    <div class="stack">
+      <div class="card"><h2 class="display" data-ar="حجوزاتها">Bookings</h2><div class="stack" style="gap:10px;font-size:14px">
+        <div class="row-between"><div><b class="mono">Sun 6 Dec · 11:45</b><br>Consultation · Dr. Lina</div><span class="pill">Booked</span></div>
+        <div class="row-between"><div><b class="mono">Thu 17 Dec · 17:00</b><br>Follow-up · Dr. Lina</div><span class="pill ok">WhatsApp</span></div>
+        <div class="row-between"><div><b class="mono">12 Nov · 10:00</b><br>Laser · Dr. Lina</div><span class="pill">Completed</span></div></div>
+        <button class="btn btn-accent btn-xs" type="button" style="margin-top:14px">+ <span data-ar="حجز جديد">New booking</span></button></div>
+      <div class="card"><h2 class="display" data-ar="السجل">History</h2><ul class="timeline"><li><b>Rana Q.</b> <span data-ar="عدّلت رقم الهاتف">edited the phone number</span><span class="when">06 Dec · 09:03</span></li><li class="agent"><b data-ar="مساعد واتساب">WhatsApp assistant</b> <span data-ar="أنشأ المريضة">created the patient</span><span class="when">12 Nov · 09:41</span></li></ul></div>
+    </div>
+  </div><div data-foot></div></div></div></section>
+
+<!-- 17 -->
+<section id="s17"><p class="frame-title">17 · Appointment detail, history, and "delete" (void)</p>
+<p class="frame-p" data-ar="كل تغيير باسم من قام به، بمن فيهم مساعد واتساب. الحذف إبطال: يبقى السجل ويمكن للمدير الاستعادة.">Every change names who made it, including the WhatsApp assistant. "Delete" is a void: the booking leaves the calendar but its record and history stay, and an administrator can restore it.</p>
+<div class="scroll"><div class="shot">
+  <div data-bar="booking:calendar:rana"></div>
+  <div class="two">
+    <div class="card">
+      <div class="row-between" style="margin-bottom:12px"><h2 class="display" style="margin:0">Rana Q. <span style="font-weight:400;color:var(--muted)">· Laser</span></h2><span class="pill ok"><span class="dot"></span><span data-ar="مؤكد">Confirmed</span></span></div>
+      <dl class="kv">
+        <dt data-ar="الموعد">When</dt><dd class="mono">Sun 6 Dec 2026 · 10:00–10:30</dd><dt data-ar="الطبيب">Doctor</dt><dd>Dr. Lina Haddad</dd><dt data-ar="الخدمة">Service</dt><dd>Laser hair removal · from 40 JOD</dd><dt data-ar="المريض">Patient</dt><dd><a href="#s16">Rana Q.</a> · <span class="mono">+962 79 555 0123</span></dd><dt data-ar="المصدر">Source</dt><dd><span class="pill ok">WhatsApp</span></dd><dt data-ar="التذكيرات">Reminders</dt><dd data-ar="24 ساعة أُرسل · ساعتان بانتظار">24 h sent · 2 h pending</dd><dt data-ar="ملاحظة داخلية">Internal note</dt><dd>—</dd>
+      </dl>
+      <div class="actions"><button class="btn btn-ink btn-xs" type="button" data-ar="نقل">Move</button><button class="btn btn-outline btn-xs" type="button" data-ar="إلغاء الحجز">Cancel booking</button><button class="btn btn-outline btn-xs" type="button" data-ar="إتمام">Complete</button><button class="btn btn-outline btn-xs" type="button" data-ar="لم يحضر">No-show</button><span class="spacer"></span><button class="btn btn-outline btn-xs" type="button" style="border-color:var(--error);color:var(--error)" data-ar="حذف (إبطال)">Delete (void)</button></div>
+      <div class="check" style="margin-top:14px"><i class="on">✓</i><span data-ar="أخبر المريضة على واتساب عند النقل أو الإلغاء (المرحلة D)">Tell the patient on WhatsApp when moving or cancelling (phase D)</span></div>
+    </div>
+    <div class="card"><h2 class="display" data-ar="السجل">History</h2>
+      <ul class="timeline">
+        <li><b>Rana Q.</b> <span data-ar="أكّدت الموعد بعد اتصال هاتفي">confirmed after a phone call</span><span class="when">Sun 6 Dec · 09:41 · Booking</span></li>
+        <li><b>Rana Q.</b> <span data-ar="نقلت الموعد من 9:30 إلى 10:00">moved it from 09:30 to 10:00</span><span class="when">Sat 5 Dec · 16:12 · Booking</span></li>
+        <li class="agent"><b data-ar="مساعد واتساب">WhatsApp assistant</b> <span data-ar="أنشأ الحجز بعد أن أكد المريض بـ«نعم»">created the booking after the patient replied "yes"</span><span class="when">Fri 4 Dec · 20:07 · WhatsApp</span></li>
+      </ul>
+      <p class="audit-note"><svg width="16" height="16"><use href="#lock"/></svg><span data-ar="هذه القائمة من سجل التدقيق ولا يمكن تعديلها.">This list comes from the audit log and cannot be edited.</span></p></div>
+  </div>
+  <div class="dim"><div class="dialog">
+    <h2 class="display" data-ar="إبطال هذا الحجز؟">Void this booking?</h2>
+    <p style="color:var(--muted);font-size:14px" data-ar="سيختفي من التقويم ويُفرَّغ الموعد. يبقى السجل ويمكن للمدير استعادته. استخدم «إلغاء الحجز» إذا ألغى المريض.">It leaves the calendar and frees the slot. The record stays, and an administrator can restore it. Use <b>Cancel booking</b> when the patient cancelled.</p>
+    <label class="field"><span data-ar="السبب (مطلوب)">Reason (required)</span><select><option>Entered by mistake</option><option>Duplicate booking</option><option>Other…</option></select></label>
+    <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-danger btn-sm" type="button" data-ar="إبطال الحجز">Void booking</button><button class="btn btn-outline btn-sm" type="button" style="background:#fff" data-ar="رجوع">Back</button></div>
+  </div></div><div data-foot></div></div></div></section>
+
+<!-- 18 -->
+<section id="s18"><p class="frame-title">18 · Doctor: "My schedule" (read-only by default)</p>
+<p class="frame-p" data-ar="الطبيب يفتح على جدوله. لا زر «حجز جديد». يمكن للمدير منحه «إدارة الحجوزات».">A doctor opens on their own schedule. No "New booking" button. The administrator can switch on "can also manage bookings" for them.</p>
+<div class="scroll"><div class="shot">
+  <div data-bar="booking:myschedule:lina"></div>
+  <div class="body" style="min-height:700px">
+    <div class="banner info" style="margin-bottom:14px"><span data-ar="يمكنك عرض الحجوزات. لتغيير حجز اطلب من الاستقبال.">You can view bookings. To change one, ask the receptionist.</span></div>
+    <div class="toolbar"><button class="iconbtn" type="button" aria-label="Previous"><svg width="18" height="18" style="transform:scaleX(-1)"><use href="#chev"/></svg></button><div class="day"><span data-ar="الأحد 6 كانون الأول 2026">Sunday 6 December 2026</span></div><button class="iconbtn" type="button" aria-label="Next"><svg width="18" height="18"><use href="#chev"/></svg></button><button class="btn btn-outline btn-xs" type="button" data-ar="اليوم">Today</button><div class="chips"><span class="chipbtn on" data-ar="جدولي">My schedule</span><span class="chipbtn" data-ar="كل الأطباء">All doctors</span></div></div>
+    <div class="cal one">
+      <div class="hd t"></div><div class="hd">Dr. Lina Haddad <small data-ar="10:00–14:00 · كل 15 دقيقة">10:00–14:00 · every 15 min</small></div>
+      <div class="times"><span style="top:0">10:00</span><span style="top:96px">11:00</span><span style="top:192px">12:00</span><span style="top:288px">13:00</span><span style="top:384px">14:00</span><span style="top:480px">15:00</span></div>
+      <div class="col i15"><div class="off" style="top:384px;height:192px" data-ar="استراحة">Break</div><div class="now" style="top:136px" data-label="11:25"></div>
+        <div class="appt ro confirmed" style="top:0;height:48px"><b>Rana Q.</b><span>Laser · 10:00</span><i class="chip wa">WhatsApp</i></div>
+        <div class="appt ro s" style="top:96px;height:32px"><b>Khalid M.</b><span>Consult · 11:00</span><i class="chip ph">Phone</i></div>
+        <div class="appt ro s" style="top:144px;height:32px"><b>Samer J.</b><span>Consult · 11:30</span><i class="chip wk">Walk-in</i></div>
+        <div class="appt ro s" style="top:216px;height:24px"><b>Hiba S.</b><span>12:15</span></div>
+        <div class="appt ro" style="top:288px;height:48px"><b>Dana H.</b><span>Acne · 13:00</span><i class="chip wa">WhatsApp</i></div></div>
+    </div>
+  </div><div data-foot></div></div></div></section>
+
+<!-- 19 -->
+<section id="s19"><p class="frame-title">19 · Audit log (clinic administrator)</p>
+<div class="scroll"><div class="shot">
+  <div data-bar="booking:audit:nadia"></div>
+  <div class="body">
+    <div class="integrity"><strong data-ar="✓ السلسلة سليمة">✓ Chain intact</strong><span data-ar="2,418 سجلاً · آخر فحص 02:00 · الاحتفاظ: دائماً">2,418 entries · last checked 02:00 · retention: indefinitely</span><span class="spacer"></span><button class="btn btn-ghost btn-xs" type="button" data-ar="فحص الآن">Verify now</button><button class="btn btn-ghost btn-xs" type="button" data-ar="تصدير CSV">Export CSV</button></div>
+    <div class="filters"><label class="field"><span data-ar="من">From</span><input value="1 Dec 2026"></label><label class="field"><span data-ar="إلى">To</span><input value="6 Dec 2026"></label><label class="field"><span data-ar="المستخدم">User</span><select><option>All</option></select></label><label class="field"><span data-ar="النوع">Type</span><select><option>All</option></select></label><label class="field" style="flex:1;min-width:200px"><span data-ar="بحث">Search</span><input value="Rana"></label></div>
+    <div class="tablewrap"><table>
+      <thead><tr><th data-ar="الوقت">Time</th><th data-ar="من">Who</th><th data-ar="الإجراء">Action</th><th data-ar="ماذا">What</th><th data-ar="التغيير">Change</th><th data-ar="من أين">From</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">06 Dec 11:12</td><td>Rana Q.</td><td><span class="pill" data-ar="قفل">screen locked</span></td><td>Session</td><td class="diff">idle 10 min</td><td class="mono">192.0.2.14 · Chrome</td></tr>
+        <tr><td class="mono">06 Dec 09:41</td><td>Rana Q.</td><td><span class="pill ok" data-ar="تأكيد">confirmed</span></td><td>Booking · Rana Q. 10:00</td><td class="diff"><del>booked</del> → <ins>confirmed</ins></td><td class="mono">192.0.2.14 · Chrome</td></tr>
+        <tr><td class="mono">06 Dec 09:12</td><td>Rana Q.</td><td><span class="pill bad" data-ar="إبطال">voided</span></td><td>Booking · Omar Z. 09:00</td><td class="diff">reason: <ins>Duplicate booking</ins></td><td class="mono">192.0.2.14 · Chrome</td></tr>
+        <tr><td class="mono">06 Dec 08:58</td><td><span class="pill warn" data-ar="مساعد واتساب">WhatsApp assistant</span></td><td><span class="pill" data-ar="إنشاء">created</span></td><td>Booking · Lama K. 12:40</td><td class="diff">status <ins>booked</ins></td><td class="mono">agent</td></tr>
+        <tr><td class="mono">05 Dec 22:47</td><td>unknown</td><td><span class="pill bad" data-ar="فشل دخول">failed sign-in</span></td><td>rana@derma…</td><td class="diff">attempt 3 of 5</td><td class="mono">203.0.113.9 · curl</td></tr>
+        <tr><td class="mono">05 Dec 11:20</td><td>Dr. Nadia A.</td><td><span class="pill warn" data-ar="إعدادات">setting</span></td><td>Settings · Booking rules (Staff)</td><td class="diff">outside hours <del>block</del> → <ins>allow with warning</ins></td><td class="mono">192.0.2.30 · Edge</td></tr>
+        <tr><td class="mono">05 Dec 11:03</td><td>Dr. Nadia A.</td><td><span class="pill warn" data-ar="تغيير دور">role changed</span></td><td>User · Omar K.</td><td class="diff">can manage bookings <del>no</del> → <ins>yes</ins></td><td class="mono">192.0.2.30 · Edge</td></tr>
+      </tbody></table></div>
+  </div><div data-foot></div></div></div></section>
+
+<!-- 20 -->
+<section id="s20"><p class="frame-title">20 · Booking form on a tablet</p>
+<p class="frame-p" data-ar="على التابلت تتراص الحقول في عمود واحد؛ الأزرار كبيرة للمس.">On a tablet the form stacks into one column with large touch targets; the phone layout follows the same pattern.</p>
+<div class="scroll"><div class="shot" style="min-width:820px">
+  <div class="device">
+    <div data-bar="booking:calendar:rana" data-compact></div>
+    <div class="body"><h2 class="display h2" style="margin-bottom:14px" data-ar="حجز جديد">New booking</h2><div class="stack">
+      <label class="field"><span data-ar="المريض">Patient</span><input value="Sara Haddad · +962 79 123 4567"></label>
+      <div class="g2"><label class="field"><span data-ar="الخدمة">Service</span><select><option>Consultation · 20 min</option></select></label><label class="field"><span data-ar="الطبيب">Doctor</span><select><option>Dr. Lina Haddad</option></select></label></div>
+      <label class="field"><span data-ar="التاريخ">Date</span><input value="Sun 6 Dec 2026"></label>
+      <div class="field"><span data-ar="الوقت">Time</span><div class="slots"><span class="s on">11:45</span><span class="s">12:00</span><span class="s">12:15</span><span class="s">12:30</span><span class="s">12:45</span></div></div>
+      <div class="field"><span data-ar="كيف تم الحجز">How was it booked</span><div class="seg"><span class="on" data-ar="مكالمة هاتفية">Phone call</span><span data-ar="زيارة مباشرة">Walk-in</span></div></div>
+      <button class="btn btn-accent btn-block" type="button" data-ar="حفظ الحجز">Save booking</button></div></div>
+  </div><div data-foot></div></div></div></section>
+
+<h2 class="group display"><span data-ar="الإعدادات · مدير العيادة">Settings · clinic administrator</span><small data-ar="الشاشات 21–27. كل تغيير يُسجَّل بقيمه قبل وبعد.">Screens 21–27. Every change is recorded with its before and after values. Secretaries see hours, doctors, services and rules read-only.</small></h2>
+
+<!-- 21 -->
+<section id="s21"><p class="frame-title">21 · Settings · Clinic profile and information</p>
+<div class="scroll"><div class="shot">
+  <div data-bar="booking:settings:nadia"></div>
+  <div class="settings"><div data-snav="profile"></div><div class="spage">
+    <h2 class="display" data-ar="ملف العيادة">Clinic profile</h2>
+    <div class="card"><div class="stack">
+      <div class="g2"><label class="field"><span data-ar="اسم العيادة (إنجليزي)">Clinic name (English)</span><input value="Limitsiz Demo Dermatology"></label><label class="field"><span data-ar="اسم العيادة (عربي)">Clinic name (Arabic)</span><input value="عيادة Limitsiz التجريبية للجلدية"></label></div>
+      <div class="g2"><label class="field"><span data-ar="الهاتف">Phone</span><input value="+962 6 555 0100" dir="ltr"></label><label class="field"><span data-ar="رابط الخريطة">Map link</span><input value="https://maps.example/derma" dir="ltr"></label></div>
+      <div class="g2"><label class="field"><span data-ar="العنوان (إنجليزي)">Address (English)</span><input value="Abdoun, Amman"></label><label class="field"><span data-ar="العنوان (عربي)">Address (Arabic)</span><input value="عبدون، عمّان"></label></div>
+      <div class="g2"><label class="field"><span data-ar="المنطقة الزمنية">Time zone</span><select><option>Asia/Amman</option></select></label><div class="field"><span data-ar="اللغة الافتراضية">Default language</span><div class="seg"><span class="on">العربية</span><span>English</span></div></div></div>
+    </div></div>
+    <h2 class="display" data-ar="معلومات تجيب بها مساعدة واتساب">Information the WhatsApp assistant answers with</h2>
+    <div class="tablewrap"><table><thead><tr><th data-ar="الموضوع">Topic</th><th data-ar="الجواب بالإنجليزية">Answer (English)</th><th data-ar="الجواب بالعربية">Answer (Arabic)</th></tr></thead><tbody>
+      <tr><td><b data-ar="الدفع">Payment</b></td><td>Cash, card and CliQ are accepted.</td><td>نقبل الدفع نقداً أو بالبطاقة أو عبر CliQ.</td></tr>
+      <tr><td><b data-ar="التأمين">Insurance</b></td><td>Several plans for consultations. Send a photo of the card…</td><td>نقبل عدداً من شركات التأمين للاستشارات…</td></tr>
+      <tr><td><b data-ar="تحضير الليزر">Laser preparation</b></td><td>Shave 24 hours before. Avoid sun and waxing…</td><td>احلق المنطقة قبل 24 ساعة…</td></tr></tbody></table></div>
+    <div class="savebar"><button class="btn btn-accent btn-sm" type="button" data-ar="حفظ التغييرات">Save changes</button><span class="hint" data-ar="يُسجَّل في سجل التدقيق">Recorded in the audit log</span></div>
+  </div></div><div data-foot></div></div></div></section>
+
+<!-- 22 -->
+<section id="s22"><p class="frame-title">22 · Settings · Working hours and closures</p>
+<p class="frame-p" data-ar="أوقات عمل العيادة، وكل طبيب يعمل ضمنها. التغيير لا يلغي أي حجز قائم.">The clinic's opening hours; every doctor works inside them. Changing them never cancels or moves an existing booking.</p>
+<div class="scroll"><div class="shot">
+  <div data-bar="booking:settings:nadia"></div>
+  <div class="settings"><div data-snav="hours"></div><div class="spage">
+    <h2 class="display" data-ar="ساعات الدوام الأسبوعية">Weekly opening hours</h2>
+    <div class="card" style="padding-block:8px">
+      <div class="hoursrow"><b data-ar="السبت">Saturday</b><div class="iv"><span>10:00–14:00</span><span>16:00–19:00</span><a href="#" style="font-size:13px">+ <span data-ar="فترة">period</span></a></div><span class="tg on"></span></div>
+      <div class="hoursrow"><b data-ar="الأحد">Sunday</b><div class="iv"><span>10:00–14:00</span><span>16:00–20:00</span><a href="#" style="font-size:13px">+</a></div><span class="tg on"></span></div>
+      <div class="hoursrow"><b data-ar="الاثنين">Monday</b><div class="iv"><span>10:00–14:00</span><span>16:00–20:00</span></div><span class="tg on"></span></div>
+      <div class="hoursrow"><b data-ar="الثلاثاء">Tuesday</b><div class="iv"><span>10:00–14:00</span><span>16:00–20:00</span></div><span class="tg on"></span></div>
+      <div class="hoursrow"><b data-ar="الأربعاء">Wednesday</b><div class="iv"><span>10:00–14:00</span><span>16:00–20:00</span></div><span class="tg on"></span></div>
+      <div class="hoursrow"><b data-ar="الخميس">Thursday</b><div class="iv"><span>10:00–14:00</span><span>16:00–19:00</span></div><span class="tg on"></span></div>
+      <div class="hoursrow" style="border:0"><b data-ar="الجمعة">Friday</b><div class="iv"><span class="hint" style="font-family:var(--font-body)" data-ar="مغلق">Closed</span></div><span class="tg"></span></div>
+    </div>
+    <div class="banner warn"><span><b data-ar="3 حجوزات قائمة خارج الساعات الجديدة.">3 existing bookings fall outside the new hours.</b> <span data-ar="لن يُلغى أي منها. اتصل بالمرضى لتغييرها.">None is cancelled or moved. Contact those patients to change them.</span> <a href="#" data-ar="عرضها">Show them</a></span></div>
+    <h2 class="display" data-ar="الإغلاقات والعطل">Closures and holidays</h2>
+    <div class="tablewrap"><table><thead><tr><th data-ar="الاسم">Name</th><th data-ar="من">From</th><th data-ar="إلى">To</th><th></th></tr></thead><tbody>
+      <tr><td>Christmas Day</td><td class="mono">25 Dec 2026</td><td class="mono">25 Dec 2026</td><td><a href="#" data-ar="تعديل">Edit</a></td></tr>
+      <tr><td>Team training day</td><td class="mono">15 Dec 2026</td><td class="mono">15 Dec 2026</td><td><a href="#">Edit</a></td></tr>
+      <tr><td>Independence Day</td><td class="mono">25 May 2027</td><td class="mono">25 May 2027</td><td><a href="#">Edit</a></td></tr></tbody></table></div>
+    <div class="savebar"><button class="btn btn-accent btn-sm" type="button" data-ar="حفظ التغييرات">Save changes</button><button class="btn btn-ghost btn-sm" type="button">+ <span data-ar="إغلاق جديد">Add closure</span></button></div>
+  </div></div><div data-foot></div></div></div></section>
+
+<!-- 23 -->
+<section id="s23"><p class="frame-title">23 · Settings · Doctors (interval, buffer, hours, leave, services)</p>
+<p class="frame-p" data-ar="لكل طبيب فاصل مواعيد خاص به، وفترة راحة بعد كل موعد، وساعات ضمن ساعات العيادة.">Each doctor has their own appointment interval, an optional buffer after each appointment, hours inside the clinic's, leave, and the services they offer.</p>
+<div class="scroll"><div class="shot">
+  <div data-bar="booking:settings:nadia"></div>
+  <div class="settings"><div data-snav="doctors"></div><div class="spage">
+    <div class="cols" style="padding:0">
+      <div class="doclist"><div class="docitem on"><div><b>Dr. Lina Haddad</b><br><span class="hint" data-ar="كل 15 دقيقة · 5 خدمات">every 15 min · 5 services</span></div><span class="pill ok" data-ar="نشطة">Active</span></div><div class="docitem"><div><b>Dr. Omar Khalil</b><br><span class="hint" data-ar="كل 20 دقيقة · 3 خدمات">every 20 min · 3 services</span></div><span class="pill ok">Active</span></div><button class="btn btn-ghost btn-sm" type="button">+ <span data-ar="طبيب جديد">Add doctor</span></button></div>
+      <div class="card"><h2 class="display">Dr. Lina Haddad</h2><div class="stack">
+        <div class="g2"><label class="field"><span data-ar="الاسم (إنجليزي)">Name (English)</span><input value="Dr. Lina Haddad"></label><label class="field"><span data-ar="الاسم (عربي)">Name (Arabic)</span><input value="د. لينا حداد"></label></div>
+        <div class="g2"><label class="field"><span data-ar="اللقب">Title</span><input value="Consultant Dermatologist"></label><div class="field"><span data-ar="الجنس">Gender</span><div class="seg"><span class="on" data-ar="أنثى">Female</span><span data-ar="ذكر">Male</span></div></div></div>
+        <div class="field"><span data-ar="فاصل المواعيد">Appointment interval</span><div class="opts"><span>5 min</span><span>10 min</span><span class="on">15 min</span><span>20 min</span><span>30 min</span><span>60 min</span></div><span class="hint" data-ar="الافتراضي للعيادة: 15 دقيقة. يطبّق على الحجوزات الجديدة فقط.">Clinic default: 15 min. Applies to new bookings only.</span></div>
+        <div class="field"><span data-ar="مهلة بعد كل موعد">Buffer after each appointment</span><div class="opts"><span class="on">0</span><span>5 min</span><span>10 min</span><span>15 min</span></div></div>
+        <div class="field"><span data-ar="ساعات الطبيبة">Weekly hours</span><div class="hoursrow" style="grid-template-columns:100px 1fr;padding:6px 0"><b data-ar="السبت–الخميس">Sat–Thu</b><div class="iv"><span>10:00–14:00</span><span>16:00–19:00</span><span class="pill ok" data-ar="ضمن ساعات العيادة">inside clinic hours</span></div></div></div>
+        <div class="field"><span data-ar="الإجازات">Leave</span><div class="row-between" style="font-size:14px"><span>10–14 Jan 2027 · Conference</span><a href="#" data-ar="تعديل">Edit</a></div></div>
+        <div class="field"><span data-ar="الخدمات">Services</span><div class="opts"><span class="on">Consultation</span><span class="on">Follow-up</span><span class="on">Laser</span><span class="on">Chemical peel</span><span class="on">Acne session</span></div></div>
+        <div class="row-between"><span><b data-ar="نشطة">Active</b> <span class="hint" data-ar="غير النشطين لا يظهرون في الحجز">Inactive doctors cannot be booked</span></span><span class="tg on"></span></div>
+        <div class="savebar" style="position:static"><button class="btn btn-accent btn-sm" type="button" data-ar="حفظ التغييرات">Save changes</button></div>
+      </div></div>
+    </div>
+  </div></div><div data-foot></div></div></div></section>
+
+<!-- 24 -->
+<section id="s24"><p class="frame-title">24 · Settings · Services</p>
+<div class="scroll"><div class="shot">
+  <div data-bar="booking:settings:nadia"></div>
+  <div class="settings"><div data-snav="services"></div><div class="spage">
+    <div class="row-between"><h2 class="display" data-ar="الخدمات">Services</h2><button class="btn btn-ghost btn-sm" type="button">+ <span data-ar="خدمة جديدة">Add service</span></button></div>
+    <div class="tablewrap"><table><thead><tr><th data-ar="الاسم (إنجليزي)">Name (English)</th><th data-ar="الاسم (عربي)">Name (Arabic)</th><th data-ar="المدة">Duration</th><th data-ar="السعر (دينار)">Price (JOD)</th><th data-ar="الأطباء">Doctors</th><th data-ar="نشطة">Active</th></tr></thead><tbody>
+      <tr><td>Dermatology consultation</td><td>استشارة جلدية</td><td class="mono">20 min</td><td class="mono">30.00</td><td>Lina, Omar</td><td><span class="tg on"></span></td></tr>
+      <tr><td>Follow-up visit</td><td>زيارة متابعة</td><td class="mono">15 min</td><td class="mono">15.00</td><td>Lina, Omar</td><td><span class="tg on"></span></td></tr>
+      <tr><td>Laser hair removal session</td><td>جلسة إزالة الشعر بالليزر</td><td class="mono">30 min</td><td class="mono">from 40.00</td><td>Lina, Omar</td><td><span class="tg on"></span></td></tr>
+      <tr><td>Chemical peel</td><td>تقشير كيميائي</td><td class="mono">45 min</td><td class="mono">from 60.00</td><td>Lina</td><td><span class="tg on"></span></td></tr>
+      <tr><td>Acne treatment session</td><td>جلسة علاج حب الشباب</td><td class="mono">30 min</td><td class="mono">from 35.00</td><td>Lina</td><td><span class="tg on"></span></td></tr></tbody></table></div>
+    <div class="banner info"><span data-ar="تغيير المدة أو السعر لا يعدّل الحجوزات القائمة، ويطبّق على الحجوزات الجديدة.">Changing a duration or price does not change existing bookings; it applies to new ones.</span></div>
+  </div></div><div data-foot></div></div></div></section>
+
+<!-- 25 -->
+<section id="s25"><p class="frame-title">25 · Settings · Booking rules: Patients and Staff</p>
+<p class="frame-p" data-ar="مجموعتان من القواعد لكل عيادة: واحدة لمساعدة واتساب (المرضى) وأخرى للموظفين في تطبيق الحجز.">Two rule sets per clinic: one for the WhatsApp assistant (patients) and one for staff in the Booking app. Pick lists, plus "Custom".</p>
+<div class="scroll"><div class="shot">
+  <div data-bar="booking:settings:nadia"></div>
+  <div class="settings"><div data-snav="rules"></div><div class="spage">
+    <div class="rule-cols">
+      <div class="card"><h2 class="display" data-ar="المرضى (واتساب)">Patients (WhatsApp)</h2>
+        <div class="setrow" style="grid-template-columns:1fr"><div class="lbl" data-ar="أقل مهلة قبل الموعد">Minimum notice</div><div data-opts="None|30 min|1 h*|2 h|4 h|12 h|24 h|Custom"></div></div>
+        <div class="setrow" style="grid-template-columns:1fr"><div class="lbl" data-ar="أبعد موعد للحجز">How far ahead</div><div data-opts="7 days|14 days|30 days*|60 days|90 days|Custom"></div></div>
+        <div class="setrow" style="grid-template-columns:1fr"><div class="lbl" data-ar="مهلة التغيير أو الإلغاء">Change or cancel notice</div><div data-opts="None|1 h|2 h*|4 h|12 h|24 h|Custom"></div></div>
+        <div class="setrow" style="grid-template-columns:1fr"><div class="lbl" data-ar="أقصى حجوزات قادمة للمريض">Max upcoming bookings per patient</div><div data-opts="1|2|3*|5|10|No limit"></div></div></div>
+      <div class="card"><h2 class="display" data-ar="الموظفون (تطبيق الحجز)">Staff (Booking app)</h2>
+        <div class="setrow" style="grid-template-columns:1fr"><div class="lbl" data-ar="أقل مهلة قبل الموعد">Minimum notice</div><div data-opts="None*|30 min|1 h|2 h|4 h|Custom"></div></div>
+        <div class="setrow" style="grid-template-columns:1fr"><div class="lbl" data-ar="أبعد موعد للحجز">How far ahead</div><div data-opts="30 days|90 days|180 days|365 days*|Custom"></div></div>
+        <div class="setrow" style="grid-template-columns:1fr"><div class="lbl" data-ar="مهلة التغيير أو الإلغاء">Change or cancel notice</div><div data-opts="None*|1 h|2 h|4 h|Custom"></div></div>
+        <div class="setrow" style="grid-template-columns:1fr"><div class="lbl" data-ar="أقصى حجوزات قادمة للمريض">Max upcoming bookings per patient</div><div data-opts="1|2|3|5|10|No limit*"></div><span class="hint" data-ar="يظهر تحذير فقط">A warning only</span></div>
+        <div class="setrow" style="grid-template-columns:1fr"><div class="lbl" data-ar="الحجز خارج ساعات الدوام">Booking outside working hours</div><div data-opts="Block|Allow with warning*|Allow"></div></div>
+        <div class="setrow" style="grid-template-columns:1fr"><div class="lbl" data-ar="إدخال زيارة مباشرة بأثر رجعي">Enter walk-ins after the fact</div><div data-opts="No|30 min back|1 h back|2 h back*|4 h back"></div></div>
+        <div class="setrow" style="grid-template-columns:1fr auto"><div class="lbl" data-ar="سبب مطلوب عند الإلغاء">Require a reason to cancel</div><span class="tg on"></span></div></div>
+    </div>
+    <div class="banner info"><svg width="18" height="18" style="flex:none"><use href="#lock"/></svg><span data-ar="في العمودين: لا يتداخل حجزان لنفس الطبيب أبداً.">In both columns: two bookings of one doctor never overlap.</span></div>
+    <div class="savebar"><button class="btn btn-accent btn-sm" type="button" data-ar="حفظ التغييرات">Save changes</button><span class="hint" data-ar="تطبّق مساعدة واتساب قواعد المرضى فوراً.">The WhatsApp assistant uses the Patient rules straight away.</span></div>
+  </div></div><div data-foot></div></div></div></section>
+
+<!-- 26 -->
+<section id="s26"><p class="frame-title">26 · Settings · Reminders, WhatsApp assistant, conversations</p>
+<div class="scroll"><div class="shot">
+  <div data-bar="booking:settings:nadia"></div>
+  <div class="settings"><div data-snav="reminders"></div><div class="spage">
+    <div class="card"><h2 class="display" data-ar="التذكيرات">Reminders</h2>
+      <div class="setrow"><div class="lbl" data-ar="تذكيرات المواعيد">Appointment reminders</div><span class="tg on"></span></div>
+      <div class="setrow"><div class="lbl"><span data-ar="متى تُرسل قبل الموعد">When, before the appointment</span><small data-ar="اختر واحداً أو أكثر">pick one or more</small></div><div class="opts"><span>48 h</span><span class="on">24 h</span><span>12 h</span><span>4 h</span><span class="on">2 h</span><span>1 h</span></div></div>
+      <div class="setrow"><div class="lbl" data-ar="لا ترسل في الليل">Do not send at night</div><div class="row-between" style="justify-content:flex-start;gap:10px"><span class="fakein mono" style="width:100px;min-height:40px">21:00</span> → <span class="fakein mono" style="width:100px;min-height:40px">08:00</span></div></div>
+      <p class="hint" style="margin-top:6px" data-ar="تُرسل بقالب معتمد من ميتا. لا تُرسل إلا لمن وافق.">Sent with a Meta-approved template, and only to patients who agreed.</p></div>
+    <div class="card"><h2 class="display" data-ar="مساعدة واتساب">WhatsApp assistant</h2>
+      <div class="setrow"><div class="lbl" data-ar="المساعدة تعمل">Assistant on</div><span class="tg on"></span></div>
+      <div class="setrow"><div class="lbl" data-ar="رسالة خارج الدوام">Message outside working hours</div><div class="fakein" style="min-height:48px">أهلاً! العيادة مغلقة الآن، وسنرد عليك عند فتح الدوام.</div></div>
+      <div class="setrow"><div class="lbl" data-ar="بريد تنبيهات التحويل للموظفين">Hand-off alert emails</div><div class="fakein mono">reception@derma-clinic.example</div></div></div>
+    <div class="card"><h2 class="display" data-ar="ماذا يرى الموظفون من المحادثات">What staff can see of conversations</h2>
+      <div class="roles">
+        <div class="role"><i></i><div><b data-ar="لا شيء">None</b><span data-ar="لا تظهر المحادثات في تطبيق الحجز">Conversations are not shown in the Booking app</span></div></div>
+        <div class="role on"><i></i><div><b data-ar="المحادثات المحوّلة فقط (الافتراضي)">Hand-off chats only (default)</b><span data-ar="المحادثات التي حوّلتها المساعدة إلى الموظفين">Only chats the assistant passed to staff</span></div></div>
+        <div class="role"><i></i><div><b data-ar="كل المحادثات">All conversations</b><span data-ar="يرى الموظفون كل محادثات المرضى. فتح أي محادثة يُسجَّل.">Staff can open every patient's chat. Each time a chat is opened it is logged.</span></div></div></div>
+      <div class="banner warn" style="margin-top:12px"><span data-ar="«كل المحادثات» يكشف محادثات المرضى كاملة. راجع مستشارك القانوني قبل التفعيل (قيد المراجعة).">"All conversations" shows full patient chats. <b>Legal review pending:</b> check with your legal advisor before enabling it.</span></div></div>
+    <div class="savebar"><button class="btn btn-accent btn-sm" type="button" data-ar="حفظ التغييرات">Save changes</button></div>
+  </div></div><div data-foot></div></div></div></section>
+
+<!-- 27 -->
+<section id="s27"><p class="frame-title">27 · Settings · Security and audit retention</p>
+<div class="scroll"><div class="shot">
+  <div data-bar="booking:settings:nadia"></div>
+  <div class="settings"><div data-snav="security"></div><div class="spage">
+    <div class="card"><h2 class="display" data-ar="الأمان">Security</h2>
+      <div class="setrow"><div class="lbl"><span data-ar="تسجيل خروج تلقائي عند عدم النشاط">Sign out after no activity</span><small data-ar="الافتراضي 60 دقيقة">default 60 minutes</small></div><div data-opts="15 min|30 min|60 min*|2 h|4 h"></div></div>
+      <div class="setrow"><div class="lbl"><span data-ar="قفل الشاشة بعد عدم النشاط">Lock the screen after no activity</span><small data-ar="الافتراضي 10 دقائق. يفتحها نفس الشخص بكلمة مروره">default 10 minutes; the same person unlocks with their password</small></div><div data-opts="Off|5 min|10 min*|15 min|30 min"></div></div>
+      <div class="setrow"><div class="lbl"><span data-ar="خطوتان لكل المستخدمين">Two-step for every user</span><small data-ar="المدراء دائماً ملزمون">always required for administrators</small></div><span class="tg"></span></div></div>
+    <div class="card"><h2 class="display" data-ar="الاحتفاظ بسجل التدقيق">Audit log retention</h2>
+      <div class="setrow"><div class="lbl" data-ar="مدة الاحتفاظ">Keep entries for</div><div data-opts="12 months|2 years|5 years|7 years|10 years|Indefinitely*"></div></div>
+      <div class="banner info" style="margin-top:10px"><span data-ar="الحد الأدنى 12 شهراً، ولا يخفضه إلا فريق Limitsiz. تقصير المدة يطلب كلمة المرور ويُسجَّل. الإزالة تحفظ نقطة تحقق فتبقى السلسلة قابلة للفحص.">Minimum 12 months; only the Limitsiz team can lower it. Shortening asks for your password and is itself logged. Removing old entries keeps a checkpoint so the chain stays verifiable.</span></div></div>
+    <div class="audit-note"><svg width="16" height="16"><use href="#lock"/></svg><span data-ar="آخر تغيير: د. نادية، 2 كانون الأول 2026 (مسجّل).">Last changed by Dr. Nadia A., 2 Dec 2026 (recorded in the audit log).</span></div>
+    <div class="savebar"><button class="btn btn-accent btn-sm" type="button" data-ar="حفظ التغييرات">Save changes</button><span class="hint" data-ar="يُطلب تأكيد كلمة المرور">Asks for your password</span></div>
+  </div></div><div data-foot></div></div></div></section>
+
+<p class="frame-p" style="margin-top:44px;margin-bottom:60px">This is a visual proposal in the Limitsiz Clinic brand: colours, Unbounded / Geist / Geist Mono / IBM Plex Sans Arabic, pill buttons, paper cards, mint accent. Arabic strings are a layout draft for review. Switch to Arabic above to see the right-to-left layout.</p>
+</div>
+
+<script>
+(function(){
+  var T=function(en,ar){return '<span data-ar="'+ar+'">'+en+'</span>'};
+  var USERS={rana:['RQ','Rana Q.','Secretary','سكرتيرة'],nadia:['NA','Dr. Nadia A.','Clinic administrator','مدير العيادة'],lina:['DL','Dr. Lina Haddad','Doctor','طبيبة']};
+  var TABS={
+    booking:{calendar:['Calendar','التقويم'],list:['Bookings','الحجوزات'],patients:['Patients','المرضى'],audit:['Audit log','سجل التدقيق'],settings:['Settings','الإعدادات'],myschedule:['My schedule','جدولي']},
+    accounts:{users:['Users','المستخدمون'],sessions:['Sessions','الجلسات'],account:['My account','حسابي']}};
+  var SHOW={ 'booking:rana':['calendar','list','patients'],'booking:nadia':['calendar','list','patients','audit','settings'],'booking:lina':['myschedule','calendar'],
+             'accounts:rana':['account'],'accounts:nadia':['users','sessions','account'] };
+  document.querySelectorAll('[data-bar]').forEach(function(el){
+    var p=el.dataset.bar.split(':'),app=p[0],active=p[1],u=USERS[p[2]];
+    var tabs=(SHOW[app+':'+p[2]]||[]).map(function(k){var t=TABS[app][k];return '<a class="'+(k===active?'on':'')+'" href="#">'+T(t[0],t[1])+'</a>'}).join('');
+    var where=app==='booking'?T('Booking · Demo Dermatology','الحجوزات · العيادة التجريبية'):T('Accounts · Demo Dermatology','الحسابات · العيادة التجريبية');
+    var compact=el.hasAttribute('data-compact');
+    el.outerHTML='<div class="appbar"><div class="brand"><svg class="mark" width="36" height="18"><use href="#loop"/></svg><span>Limitsiz Clinic</span></div>'+(compact?'':'<span class="where">'+where+'</span>')+'<nav class="tabs">'+tabs+'</nav><span class="spacer"></span><div class="user"><div class="avatar">'+u[0]+'</div><div><div style="font-weight:600;line-height:1.2">'+u[1]+'</div><div style="color:var(--on-ink-muted);font-size:12px">'+T(u[2],u[3])+'</div></div></div></div>';
+  });
+  var SN=[['profile','Clinic profile','ملف العيادة'],['hours','Working hours','ساعات الدوام'],['doctors','Doctors','الأطباء'],['services','Services','الخدمات'],['rules','Booking rules','قواعد الحجز'],['reminders','Reminders and assistant','التذكيرات والمساعدة'],['security','Security and audit','الأمان والتدقيق']];
+  document.querySelectorAll('[data-snav]').forEach(function(el){
+    var a=el.dataset.snav;
+    el.outerHTML='<nav class="snav"><h3>'+T('Settings','الإعدادات')+'</h3>'+SN.map(function(s){return '<a class="'+(s[0]===a?'on':'')+'" href="#">'+T(s[1],s[2])+'</a>'}).join('')+'</nav>';
+  });
+  var UNIT=[[/ min/g,' د'],[/ h/g,' س'],[/ days/g,' يوم'],[/ years/g,' سنوات'],[/ months/g,' شهراً']];
+  var WORD={'None':'بدون','Custom':'مخصص','No limit':'بلا حد','Off':'إيقاف','Indefinitely':'دائماً','Block':'منع','Allow with warning':'السماح مع تحذير','Allow':'السماح','No':'لا','back':'سابقاً'};
+  function ar(s){if(WORD[s])return WORD[s];UNIT.forEach(function(u){s=s.replace(u[0],u[1])});return s.replace(' back',' سابقاً')}
+  document.querySelectorAll('[data-opts]').forEach(function(el){
+    el.className='opts';
+    el.innerHTML=el.dataset.opts.split('|').map(function(o){var on=o.slice(-1)==='*';o=on?o.slice(0,-1):o;return '<span class="'+(on?'on':'')+'" data-ar="'+ar(o)+'">'+o+'</span>'}).join('');
+  });
+  document.querySelectorAll('[data-foot]').forEach(function(el){
+    el.className='pagefoot';
+    el.innerHTML='<span>© 2026 Limitsiz</span><span>limitsiz.si</span><a href="#">'+T('Privacy','الخصوصية')+'</a><a href="#">'+T('Terms','الشروط')+'</a>';
+  });
+  var btn=document.getElementById('lang'),isAr=false;
+  btn.addEventListener('click',function(){
+    isAr=!isAr;
+    document.documentElement.dir=isAr?'rtl':'ltr';document.documentElement.lang=isAr?'ar':'en';
+    document.querySelectorAll('[data-ar]').forEach(function(e){
+      if(e.dataset.en===undefined)e.dataset.en=e.innerHTML;
+      e.innerHTML=isAr?e.dataset.ar:e.dataset.en;
+    });
+    btn.textContent=isAr?'English':'العربية';
+  });
+})();
+</script>
+</body>
+</html>

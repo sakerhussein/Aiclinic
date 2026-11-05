@@ -188,7 +188,10 @@ def create_router(connect: Callable[[], psycopg.Connection], wa: WhatsAppClient 
     def set_status(appointment_id: str, status: str = Form(...)):
         if status not in ("completed", "no_show"):
             raise HTTPException(400)
-        with connect() as conn:
+        with connect() as conn, conn.transaction():
+            clinic = conn.execute("select clinic_id from appointments where id::text = %s", (appointment_id,)).fetchone()
+            conn.execute("select audit.set_actor('system', 'agent-staff-screen', 'Basic staff screen (shared password)', "
+                         "null, null, null, null, %s)", (clinic[0] if clinic else None,))
             conn.execute("update appointments set status = %s where id::text = %s and status in ('booked', 'confirmed')",
                          (status, appointment_id))
         return RedirectResponse("/staff", 303)

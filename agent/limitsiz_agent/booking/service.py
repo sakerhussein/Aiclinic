@@ -17,6 +17,7 @@ from zoneinfo import ZoneInfo
 from .slots import Shift, free_slots
 
 ACTIVE = ("booked", "confirmed")
+AGENT_ACTOR = ("agent", "whatsapp", "WhatsApp assistant")
 # Stops one number from filling the calendar.
 MAX_UPCOMING_PER_PATIENT = 3
 HANDOFF_REASONS = ("emergency", "medical_question", "patient_request", "complaint", "agent_unsure")
@@ -29,6 +30,11 @@ class BookingError(Exception):
         super().__init__(f"{code}: {detail}" if detail else code)
         self.code = code
         self.detail = detail
+
+
+def set_actor(cur, clinic_id, reason: str | None = None) -> None:
+    """Tells the database, for this transaction, that the WhatsApp assistant is acting (audit trail, design §7)."""
+    cur.execute("select audit.set_actor(%s, %s, %s, null, null, null, %s, %s)", (*AGENT_ACTOR, reason, clinic_id))
 
 
 def normalize_phone(raw: str, default_country: str = "962") -> str:
@@ -152,6 +158,7 @@ def book(
     now = _now(now)
     _require_aware(starts_at)
     with conn.transaction(), conn.cursor(row_factory=dict_row) as cur:
+        set_actor(cur, clinic_id)
         clinic = _clinic(cur, clinic_id)
         service = _service(cur, clinic_id, service_id)
         _doctors_for(cur, clinic_id, service_id, doctor_id, None)
@@ -159,10 +166,12 @@ def book(
         _check_slot(cur, clinic, doctor_id, starts_at, duration, now)
 
         cur.execute(
-            """insert into patients (clinic_id, phone_e164, full_name, preferred_language) values (%s, %s, %s, %s)
+            """insert into patients (clinic_id, phone_e164, full_name, preferred_language, whatsapp_reminders)
+               values (%s, %s, %s, %s, true)
                on conflict (clinic_id, phone_e164) do update
                  set full_name = coalesce(excluded.full_name, patients.full_name),
-                     preferred_language = coalesce(excluded.preferred_language, patients.preferred_language)
+                     preferred_language = coalesce(excluded.preferred_language, patients.preferred_language),
+                     whatsapp_reminders = true
                returning id""",
             (clinic_id, phone, full_name, language),
         )
@@ -193,6 +202,7 @@ def cancel(
     phone = normalize_phone(phone)
     now = _now(now)
     with conn.transaction(), conn.cursor(row_factory=dict_row) as cur:
+        set_actor(cur, clinic_id, reason)
         clinic = _clinic(cur, clinic_id)
         appt = _own_active_appointment(cur, clinic_id, phone, appointment_id)
         _check_change_notice(clinic, appt["starts_at"], now)
@@ -219,6 +229,7 @@ def reschedule(
     now = _now(now)
     _require_aware(new_starts_at)
     with conn.transaction(), conn.cursor(row_factory=dict_row) as cur:
+        set_actor(cur, clinic_id)
         clinic = _clinic(cur, clinic_id)
         appt = _own_active_appointment(cur, clinic_id, phone, appointment_id)
         _check_change_notice(clinic, appt["starts_at"], now)

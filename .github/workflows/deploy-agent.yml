@@ -1,7 +1,7 @@
 name: Deploy booking agent
 
 # Only agent changes deploy the agent; the website (deploy.yml) is not rebuilt or restarted.
-# "Run workflow" deploys by hand. Database migrations (agent/supabase/migrations) are applied separately.
+# "Run workflow" deploys by hand. Database migrations (db/migrations) are applied separately, before the code that needs them.
 on:
   push:
     branches:

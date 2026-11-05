@@ -8,6 +8,7 @@ from .service import (
     my_appointments,
     normalize_phone,
     reschedule,
+    set_actor,
 )
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "my_appointments",
     "normalize_phone",
     "reschedule",
+    "set_actor",
 ]
