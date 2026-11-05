@@ -401,6 +401,11 @@ Until then the demo clinic is the only data in the system.
 
 ---
 
+> **Refinement made while building Accounts (2026-11-05):** §3.2 step 4 said Booking would check `accounts.sessions` itself with a
+> read-only database role. Instead Booking asks Accounts' `POST /introspect` (secret + service-session token) on every request, over
+> localhost. Same immediacy, but Booking's database login needs **no access to the `accounts` schema at all**, which is stricter.
+> Single sign-on and the service session are as designed otherwise.
+
 ## 14. Running it
 - **DNS** `A` records `accounts` and `booking` → `5.189.186.49` (Spaceship); two new Nginx sites with their own certificates.
 - **PM2** `limitsiz-accounts` (:3003) and `limitsiz-booking` (:3004), localhost only (~80 MB each).

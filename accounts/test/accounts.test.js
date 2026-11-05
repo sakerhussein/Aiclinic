@@ -204,6 +204,16 @@ test("a doctor invitation needs the doctor record; other roles must not carry on
   assert.equal((await mk({ roleKey: "platform_admin", clinicId: null })).status, 403);
 });
 
+test("the doctor pick list is for administrators of that clinic only", async () => {
+  const admin = await t.makeUser({ email: "boss6@clinic.jo", role: "clinic_admin", mfa: true });
+  const sec = await t.makeUser({ email: "sec6@clinic.jo" });
+  const { b } = await t.signIn(admin); await b.post("/api/mfa/verify", { code: t.code(admin.secret) });
+  const docs = (await b.get("/api/doctors")).json;
+  assert.ok(docs.length >= 1 && docs.some((d) => d.id === t.doctorA));
+  assert.equal((await b.get(`/api/doctors?clinic=${t.clinicB}`)).status, 403);
+  assert.equal((await (await t.signIn(sec)).b.get("/api/doctors")).status, 403);
+});
+
 test("an administrator cannot invite into another clinic", async () => {
   const admin = await t.makeUser({ email: "boss4@clinic.jo", role: "clinic_admin", mfa: true });
   const { b } = await t.signIn(admin); await b.post("/api/mfa/verify", { code: t.code(admin.secret) });

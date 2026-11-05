@@ -174,6 +174,7 @@ export function createApp({ core, config, now = () => Date.now(), limits = {} })
   // ---------------------------------------------------------------- users and sessions (administration)
   const clinicOf = (req) => req.query.clinic ? String(req.query.clinic) : req.session.clinic_id;
   app.get("/api/users", session(OK), wrap(async (req, res) => res.json(await core.listUsers(req.session, clinicOf(req)))));
+  app.get("/api/doctors", session(OK), wrap(async (req, res) => res.json(await core.listDoctors(req.session, clinicOf(req)))));
   app.patch("/api/users/:id", session(OK), wrap(async (req, res) => {
     const b = parse(z.object({ roleKey: z.string().max(40).optional(), doctorId: uuid.nullable().optional(), canManageBookings: z.boolean().optional(), active: z.boolean().optional() }), req.body);
     await core.updateMembership(req.session, parse(uuid, req.params.id), clinicOf(req), b, req.ctx);

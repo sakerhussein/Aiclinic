@@ -461,6 +461,12 @@ export function createCore({ pool, config, mail, now = () => new Date(), securit
       [clinicId ?? null, now()]);
     return { users: rows, invites: inv };
   }
+  // Doctor records of the clinic, for the "which doctor is this login" pick list.
+  async function listDoctors(session, clinicId) {
+    await need(session, "accounts.users.invite", clinicId);
+    const { rows } = await pool.query("select id, name_en, name_ar from public.doctors where clinic_id = $1 and active order by name_en", [clinicId]);
+    return rows;
+  }
   async function membershipOf(userId, clinicId) {
     const { rows } = await pool.query("select * from accounts.memberships where user_id = $1 and clinic_id is not distinct from $2", [userId, clinicId ?? null]);
     if (!rows[0]) throw notFound("user_not_found");
@@ -544,6 +550,6 @@ export function createCore({ pool, config, mail, now = () => new Date(), securit
     pool, tx, audit, login, logout, chooseClinic, loadSession, lock, unlock, confirmPassword, requireRecentPassword,
     mfaSetup, mfaEnable, mfaVerify, permissionsFor, can, need, createInvite, bootstrapInvite, inviteInfo, acceptInvite,
     forgotPassword, resetPassword, changePassword, startAuthorize, exchangeCode, introspect, appLogout, describe,
-    listUsers, updateMembership, setUserStatus, revokeUserSessions, adminSendReset, mySessions, allSessions, revokeMine, updateProfile,
+    listUsers, listDoctors, updateMembership, setUserStatus, revokeUserSessions, adminSendReset, mySessions, allSessions, revokeMine, updateProfile,
   };
 }
