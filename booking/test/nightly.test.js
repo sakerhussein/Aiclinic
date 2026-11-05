@@ -60,7 +60,8 @@ test("a changed entry raises the alarm, names the entry, and nothing is removed 
     assert.equal(Number(of(r, "Demo").removed), 0);
     assert.match(mails[0].subject, /^ALERT/);
     assert.match(mails[0].text, new RegExp(`BROKEN at entry ${target.seq}`));
-    assert.equal((await adm.get("/api/audit/status")).json.lastCheck.ok, false, "the page shows it too");
+    const last = (await adm.get("/api/audit/status")).json.lastCheck;
+    assert.deepEqual([last.ok, Number(last.brokenSeq)], [false, Number(target.seq)], "the page shows it too, with the entry");
   } finally {
     await asOwner(() => t.owner.query("update audit.events set reason = $3 where chain_key = $1 and seq = $2", [t.clinicA, target.seq, target.reason]));
   }

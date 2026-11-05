@@ -101,7 +101,7 @@ export function createAudit({ pool, auditPool, now = () => new Date() }) {
       const n = (await c.query("select count(*)::int as n from audit.events where chain_key = $1", [ctx.clinicId])).rows[0].n;
       const last = (await c.query(
         "select at, actor_label, after from audit.events where chain_key = $1 and entity = 'audit' and action = 'integrity_checked' order by seq desc limit 1", [ctx.clinicId])).rows[0];
-      return { entries: n, lastCheck: last ? { at: last.at, by: last.actor_label, ok: !!last.after?.ok } : null };
+      return { entries: n, lastCheck: last ? { at: last.at, by: last.actor_label, ok: !!last.after?.ok, brokenSeq: last.after?.broken_seq ?? null } : null };
     });
     const r = await pool.query("select audit_retention_months from clinic_settings where clinic_id = $1", [ctx.clinicId]);
     return { ...s, retentionMonths: r.rows[0].audit_retention_months };

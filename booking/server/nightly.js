@@ -46,7 +46,7 @@ export async function runNightly({ pool, send, runDate }) {
 }
 
 // Checks every 10 minutes whether tonight's run is due, so a service that was down at 02:00 catches up when it comes back.
-export function startNightly({ pool, send, tz, hour, now = () => new Date(), log = console, every = 600_000 }) {
+export function startNightly({ pool, send, tz, hour, now = () => new Date(), log = console, every = 600_000, firstAfter = 30_000 }) {
   let done = null, running = false;
   const tick = async () => {
     const t = now(), day = dateIn(t, tz);
@@ -60,7 +60,10 @@ export function startNightly({ pool, send, tz, hour, now = () => new Date(), log
   };
   const timer = setInterval(() => void tick(), every);
   timer.unref();
-  return { tick, stop: () => clearInterval(timer) };
+  // Also soon after starting, so a restart after the hour catches up at once.
+  const first = setTimeout(() => void tick(), firstAfter);
+  first.unref();
+  return { tick, stop: () => { clearInterval(timer); clearTimeout(first); } };
 }
 
 // `npm run nightly`

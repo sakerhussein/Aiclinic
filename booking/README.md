@@ -31,7 +31,7 @@ so its administrator sees them. A failed sign-in with an unknown email stays in 
 
 ### The nightly job
 
-Runs inside this service at 02:00 Amman time (`NIGHTLY_HOUR`, `NIGHTLY_TZ`), once a day; a service that was down catches up when it returns.
+Runs inside this service at 02:00 Amman time (`NIGHTLY_HOUR`, `NIGHTLY_TZ`), once a day. It checks 30 seconds after starting and every 10 minutes, so a service that was down catches up when it returns.
 `npm run nightly` runs it by hand. For every clinic and the platform (`audit.nightly`, migration 0009):
 
 1. checks the hash chain, and that last night's newest entry is still there (hashes alone cannot show entries removed from the end);

@@ -8,13 +8,14 @@ import { Banner, useAction } from "../ui";
 
 type Row = { seq: string; at: string; actor_type: string; actor_id: string | null; actor_label: string | null; db_role: string; ip: string | null; user_agent: string | null; request_id: string | null;
   entity: string; entity_id: string | null; action: string; before: Record<string, unknown> | null; after: Record<string, unknown> | null; changed_fields: string[] | null; reason: string | null; subject: string | null };
-type Status = { entries: number; lastCheck: { at: string; by: string; ok: boolean } | null; retentionMonths: number | null };
+type Status = { entries: number; lastCheck: { at: string; by: string; ok: boolean; brokenSeq: number | null } | null; retentionMonths: number | null };
 type Verify = { ok: boolean; checked: number; brokenSeq: number | null };
 type Facets = { actors: { id: string; label: string; type: string }[]; types: string[] };
 
 const EN = {
   title: "Audit log", intact: "Chain intact", broken: "Chain broken", notChecked: "Not checked yet", entries: "entries", lastCheck: "last checked", retention: "retention", forever: "kept for ever", months: "months", years: "years", year: "year",
   brokenBody: "Entry {seq} does not match its hash: it was changed or removed outside the system. Keep a copy of the log and contact Limitsiz.",
+  missingBody: "Entries are missing from the end of the log: they were removed outside the system. Keep a copy of the log and contact Limitsiz.",
   verify: "Verify now", exportCsv: "Export CSV", from: "From", to: "To", user: "User", type: "Type", search: "Search", all: "All", more: "Load more", none: "No entries match.",
   time: "Time", who: "Who", action: "Action", what: "What", change: "Change", where: "From", reason: "reason", details: "Details",
   whoDetail: "Who", database: "Database login", browser: "Browser", request: "Request", seq: "Entry", before: "Before", after: "After", unavailable: "The audit log is not connected on this server.",
@@ -32,6 +33,7 @@ const EN = {
 const AR: typeof EN = {
   title: "سجل التدقيق", intact: "السلسلة سليمة", broken: "السلسلة معطوبة", notChecked: "لم يُفحص بعد", entries: "سجلاً", lastCheck: "آخر فحص", retention: "الاحتفاظ", forever: "دائماً", months: "شهراً", years: "سنوات", year: "سنة",
   brokenBody: "السجل {seq} لا يطابق بصمته: تم تغييره أو حذفه خارج النظام. احتفظ بنسخة من السجل وتواصل مع Limitsiz.",
+  missingBody: "هناك سجلات مفقودة من نهاية السجل: حُذفت خارج النظام. احتفظ بنسخة من السجل وتواصل مع Limitsiz.",
   verify: "فحص الآن", exportCsv: "تصدير CSV", from: "من", to: "إلى", user: "المستخدم", type: "النوع", search: "بحث", all: "الكل", more: "تحميل المزيد", none: "لا توجد سجلات مطابقة.",
   time: "الوقت", who: "من", action: "الإجراء", what: "ماذا", change: "التغيير", where: "من أين", reason: "السبب", details: "التفاصيل",
   whoDetail: "من", database: "حساب قاعدة البيانات", browser: "المتصفح", request: "الطلب", seq: "السجل", before: "قبل", after: "بعد", unavailable: "سجل التدقيق غير متصل على هذا الخادم.",
@@ -115,7 +117,7 @@ export function AuditLog() {
 
   const unavailable = a.err?.code === "audit_unavailable";
   const retention = !status ? "" : status.retentionMonths == null ? T.forever : status.retentionMonths % 12 ? `${status.retentionMonths} ${T.months}` : `${status.retentionMonths / 12} ${status.retentionMonths === 12 ? T.year : T.years}`;
-  const last = check ? { ok: check.ok } : status?.lastCheck ?? null;
+  const last = check ? { ok: check.ok, brokenSeq: check.brokenSeq } : status?.lastCheck ?? null;
   return (
     <main className="wrap page">
       <h1 className="display">{T.title}</h1>
@@ -127,7 +129,7 @@ export function AuditLog() {
           <button className="btn btn-outline btn-sm" disabled={a.busy} onClick={() => void a.run(async () => { setCheck(await post<Verify>("/api/audit/verify")); await loadStatus(); await load(); })}>{T.verify}</button>
           {can("booking.audit.export") && <a className="btn btn-outline btn-sm" href={`/api/audit/export?${params}`} onClick={() => window.setTimeout(() => void load(), 1200)}>{T.exportCsv}</a>}
         </div>
-        {check && !check.ok && <Banner>{T.brokenBody.replace("{seq}", String(check.brokenSeq))}</Banner>}
+        {last && !last.ok && <Banner>{last.brokenSeq != null ? T.brokenBody.replace("{seq}", String(last.brokenSeq)) : T.missingBody}</Banner>}
         {a.err && <Banner>{a.message}</Banner>}
         <section className="panel">
           <div className="filters">
