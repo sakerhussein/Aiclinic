@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, NavLink, Outlet } from "react-router-dom";
 import { ApiError, post } from "./api";
 import { useI18n } from "./i18n";
@@ -21,8 +21,10 @@ export function Layout() {
           <span className="grow" />
           <span className="clinic">{clinic}</span>
           <button className="linkbtn" onClick={() => setLang(lang === "ar" ? "en" : "ar")}>{t("langSwitch")}</button>
-          <a className="linkbtn" href={me.accountsUrl}>{me.user.name}</a>
-          <button className="linkbtn" onClick={async () => { const r = await post("/api/logout").catch(() => null); window.location.assign(r?.next || me.accountsUrl); }}>{t("switchUser")}</button>
+          <UserMenu name={me.user.name} email={me.user.email} items={[
+            { label: t("accounts"), href: me.accountsUrl },
+            { label: t("switchUser"), onClick: async () => { const r = await post("/api/logout").catch(() => null); window.location.assign(r?.next || me.accountsUrl); } },
+          ]} />
         </div>
       </header>
       <Outlet />
@@ -52,3 +54,29 @@ export const StatusPill = ({ status }: { status: string }) => {
   const kind = { confirmed: "ok", completed: "ok", booked: "", no_show: "warn", cancelled: "bad", voided: "bad" }[status] ?? "";
   return <span className={`pill ${kind}`}>{d.statuses[status] ?? status}</span>;
 };
+
+// The person's name opens a small menu (design: one tidy bar instead of loose buttons).
+export function UserMenu({ name, email, items }: { name: string; email?: string; items: ({ label: string; onClick?: () => void; href?: string })[] }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", away); document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); };
+  }, [open]);
+  return (
+    <div className="um" ref={ref}>
+      <button type="button" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>{name} <span aria-hidden="true">▾</span></button>
+      {open && (
+        <div className="um-list" role="menu">
+          {email && <span className="who mono">{email}</span>}
+          {items.map((i) => i.href
+            ? <a key={i.label} role="menuitem" href={i.href}>{i.label}</a>
+            : <button key={i.label} role="menuitem" type="button" onClick={() => { setOpen(false); i.onClick?.(); }}>{i.label}</button>)}
+        </div>
+      )}
+    </div>
+  );
+}

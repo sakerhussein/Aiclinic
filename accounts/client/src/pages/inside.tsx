@@ -41,13 +41,14 @@ export function Account() {
   const { t, lang, setLang } = useI18n();
   const { me, refresh } = useSession();
   const [name, setName] = useState(me?.user.name || "");
+  const [pick, setPick] = useState<"ar" | "en">(lang);   // chosen in the box; applied only when Save is pressed
   const [cur, setCur] = useState(""); const [next, setNext] = useState("");
-  const [ok, setOk] = useState("");
+  const [okProfile, setOkProfile] = useState(""); const [okPw, setOkPw] = useState("");   // each message shows in its own section
   const [sessions, setSessions] = useState<Sess[]>([]);
   const prof = useAction(); const pw = useAction();
   const load = useCallback(() => { get("/api/sessions/mine").then(setSessions).catch(() => {}); }, []);
   useEffect(load, [load]);
-  const when = (s: string) => new Date(s).toLocaleString(lang === "ar" ? "ar-JO" : "en-GB");
+  const when = (s: string) => new Date(s).toLocaleString(lang === "ar" ? "ar-JO-u-nu-latn" : "en-GB");
   const device = (ua: string | null) => (ua || "").replace(/\(.*?\)/g, "").slice(0, 60) || "-";
   return (
     <>
@@ -57,16 +58,16 @@ export function Account() {
         <section className="panel">
           <p className="mono">{me?.user.email}</p>
           <form className="row" style={{ alignItems: "flex-end" }} onSubmit={prof.submit(async () => {
-            await patch("/api/me", { fullName: name, language: lang }); await refresh(); setOk(t("saved"));
+            await patch("/api/me", { fullName: name, language: pick }); setLang(pick); await refresh(); setOkPw(""); setOkProfile(t("saved"));
           })}>
             <div style={{ flex: "1 1 220px" }}><Field label={t("name")} value={name} onChange={(e) => setName(e.target.value)} required /></div>
             <label className="field" style={{ flex: "0 0 160px" }}>{t("language")}
-              <select value={lang} onChange={(e) => setLang(e.target.value as "ar" | "en")}><option value="ar">العربية</option><option value="en">English</option></select>
+              <select value={pick} onChange={(e) => setPick(e.target.value as "ar" | "en")}><option value="ar">العربية</option><option value="en">English</option></select>
             </label>
             <button className="btn btn-ink" disabled={prof.busy}>{t("save")}</button>
           </form>
           {prof.err && <Banner>{prof.err}</Banner>}
-          {ok && <Banner kind="ok">{ok}</Banner>}
+          {okProfile && <Banner kind="ok">{okProfile}</Banner>}
         </section>
         <section className="panel">
           <h2>{t("twoStep")}</h2>
@@ -78,13 +79,15 @@ export function Account() {
         <section className="panel">
           <h2>{t("changePassword")}</h2>
           <form className="row" style={{ alignItems: "flex-end" }} onSubmit={pw.submit(async () => {
-            await post("/api/password/change", { current: cur, next }); setCur(""); setNext(""); setOk(t("changed")); load();
+            await post("/api/password/change", { current: cur, next }); setCur(""); setNext(""); setOkProfile(""); setOkPw(t("changed")); load();
           })}>
             <div style={{ flex: "1 1 200px" }}><Field label={t("currentPassword")} type="password" autoComplete="current-password" value={cur} onChange={(e) => setCur(e.target.value)} required /></div>
-            <div style={{ flex: "1 1 200px" }}><Field label={t("newPassword")} hint={t("passwordHint")} type="password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} required minLength={12} /></div>
+            <div style={{ flex: "1 1 200px" }}><Field label={t("newPassword")} type="password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} required minLength={12} /></div>
             <button className="btn btn-ink" disabled={pw.busy}>{t("savePassword")}</button>
           </form>
+          <p className="hint">{t("passwordHint")}</p>
           {pw.err && <Banner>{pw.err}</Banner>}
+          {okPw && <Banner kind="ok">{okPw}</Banner>}
         </section>
         <section className="panel">
           <h2>{t("mySessions")}</h2>
@@ -135,7 +138,7 @@ export function Users() {
       else await act.run(async () => { throw e; });
     }
   }
-  const when = (s: string | null) => (s ? new Date(s).toLocaleString(lang === "ar" ? "ar-JO" : "en-GB") : t("never"));
+  const when = (s: string | null) => (s ? new Date(s).toLocaleString(lang === "ar" ? "ar-JO-u-nu-latn" : "en-GB") : t("never"));
   const docName = (d: Doc) => (lang === "ar" ? d.name_ar : d.name_en);
   const roleOptions = ["clinic_admin", "secretary", "doctor", "readonly"];
 

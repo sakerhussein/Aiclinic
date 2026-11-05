@@ -19,7 +19,7 @@ export function PatientList() {
         <div className="tablewrap"><table>
           <thead><tr><th>{t("name")}</th><th>{t("phone")}</th><th>{t("reminders")}</th><th>{t("lastVisit")}</th></tr></thead>
           <tbody>{rows.map((p) => (
-            <tr key={p.id}><td><Link to={`/patients/${p.id}`}>{p.full_name || "—"}</Link></td><td className="mono">{p.phone_e164 || "—"}</td>
+            <tr key={p.id}><td><Link to={`/patients/${p.id}`}>{p.full_name || "—"}</Link></td><td><bdi dir="ltr" className="mono">{p.phone_e164 || "—"}</bdi></td>
               <td>{p.whatsapp_reminders ? "✓" : "—"}</td><td>{p.last_visit ? fmtDateTime(p.last_visit, look.clinic.timezone, lang) : "—"}</td></tr>))}</tbody>
         </table></div>
       </section>

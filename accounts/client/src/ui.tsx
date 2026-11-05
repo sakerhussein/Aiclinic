@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { ApiError, post } from "./api";
 import { useI18n } from "./i18n";
@@ -70,9 +70,11 @@ export function AppBar() {
         </nav>
         <span className="grow" />
         <LangInline />
-        <button className="linkbtn" onClick={async () => { await post("/api/lock").catch(() => {}); await refresh(); nav("/unlock"); }}>{t("lock")}</button>
-        <button className="linkbtn" onClick={async () => { await post("/api/switch").catch(() => {}); window.location.assign("/signin"); }}>{t("switchUser")}</button>
-        <button className="linkbtn" onClick={async () => { await signOut(); nav("/signin"); }}>{t("signOut")}</button>
+        <UserMenu name={me.user.name} email={me.user.email} items={[
+          { label: t("lock"), onClick: async () => { await post("/api/lock").catch(() => {}); await refresh(); nav("/unlock"); } },
+          { label: t("switchUser"), onClick: async () => { await post("/api/switch").catch(() => {}); window.location.assign("/signin"); } },
+          { label: t("signOut"), onClick: async () => { await signOut(); nav("/signin"); } },
+        ]} />
       </div>
     </header>
   );
@@ -81,4 +83,30 @@ export function AppBar() {
 function LangInline() {
   const { lang, setLang, t } = useI18n();
   return <button className="linkbtn" onClick={() => setLang(lang === "ar" ? "en" : "ar")}>{t("langSwitch")}</button>;
+}
+
+// The person's name opens a small menu (design: one tidy bar instead of loose buttons).
+export function UserMenu({ name, email, items }: { name: string; email?: string; items: ({ label: string; onClick?: () => void; href?: string })[] }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", away); document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); };
+  }, [open]);
+  return (
+    <div className="um" ref={ref}>
+      <button type="button" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>{name} <span aria-hidden="true">▾</span></button>
+      {open && (
+        <div className="um-list" role="menu">
+          {email && <span className="who mono">{email}</span>}
+          {items.map((i) => i.href
+            ? <a key={i.label} role="menuitem" href={i.href}>{i.label}</a>
+            : <button key={i.label} role="menuitem" type="button" onClick={() => { setOpen(false); i.onClick?.(); }}>{i.label}</button>)}
+        </div>
+      )}
+    </div>
+  );
 }
