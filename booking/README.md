@@ -29,6 +29,18 @@ viewing at most every 15 minutes per person. People's names come from Accounts (
 A failed sign-in of a known person, automatic locks and idle sign-outs, disabling a user and password resets go into the clinic's own log,
 so its administrator sees them. A failed sign-in with an unknown email stays in the platform's log.
 
+### The nightly job
+
+Runs inside this service at 02:00 Amman time (`NIGHTLY_HOUR`, `NIGHTLY_TZ`), once a day; a service that was down catches up when it returns.
+`npm run nightly` runs it by hand. For every clinic and the platform (`audit.nightly`, migration 0009):
+
+1. checks the hash chain, and that last night's newest entry is still there (hashes alone cannot show entries removed from the end);
+2. removes entries past the clinic's retention, never under 12 months, leaving a checkpoint so the chain still verifies. **A chain that fails is not touched**;
+3. records the result in the log, and emails the newest hashes to `AUDIT_ANCHOR_EMAIL`, with `ALERT` in the subject if anything failed.
+
+Without SMTP settings the check still runs, the email is skipped and the server log says so. Only `audit.nightly` can remove entries; no service can
+choose what or when.
+
 ## Settings
 
 Clinic administrators change them; secretaries read them; every change is audited with before and after. Pages: clinic profile and the
@@ -40,12 +52,12 @@ rules for patients and for staff, reminders, WhatsApp assistant, security, audit
 - The WhatsApp assistant reads the same settings; `test/settings.test.js` compares its free times with Booking's, using the agent's own
   code, with opening hours, intervals, buffers, closures and leave in play. Skipped when the agent's Python is not installed.
 - Accounts reads the lock and sign-out times and "two-step for everyone".
-- Stored but not acted on yet: `conversation_visibility` (no conversation screen in Booking yet) and `audit_retention_months` (no retention job yet).
+- Stored but not acted on yet: `conversation_visibility` (no conversation screen in Booking yet).
 
 ## Not built yet
 
-- Nightly integrity check, daily anchor email and the retention job; the hand-off inbox and chat replies; "tell the patient" template; week view; support access.
-- Changing security settings should re-ask the password (design §3.5). Booking cannot check that yet, so it does not; to do in phase C.
+- The hand-off inbox and chat replies; "tell the patient" template; week view; support access.
+- Changing security settings, or shortening audit retention, should re-ask the password (design §3.5, §7.4). Booking cannot check that yet, so it does not.
 
 ## Run and test
 

@@ -16,6 +16,9 @@ export function loadConfig(env = process.env) {
     sessionCookie: secure ? "__Host-lc_booking" : "lc_booking",
     stateCookie: secure ? "__Host-lc_state" : "lc_state",
     trustProxy: env.TRUST_PROXY ?? "1",
+    // The nightly audit job: when it runs, and who gets the daily email with the newest hashes.
+    nightlyHour: Number(env.NIGHTLY_HOUR ?? 2), nightlyTz: env.NIGHTLY_TZ || "Asia/Amman", anchorEmail: env.AUDIT_ANCHOR_EMAIL,
+    smtp: env.SMTP_HOST ? { host: env.SMTP_HOST, port: Number(env.SMTP_PORT || 587), user: env.SMTP_USER, pass: env.SMTP_PASS, from: env.MAIL_FROM || env.SMTP_USER } : null,
   };
 }
 
