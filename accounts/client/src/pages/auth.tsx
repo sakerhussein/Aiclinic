@@ -24,8 +24,11 @@ export function SignIn() {
   const { t } = useI18n();
   const { setMe } = useSession();
   const go = useContinue();
+  const { me } = useSession();
   const [email, setEmail] = useState(""); const [password, setPassword] = useState("");
   const a = useAction();
+  // Already signed in (or locked) when a service sent the person here: carry on instead of asking again.
+  useEffect(() => { if (me) go(me); }, [me]);   // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <CardPage title={t("signInTitle")} sub={t("signInSub")}>
       <form className="row" style={{ flexDirection: "column", alignItems: "stretch", gap: 14 }} onSubmit={a.submit(async () => {
@@ -40,6 +43,13 @@ export function SignIn() {
       <p className="sub">{t("noSignup")}</p>
     </CardPage>
   );
+}
+
+// Used by "Switch user" in the services: ends the Accounts session and shows the sign-in page.
+export function SignOut() {
+  const { setMe } = useSession();
+  useEffect(() => { post("/api/logout").catch(() => {}).finally(() => { setMe(null); window.location.replace("/signin"); }); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
 }
 
 export function Forgot() {
