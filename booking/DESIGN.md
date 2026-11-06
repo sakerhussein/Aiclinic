@@ -49,7 +49,7 @@ PM2, Nginx, GitHub Actions with health check and rollback, English/Arabic with r
 | Role | Who | Can do |
 |---|---|---|
 | **Secretary** | front desk (usually 1–2 per clinic, sharing one computer) | all bookings of the clinic: view, create, change, confirm, cancel, void; patients: view and edit; read the clinic's settings; hand-off chats (see §6.5) |
-| **Doctor** | the clinic's doctors, each with their own login | **read-only by default**: opens on *My schedule*, can switch to all doctors; sees patients' contact details. Cannot change anything unless the administrator grants it (below) |
+| **Doctor** | the clinic's doctors, each with their own login | **only their own bookings and patients, and read-only by default**: opens on *My schedule*; another doctor's bookings cannot be seen, searched or opened by link. A patient shared with a colleague shows the person and only this doctor's visits. Cannot change anything unless the administrator grants it (below), and then still only their own; a doctor who runs bookings for the whole clinic gets the Secretary role |
 | **Clinic administrator** | owner / manager | everything a secretary can, plus: **Settings**, restore voided bookings, audit log and export, users and roles, sessions |
 | **Read-only** | anyone else who needs to look (for example an accountant) | view bookings and patients |
 | **Limitsiz administrator** | you / support | create a clinic and its first administrator; support. Cannot read clinic data without a recorded reason (phase D) |

@@ -1,7 +1,9 @@
 // Booking logic: availability, appointments, patients, history. No HTTP in here.
 // Every query is limited to the clinic of the signed-in person (ctx.clinicId), and every change runs in a transaction whose
 // audit actor is that person, so the audit trail says who did it.
-import { HttpError, bad, notFound } from "./http.js";
+// ctx.onlyDoctor: a doctor sees and handles only their own bookings, and only patients with a booking with them. That limit lives in
+// here, where the data is read, so no screen or link can get round it.
+import { HttpError, bad, denied, notFound } from "./http.js";
 import { createSettings } from "./settings.js";
 import { createAudit } from "./audit.js";
 
@@ -54,7 +56,8 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
   async function timeOffOn(ctx, day) {
     const { rows } = await pool.query(
       `select o.id, o.doctor_id, o.starts_at, o.ends_at, o.reason from time_off o join clinics c on c.id = o.clinic_id
-        where o.clinic_id = $1 and o.starts_at < (($2::date + 1)::timestamp at time zone c.timezone) and o.ends_at > ($2::date::timestamp at time zone c.timezone)`, [ctx.clinicId, day]);
+        where o.clinic_id = $1 and o.starts_at < (($2::date + 1)::timestamp at time zone c.timezone) and o.ends_at > ($2::date::timestamp at time zone c.timezone)
+          and ($3::uuid is null or o.doctor_id is null or o.doctor_id = $3)`, [ctx.clinicId, day, ctx.onlyDoctor ?? null]);
     return rows;
   }
 
@@ -151,6 +154,7 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
   async function listAppointments(ctx, q) {
     const where = ["a.clinic_id = $1"], p = [ctx.clinicId];
     const add = (sql, v) => { p.push(v); where.push(sql.replace("?", `$${p.length}`)); };
+    if (ctx.onlyDoctor) add("a.doctor_id = ?", ctx.onlyDoctor);
     const tz = "(select timezone from clinics where id = a.clinic_id)";
     if (q.from) add(`a.starts_at >= (?::date)::timestamp at time zone ${tz}`, q.from);
     if (q.to) add(`a.starts_at < ((?::date) + 1)::timestamp at time zone ${tz}`, q.to);
@@ -163,7 +167,7 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
     return rows;
   }
   async function getAppointment(ctx, id, c = pool) {
-    const row = await one(c, `${SELECT} where a.clinic_id = $1 and a.id = $2`, [ctx.clinicId, id]);
+    const row = await one(c, `${SELECT} where a.clinic_id = $1 and a.id = $2 and ($3::uuid is null or a.doctor_id = $3)`, [ctx.clinicId, id, ctx.onlyDoctor ?? null]);
     if (!row) throw notFound("appointment_not_found");
     return row;
   }
@@ -190,12 +194,19 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
     if (!r) throw notFound("patient_not_found");
     return r;
   }
+  // A patient this person may open: for a doctor, one with a booking with them. A voided booking was a mistake, so it does not count.
+  async function visiblePatient(c, ctx, id) {
+    const r = await one(c, `select p.* from patients p where p.clinic_id = $1 and p.id = $2 and ($3::uuid is null or exists (
+      select 1 from appointments a where a.clinic_id = p.clinic_id and a.patient_id = p.id and a.doctor_id = $3 and a.status <> 'voided'))`, [ctx.clinicId, id, ctx.onlyDoctor ?? null]);
+    if (!r) throw notFound("patient_not_found");
+    return r;
+  }
   async function createPatient(ctx, b, c) {
     const phone = b.phone ? normalizePhone(b.phone) : null;
     const run = async (cc) => {
       if (phone) {
         const ex = await one(cc, "select id, full_name from patients where clinic_id = $1 and phone_e164 = $2", [ctx.clinicId, phone]);
-        if (ex) throw new HttpError(409, "patient_exists", { patientId: ex.id, fullName: ex.full_name });
+        if (ex) throw new HttpError(409, "patient_exists", ctx.onlyDoctor ? { patientId: ex.id } : { patientId: ex.id, fullName: ex.full_name });
       }
       return one(cc, `insert into patients (clinic_id, full_name, phone_e164, preferred_language, whatsapp_reminders)
                       values ($1,$2,$3,$4,$5) returning *`, [ctx.clinicId, b.fullName.trim(), phone, b.language ?? null, !!(b.whatsappReminders && phone)]);
@@ -204,7 +215,7 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
   }
   async function updatePatient(ctx, id, b) {
     return tx(ctx, async (c) => {
-      const cur = await patientRow(c, ctx, id);
+      const cur = await visiblePatient(c, ctx, id);
       const phone = b.phone === undefined ? cur.phone_e164 : b.phone ? normalizePhone(b.phone) : null;
       if (phone && phone !== cur.phone_e164) {
         const ex = await one(c, "select id from patients where clinic_id = $1 and phone_e164 = $2 and id <> $3", [ctx.clinicId, phone, id]);
@@ -220,13 +231,15 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
     const like = `%${String(q || "").replace(/[%_\\]/g, "\\$&")}%`;
     const { rows } = await pool.query(
       `select p.id, p.full_name, p.phone_e164, p.preferred_language, p.whatsapp_reminders,
-              (select max(a.starts_at) from appointments a where a.patient_id = p.id and a.clinic_id = p.clinic_id and a.status in ('completed','booked','confirmed')) as last_visit
+              (select max(a.starts_at) from appointments a where a.patient_id = p.id and a.clinic_id = p.clinic_id and a.status in ('completed','booked','confirmed')
+                  and ($3::uuid is null or a.doctor_id = $3)) as last_visit
          from patients p where p.clinic_id = $1 and ($2 = '%%' or p.full_name ilike $2 or p.phone_e164 like $2)
-        order by p.full_name nulls last limit 50`, [ctx.clinicId, like]);
+          and ($3::uuid is null or exists (select 1 from appointments a where a.clinic_id = p.clinic_id and a.patient_id = p.id and a.doctor_id = $3 and a.status <> 'voided'))
+        order by p.full_name nulls last limit 50`, [ctx.clinicId, like, ctx.onlyDoctor ?? null]);
     return rows;
   }
   async function getPatient(ctx, id) {
-    const p = await patientRow(pool, ctx, id);
+    const p = await visiblePatient(pool, ctx, id);
     const appts = await listAppointments(ctx, { patientId: id, includeVoided: true });
     return { patient: p, appointments: appts.reverse() };
   }
@@ -257,7 +270,16 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
     return true;
   }
 
-  async function createAppointment(ctx, b) {
+  // Everything that changes a booking comes through here, which is why a doctor who can manage bookings still reaches only their own.
+  async function lockAppointment(c, ctx, id) {
+    const cur = await one(c, "select * from appointments where clinic_id = $1 and id = $2 and ($3::uuid is null or doctor_id = $3) for update", [ctx.clinicId, id, ctx.onlyDoctor ?? null]);
+    if (!cur) throw notFound("appointment_not_found");
+    return cur;
+  }
+
+  async function createAppointment(ctx, input) {
+    if (ctx.onlyDoctor && input.doctorId !== "any" && input.doctorId !== ctx.onlyDoctor) throw denied("own_bookings_only");
+    const b = ctx.onlyDoctor ? { ...input, doctorId: ctx.onlyDoctor } : input;
     const startsAt = new Date(b.startsAt);
     if (Number.isNaN(startsAt.getTime())) throw bad("invalid_time");
     return tx(ctx, async (c) => {
@@ -273,7 +295,7 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
       if (!doctor) throw new HttpError(409, "slot_unavailable");
       let patientId = b.patientId;
       if (b.newPatient) patientId = (await createPatient(ctx, b.newPatient, c)).id;
-      else await patientRow(c, ctx, patientId);
+      else await patientRow(c, ctx, patientId);      // any patient of the clinic: a doctor reaches an existing one from "this phone number exists"
       const dup = await one(c, `select 1 from appointments where patient_id = $1 and status in ('booked','confirmed') and starts_at < $3 and ends_at > $2`,
         [patientId, startsAt, new Date(startsAt.getTime() + service.duration_minutes * MIN)]);
       if (dup) throw new HttpError(409, "patient_already_booked_then");
@@ -300,8 +322,8 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
   // Move or edit an active booking. The save is refused if somebody else changed it meanwhile (expectedVersion).
   async function updateAppointment(ctx, id, b) {
     return tx(ctx, async (c) => {
-      const cur = await one(c, "select * from appointments where clinic_id = $1 and id = $2 for update", [ctx.clinicId, id]);
-      if (!cur) throw notFound("appointment_not_found");
+      const cur = await lockAppointment(c, ctx, id);
+      if (ctx.onlyDoctor && b.doctorId && b.doctorId !== ctx.onlyDoctor) throw denied("own_bookings_only");
       if (cur.row_version !== b.expectedVersion) throw conflict(cur);
       if (!ACTIVE.includes(cur.status)) throw new HttpError(409, "not_editable");
       const serviceId = b.serviceId ?? cur.service_id, doctorId = b.doctorId ?? cur.doctor_id;
@@ -316,7 +338,7 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
         await checkFree(c, ctx, await clinicRow(c, ctx), rules, doctorId, service, startsAt, b.override, id);
       }
       const patientId = b.patientId ?? cur.patient_id;
-      if (patientId !== cur.patient_id) await patientRow(c, ctx, patientId);
+      if (patientId !== cur.patient_id) await visiblePatient(c, ctx, patientId);
       try {
         await c.query(`update appointments set doctor_id=$3, service_id=$4, patient_id=$5, starts_at=$6, ends_at=$7, internal_note=$8, updated_by=$9
                         where clinic_id=$1 and id=$2`,
@@ -337,8 +359,7 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
   };
   async function setStatus(ctx, id, { status, reason, expectedVersion }, perms) {
     return tx({ ...ctx, reason: reason ?? null }, async (c) => {
-      const cur = await one(c, "select * from appointments where clinic_id = $1 and id = $2 for update", [ctx.clinicId, id]);
-      if (!cur) throw notFound("appointment_not_found");
+      const cur = await lockAppointment(c, ctx, id);
       if (cur.row_version !== expectedVersion) throw conflict(cur);
       const rules = await staffRules(c, ctx);
       const needReason = status === "cancelled" ? rules.requireCancelReason : status === "voided";
@@ -367,8 +388,7 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
   // A voided booking comes back as "booked", if the slot is still free.
   async function restore(ctx, id, { expectedVersion }) {
     return tx(ctx, async (c) => {
-      const cur = await one(c, "select * from appointments where clinic_id = $1 and id = $2 for update", [ctx.clinicId, id]);
-      if (!cur) throw notFound("appointment_not_found");
+      const cur = await lockAppointment(c, ctx, id);
       if (cur.row_version !== expectedVersion) throw conflict(cur);
       if (cur.status !== "voided") throw new HttpError(409, "not_voided");
       try {

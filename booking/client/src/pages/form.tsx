@@ -23,7 +23,8 @@ export function BookingForm() {
   const [isNew, setIsNew] = useState(false);
   const [np, setNp] = useState({ fullName: "", phone: "", language: "ar" as "ar" | "en", whatsappReminders: false });
   const [serviceId, setServiceId] = useState("");
-  const [doctorId, setDoctorId] = useState(q.get("doctor") || "any");
+  const ownDoctor = me.role === "doctor" ? me.doctorId : null;   // a doctor books for themselves
+  const [doctorId, setDoctorId] = useState(ownDoctor || q.get("doctor") || "any");
   const [date, setDate] = useState(q.get("date") || (q.get("start") ? dayOf(q.get("start")!, tz) : todayIn(tz)));
   const [startsAt, setStartsAt] = useState(q.get("start") || "");
   const [other, setOther] = useState(false); const [otherHm, setOtherHm] = useState("");
@@ -38,8 +39,8 @@ export function BookingForm() {
     get<Appt>(`/api/appointments/${id}`).then((x) => {
       setOrig(x); setServiceId(x.service_id); setDoctorId(x.doctor_id); setDate(dayOf(x.starts_at, tz)); setStartsAt(x.starts_at);
       setNote(x.internal_note || ""); setPatient({ id: x.patient_id, full_name: x.patient_name, phone_e164: x.patient_phone, preferred_language: null, whatsapp_reminders: x.whatsapp_reminders });
-    }).catch(() => {});
-  }, [id, tz]);
+    }).catch(() => nav(`/bookings/${id}`, { replace: true }));     // the booking page says it is not available
+  }, [id, tz]);                                                    // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const pid = q.get("patient");
@@ -52,7 +53,8 @@ export function BookingForm() {
     return () => window.clearTimeout(h);
   }, [patientQ]);
 
-  const doctorsFor = look.doctors.filter((x) => !serviceId || x.service_ids.includes(serviceId));
+  const doctorsFor = look.doctors.filter((x) => (!ownDoctor || x.id === ownDoctor) && (!serviceId || x.service_ids.includes(serviceId)));
+  const services = look.services.filter((s) => !ownDoctor || look.doctors.find((x) => x.id === ownDoctor)?.service_ids.includes(s.id));
   useEffect(() => {
     if (!serviceId) { setSlots([]); return; }
     const qs = `service=${serviceId}&date=${date}${doctorId !== "any" ? `&doctor=${doctorId}` : ""}`;
@@ -64,7 +66,7 @@ export function BookingForm() {
   const isOther = !!chosen && !times.includes(chosen);
   const service = look.services.find((s) => s.id === serviceId);
 
-  async function save(allowOverLimit = false) {
+  async function save(allowOverLimit = false, existingPatient = "") {
     if (!chosen) throw new Error("no time");
     if (editing && orig) {
       const r = await patch<Appt>(`/api/appointments/${orig.id}`, { expectedVersion: orig.row_version, serviceId, doctorId: doctorId === "any" ? undefined : doctorId,
@@ -72,7 +74,8 @@ export function BookingForm() {
       nav(`/bookings/${r.id}`);
     } else {
       const body: Record<string, unknown> = { serviceId, doctorId, startsAt: chosen, source, internalNote: note || null, override: isOther, allowOverLimit };
-      if (isNew) body.newPatient = { fullName: np.fullName, phone: np.phone || null, language: np.language, whatsappReminders: np.whatsappReminders };
+      if (existingPatient) body.patientId = existingPatient;
+      else if (isNew) body.newPatient = { fullName: np.fullName, phone: np.phone || null, language: np.language, whatsappReminders: np.whatsappReminders };
       else body.patientId = patient!.id;
       const r = await post<Appt>("/api/appointments", body);
       setDone(r.id); nav(`/bookings/${r.id}`);
@@ -112,12 +115,12 @@ export function BookingForm() {
           <Field label={t("service")}>
             <select value={serviceId} onChange={(e) => { setServiceId(e.target.value); setStartsAt(""); }} required>
               <option value="">{t("pickService")}</option>
-              {look.services.map((s) => <option key={s.id} value={s.id}>{lang === "ar" ? s.name_ar : s.name_en} · {s.duration_minutes} {t("min")}{s.price_jod ? ` · ${s.price_jod} ${t("jod")}` : ""}</option>)}
+              {services.map((s) => <option key={s.id} value={s.id}>{lang === "ar" ? s.name_ar : s.name_en} · {s.duration_minutes} {t("min")}{s.price_jod ? ` · ${s.price_jod} ${t("jod")}` : ""}</option>)}
             </select>
           </Field>
           <Field label={t("doctor")}>
             <select value={doctorId} onChange={(e) => { setDoctorId(e.target.value); setStartsAt(""); }}>
-              {!editing && <option value="any">{t("anyDoctor")}</option>}
+              {!editing && !ownDoctor && <option value="any">{t("anyDoctor")}</option>}
               {doctorsFor.map((x) => <option key={x.id} value={x.id}>{lang === "ar" ? x.name_ar : x.name_en}</option>)}
             </select>
           </Field>
@@ -144,7 +147,8 @@ export function BookingForm() {
             <Banner><b>{t("conflictTitle")}</b><br />{t("conflictBody", { time: a.err?.data.changedAt ? fmtDateTime(String(a.err.data.changedAt), tz, lang) : "", v: String(a.err?.data.currentVersion ?? "") })}{" "}
               <button type="button" className="link" onClick={() => window.location.reload()}>{t("reload")}</button></Banner>
           )}
-          {a.err && !conflict && <Banner>{a.message}{a.err.code === "over_max_upcoming" && <> <button type="button" className="link" onClick={() => void a.run(() => save(true))}>{t("bookAnyway")}</button></>}</Banner>}
+          {a.err && !conflict && <Banner>{a.message}{a.err.code === "over_max_upcoming" && <> <button type="button" className="link" onClick={() => void a.run(() => save(true))}>{t("bookAnyway")}</button></>}
+            {a.err.code === "patient_exists" && !!a.err.data.patientId && <> <button type="button" className="link" onClick={() => void a.run(() => save(false, String(a.err?.data.patientId)))}>{t("bookThisPatient")}</button></>}</Banner>}
           <div className="row">
             <button className="btn btn-accent" disabled={a.busy || !ready || !!done}>{editing ? t("save") : isOther ? t("confirmOther") : t("create")}</button>
             <Link className="btn btn-outline" to={editing ? `/bookings/${id}` : "/"}>{t("cancel")}</Link>

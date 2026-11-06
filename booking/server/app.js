@@ -68,6 +68,7 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
   }));
 
   // ---------------------------------------------------------------- every request is checked with Accounts
+  const NOBODY = "00000000-0000-0000-0000-000000000000";
   const auth = (perm) => wrap(async (req, res, next) => {
     const token = parseCookies(req.headers.cookie)[config.sessionCookie];
     if (!token) throw new HttpError(401, "not_signed_in");
@@ -79,6 +80,7 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
     req.session = s;
     req.token = token;
     req.ctx = { ...req.ctxBase, clinicId: s.clinic.id, user: { id: s.user.id, name: s.user.name } };
+    if (s.role === "doctor") req.ctx.onlyDoctor = s.doctorId ?? NOBODY;      // no linked record: sees nothing rather than everything
     if (perm && !s.permissions.includes(perm)) throw denied("forbidden");
     next();
   });
@@ -106,7 +108,7 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
   app.get("/api/time-off", auth("booking.appointments.view"), wrap(async (req, res) => res.json(await svc.timeOffOn(req.ctx, parse(z.object({ date: day }), req.query).date))));
   app.get("/api/slots", auth("booking.appointments.view"), wrap(async (req, res) => {
     const q = parse(z.object({ service: uuid, doctor: uuid.optional(), date: day, days: z.coerce.number().int().min(1).max(31).optional() }), req.query);
-    res.json(await svc.slots(req.ctx, { serviceId: q.service, doctorId: q.doctor, from: q.date, days: q.days }));
+    res.json(await svc.slots(req.ctx, { serviceId: q.service, doctorId: req.ctx.onlyDoctor ?? q.doctor, from: q.date, days: q.days }));
   }));
 
   // ---------------------------------------------------------------- appointments
@@ -154,7 +156,10 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
   // ---------------------------------------------------------------- patients
   app.get("/api/patients", auth("booking.patients.view"), wrap(async (req, res) => res.json(await svc.searchPatients(req.ctx, String(req.query.q ?? "").slice(0, 80)))));
   app.get("/api/patients/:id", auth("booking.patients.view"), wrap(async (req, res) => res.json(await svc.getPatient(req.ctx, parse(uuid, req.params.id)))));
-  app.post("/api/patients", auth("booking.patients.edit"), wrap(async (req, res) => res.status(201).json(await svc.createPatient(req.ctx, parse(newPatient, req.body)))));
+  app.post("/api/patients", auth("booking.patients.edit"), wrap(async (req, res) => {
+    if (req.ctx.onlyDoctor) throw denied("own_bookings_only");       // a doctor's patient comes with a booking, or they could not see it afterwards
+    res.status(201).json(await svc.createPatient(req.ctx, parse(newPatient, req.body)));
+  }));
   app.patch("/api/patients/:id", auth("booking.patients.edit"), wrap(async (req, res) => {
     const b = parse(newPatient.partial(), req.body);
     res.json(await svc.updatePatient(req.ctx, parse(uuid, req.params.id), b));

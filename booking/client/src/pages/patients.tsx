@@ -8,12 +8,12 @@ import { Banner, Field, StatusPill, useAction } from "../ui";
 
 export function PatientList() {
   const { t, lang } = useI18n();
-  const { look, can } = useApp();
+  const { look, can, me } = useApp();
   const [q, setQ] = useState(""); const [rows, setRows] = useState<Patient[]>([]);
   useEffect(() => { const h = window.setTimeout(() => get<Patient[]>(`/api/patients?q=${encodeURIComponent(q)}`).then(setRows).catch(() => {}), 200); return () => window.clearTimeout(h); }, [q]);
   return (
     <main className="wrap page">
-      <div className="row between"><h1 className="display">{t("patients")}</h1>{can("booking.patients.edit") && <Link className="btn btn-accent btn-sm" to="/patients/new">{t("newPatientTitle")}</Link>}</div>
+      <div className="row between"><h1 className="display">{t("patients")}</h1>{can("booking.patients.edit") && me.role !== "doctor" && <Link className="btn btn-accent btn-sm" to="/patients/new">{t("newPatientTitle")}</Link>}</div>
       <section className="panel">
         <input placeholder={t("pickPatient")} value={q} onChange={(e) => setQ(e.target.value)} />
         <div className="tablewrap"><table>
@@ -36,16 +36,18 @@ export function PatientPage() {
   const [f, setF] = useState({ fullName: "", phone: "", language: "ar" as "ar" | "en", whatsappReminders: false });
   const [appts, setAppts] = useState<Appt[]>([]);
   const [saved, setSaved] = useState(false);
+  const [missing, setMissing] = useState(false);
   const a = useAction();
   const load = useCallback(() => {
     if (isNew) return;
     get<{ patient: Patient; appointments: Appt[] }>(`/api/patients/${id}`).then(({ patient: p, appointments }) => {
       setF({ fullName: p.full_name || "", phone: p.phone_e164 || "", language: p.preferred_language || "ar", whatsappReminders: p.whatsapp_reminders }); setAppts(appointments);
-    }).catch(() => {});
+    }).catch(() => setMissing(true));
   }, [id, isNew]);
   useEffect(load, [load]);
   const canEdit = can("booking.patients.edit");
   const dup = a.err?.code === "patient_exists" ? String(a.err.data.patientId || "") : "";
+  if (missing) return <main className="wrap page"><Banner kind="warn">{t("notAvailable")}</Banner></main>;
   return (
     <main className="wrap page">
       <h1 className="display">{isNew ? t("newPatientTitle") : t("editPatient")}</h1>

@@ -8,7 +8,8 @@ import { Banner, StatusPill, useAction } from "../ui";
 
 export function BookingList() {
   const { t, lang, d } = useI18n();
-  const { look } = useApp();
+  const { look, me, can } = useApp();
+  const own = me.role === "doctor";                     // a doctor's list holds only their own bookings
   const tz = look.clinic.timezone;
   const [f, setF] = useState({ from: todayIn(tz), to: "", doctor: "", status: "", source: "", q: "", voided: false });
   const [rows, setRows] = useState<Appt[] | null>(null);
@@ -21,25 +22,25 @@ export function BookingList() {
   useEffect(load, [load]);
   return (
     <main className="wrap page">
-      <h1 className="display">{t("bookings")}</h1>
+      <div className="row between"><h1 className="display">{t("bookings")}</h1>{can("booking.appointments.create") && <Link className="btn btn-accent btn-sm" to="/new">{t("newBooking")}</Link>}</div>
       <section className="panel">
         <div className="filters">
           <label className="field">{t("from")}<input type="date" value={f.from} onChange={(e) => setF({ ...f, from: e.target.value })} /></label>
           <label className="field">{t("to")}<input type="date" value={f.to} onChange={(e) => setF({ ...f, to: e.target.value })} /></label>
-          <label className="field">{t("doctor")}<select value={f.doctor} onChange={(e) => setF({ ...f, doctor: e.target.value })}><option value="">{t("allDoctors")}</option>{look.doctors.map((x) => <option key={x.id} value={x.id}>{lang === "ar" ? x.name_ar : x.name_en}</option>)}</select></label>
+          {!own && <label className="field">{t("doctor")}<select value={f.doctor} onChange={(e) => setF({ ...f, doctor: e.target.value })}><option value="">{t("allDoctors")}</option>{look.doctors.map((x) => <option key={x.id} value={x.id}>{lang === "ar" ? x.name_ar : x.name_en}</option>)}</select></label>}
           <label className="field">{t("status")}<select value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })}><option value="">{t("allStatuses")}</option>{Object.entries(d.statuses).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
           <label className="field">{t("source")}<select value={f.source} onChange={(e) => setF({ ...f, source: e.target.value })}><option value="">{t("allSources")}</option>{Object.entries(d.sources).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
           <label className="field">{t("search")}<input value={f.q} onChange={(e) => setF({ ...f, q: e.target.value })} /></label>
           <label className="check"><input type="checkbox" checked={f.voided} onChange={(e) => setF({ ...f, voided: e.target.checked })} /> {t("showVoided")}</label>
         </div>
         <div className="tablewrap"><table>
-          <thead><tr><th>{t("time")}</th><th>{t("patient")}</th><th>{t("service")}</th><th>{t("doctor")}</th><th>{t("source")}</th><th>{t("status")}</th></tr></thead>
+          <thead><tr><th>{t("time")}</th><th>{t("patient")}</th><th>{t("service")}</th>{!own && <th>{t("doctor")}</th>}<th>{t("source")}</th><th>{t("status")}</th></tr></thead>
           <tbody>{rows?.map((a) => (
             <tr key={a.id}>
               <td><Link to={`/bookings/${a.id}`}>{fmtDateTime(a.starts_at, tz, lang)}</Link></td>
               <td>{a.patient_name || "—"} <span className="mono hint">{a.patient_phone}</span></td>
               <td>{lang === "ar" ? a.service_name_ar : a.service_name_en}</td>
-              <td>{lang === "ar" ? a.doctor_name_ar : a.doctor_name_en}</td>
+              {!own && <td>{lang === "ar" ? a.doctor_name_ar : a.doctor_name_en}</td>}
               <td>{d.sources[a.source] ?? a.source}</td>
               <td><StatusPill status={a.status} /></td>
             </tr>))}</tbody>
@@ -58,14 +59,15 @@ export function BookingDetail() {
   const { id } = useParams();
   const [a, setA] = useState<Appt | null>(null);
   const [hist, setHist] = useState<Ev[]>([]);
+  const [missing, setMissing] = useState(false);
   const [asking, setAsking] = useState<string | null>(null); const [reason, setReason] = useState("");
   const act = useAction();
   const load = useCallback(() => {
-    get<Appt>(`/api/appointments/${id}`).then(setA).catch(() => {});
+    get<Appt>(`/api/appointments/${id}`).then(setA).catch(() => setMissing(true));
     get<Ev[]>(`/api/appointments/${id}/history`).then(setHist).catch(() => {});
   }, [id]);
   useEffect(load, [load]);
-  if (!a) return <main className="wrap page"><p>{t("loading")}</p></main>;
+  if (!a) return <main className="wrap page">{missing ? <Banner kind="warn">{t("notAvailable")}</Banner> : <p>{t("loading")}</p>}</main>;
 
   const active = a.status === "booked" || a.status === "confirmed";
   const NEEDS: Record<string, string> = { confirmed: "booking.appointments.edit", completed: "booking.appointments.edit", no_show: "booking.appointments.edit", cancelled: "booking.appointments.cancel", voided: "booking.appointments.void" };
