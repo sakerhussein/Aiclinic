@@ -103,7 +103,7 @@ export function Accept() {
   if (!info) return <CardPage title={t("acceptTitle")}><p className="sub">{t("working")}</p></CardPage>;
   const clinic = (lang === "ar" ? info.clinic_name_ar : info.clinic_name_en) || t("brand");
   return (
-    <CardPage title={t("acceptTitle")} sub={t("acceptSub", { clinic, role: dict.roles[info.role_key] || info.role_key })}>
+    <CardPage title={t("acceptTitle")} sub={done ? undefined : t("acceptSub", { clinic, role: dict.roles[info.role_key] || info.role_key })}>
       {done ? <><Banner kind="ok">{t("acceptDone")}</Banner><Link className="btn btn-accent btn-block" to="/signin">{t("signIn")}</Link></> : (
         <form className="row" style={{ flexDirection: "column", alignItems: "stretch", gap: 14 }} onSubmit={a.submit(async () => { await post("/api/invites/accept", { token, password: pw, fullName: info.has_account ? undefined : name }); setMe(null); setDone(true); })}>
           <p className="mono sub">{info.email}</p>
