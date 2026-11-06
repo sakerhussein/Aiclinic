@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
-import { ApiError, post } from "./api";
+import { ApiError, download, post } from "./api";
 import { useI18n } from "./i18n";
 import { useApp } from "./session";
 
@@ -59,6 +59,20 @@ export function useAction() {
   }
   const submit = (fn: () => Promise<unknown>) => (e: FormEvent) => { e.preventDefault(); void run(fn); };
   return { busy, err, message: err ? error(err.code) : "", run, submit, clear: () => setErr(null) };
+}
+
+// Administrators only, on the Bookings and Patients pages. The server checks too.
+export function ExportButton({ url }: { url: string }) {
+  const { t, lang } = useI18n();
+  const { can } = useApp();
+  const a = useAction();
+  if (!can("booking.data.export")) return null;
+  return (
+    <>
+      {a.err && <span className="hint" role="alert">{a.message}</span>}
+      <button type="button" className="btn btn-outline btn-sm" disabled={a.busy} onClick={() => void a.run(() => download(`${url}&lang=${lang}`))}>{a.busy ? t("exporting") : t("exportExcel")}</button>
+    </>
+  );
 }
 
 export const StatusPill = ({ status }: { status: string }) => {
