@@ -28,6 +28,8 @@ What changed besides the versions:
 - The deprecated `.merge` in the export routes became `.extend`.
 - `accounts/test/mail.test.js` and `booking/test/mail.test.js` send through the real library to a small local SMTP server, because nothing tested nodemailer before.
 
+Deployed 2026-11-06 at `3fef10a`: the Accounts and Booking run and the website run both succeeded, and all live health checks passed afterwards.
+
 Results before deploying:
 
 - Accounts: 45 of 45 tests pass.
@@ -37,8 +39,7 @@ Results before deploying:
 
 ## Next steps
 
-1. **Push the security updates**: in progress. Accounts and Booking go first, then the website, so each deploy can be checked and rolled back on its own.
-   - After deploying, send one real invitation or reset email, and check the next nightly audit email arrives. The tests don't cover real SMTP or STARTTLS.
+1. **Confirm real email delivery**: the security updates are live (see below). The owner sends one real invitation or reset email and checks that the next nightly audit email arrives. The tests do not cover real SMTP or STARTTLS.
 2. **Turn on WhatsApp**: the owner adds `WA_TOKEN`, `WA_APP_SECRET` and `WA_VERIFY_TOKEN` from Meta, and the `appointment_reminder` template must be approved. See `agent/META_SETUP.md`.
 3. **Finish the agent evaluation**: run the full 51 cases in `agent/evals/booking_chats` and get the owner's grading sign-off. The harness changed, so the run needs `--approve-harness` from the owner first.
 4. **Build the hand-off inbox**: where staff take over from the agent. Not built yet.
