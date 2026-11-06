@@ -171,13 +171,13 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
     res.set({ "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Content-Disposition": `attachment; filename="${f.filename}"` });
     res.send(f.buffer);
   };
-  const fileLang = z.object({ lang: z.enum(["ar", "en"]).default("en") });
+  const fileLang = { lang: z.enum(["ar", "en"]).default("en") };
   app.get("/api/export/bookings", auth("booking.data.export"), wrap(async (req, res) => {
-    const q = parse(apptFilter.merge(fileLang), req.query);
+    const q = parse(apptFilter.extend(fileLang), req.query);
     sendXlsx(res, await svc.exportBookings(req.ctx, apptQuery(q), q.lang));
   }));
   app.get("/api/export/patients", auth("booking.data.export"), wrap(async (req, res) => {
-    const q = parse(z.object({ q: z.string().max(80).default("") }).merge(fileLang), req.query);
+    const q = parse(z.object({ q: z.string().max(80).default(""), ...fileLang }), req.query);
     sendXlsx(res, await svc.exportPatients(req.ctx, q.q, q.lang));
   }));
 
