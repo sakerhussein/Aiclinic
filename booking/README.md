@@ -1,7 +1,7 @@
 # Limitsiz Clinic Booking
 
 Appointments, patients and history for clinic staff (design: `DESIGN.md`, mockup: `design/mockup.html`). Node 20+, Express 4,
-React 18 + Vite. Will run at `booking.limitsiz.si` on port 3004. **Not deployed yet.**
+React 18 + Vite. Runs at `booking.limitsiz.si` on port 3004. First setup on the VPS: `deploy/setup-platform.sh`; after that `.github/workflows/deploy-platform.yml` deploys every push.
 
 Sign-in is **Accounts'** (single sign-on); this service has no passwords and **no access to the accounts schema**. It asks Accounts
 (`POST /introspect`) about the person's session on every request, so locking, disabling or signing out applies at once.

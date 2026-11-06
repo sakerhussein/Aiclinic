@@ -1,0 +1,123 @@
+name: Deploy Accounts and Booking
+
+# One workflow for both on purpose. The group below keeps only one waiting run, so separate workflows from one push would cancel
+# each other. Only the service whose files changed is rebuilt and restarted; the website and the agent have their own workflows.
+# Database migrations (db/migrations) are applied separately, before the code that needs them.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "accounts/**"
+      - "booking/**"
+      - "!**/*.md"
+      - "!accounts/test/**"
+      - "!booking/test/**"
+      - "!booking/design/**"
+      - ".github/workflows/deploy-platform.yml"
+  workflow_dispatch:
+
+# Shared with deploy.yml and deploy-agent.yml: never two deploys on the VPS at the same time.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.0.3
+
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 20m
+
+          # If a build fails, or a service does not answer after the restart, the previous code and build
+          # are put back, the service restarted on them, and the run is marked as failed.
+          script: |
+            set -eu
+            REPO=/root/Aiclinic
+            BACKUP=/root/Aiclinic-platform-backup
+            MARK=/root/Aiclinic-platform-deployed.txt
+
+            # Before deploy/setup-platform.sh has run there is nothing to deploy to, and nothing is touched.
+            if [ ! -f "$MARK" ]; then
+              echo "Accounts and Booking are not set up on this server yet; nothing to do."
+              exit 0
+            fi
+
+            cd "$REPO"
+            # The VPS npm rewrites the website's lockfiles on install; drop that so it never blocks the pull.
+            git checkout -- app/package-lock.json app/client/package-lock.json
+
+            # Stops here, with nothing changed, if the VPS has local edits that clash with the new code.
+            git pull --ff-only origin main
+
+            # Compared with the last deploy of these two, not with the pull above: the agent's or website's
+            # workflow may have pulled this same push a moment ago.
+            LAST=$(cat "$MARK")
+            NOW=$(git rev-parse HEAD)
+            CHANGED=""
+            for s in accounts booking; do
+              if ! git diff --quiet "$LAST" "$NOW" -- "$s" ; then CHANGED="$CHANGED $s"; fi
+            done
+            if [ -z "$CHANGED" ]; then
+              echo "$NOW" > "$MARK"
+              echo "No changes to Accounts or Booking."
+              exit 0
+            fi
+            echo "Deploying:$CHANGED ($LAST -> $NOW)"
+
+            port() { if [ "$1" = accounts ]; then echo 3003; else echo 3004; fi; }
+
+            mkdir -p "$BACKUP"
+            for s in $CHANGED; do
+              cp -a "$s/.env" "$BACKUP/$s.env"
+              rm -rf "$BACKUP/$s-dist"
+              cp -a "$s/client/dist" "$BACKUP/$s-dist"
+            done
+
+            rollback() {
+              echo "!!! $1. Restoring $LAST"
+              cd "$REPO"
+              git reset --keep "$LAST"
+              for s in $CHANGED; do
+                (cd "$s" && npm ci --omit=dev --no-audit --no-fund) || true
+                rm -rf "$s/client/dist"
+                cp -a "$BACKUP/$s-dist" "$s/client/dist"
+                pm2 restart "limitsiz-$s"
+              done
+              exit 1
+            }
+
+            for s in $CHANGED; do
+              cd "$REPO/$s"
+              npm ci --omit=dev --no-audit --no-fund || rollback "Installing $s failed"
+              cd client
+              npm ci --no-audit --no-fund || rollback "Installing the $s pages failed"
+              npm run build || rollback "Building $s failed"
+              [ -f dist/index.html ] || rollback "$s produced no index.html"
+            done
+
+            for s in $CHANGED; do
+              pm2 restart "limitsiz-$s"
+            done
+
+            # Give each service up to 40 seconds, going through Nginx and to the database.
+            for s in $CHANGED; do
+              ok=0
+              for i in $(seq 1 20); do
+                if curl -fsS "https://$s.limitsiz.si/api/health/db" > /dev/null; then ok=1; break; fi
+                sleep 2
+              done
+              [ "$ok" = 1 ] || rollback "$s did not answer after restart"
+            done
+
+            echo "$NOW" > "$MARK"
+            pm2 save
+            echo "Deploy finished:$CHANGED healthy."

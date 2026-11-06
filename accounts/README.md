@@ -1,8 +1,8 @@
 # Limitsiz Clinic Accounts
 
 The general sign-in for every Limitsiz Clinic service (design: `booking/DESIGN.md` §3). Node 20+, Express 4, React 18 + Vite,
-Postgres (the `accounts` and `audit` schemas from `db/migrations`). It will run at `accounts.limitsiz.si` on port 3003.
-**Not deployed yet**: there is no workflow, DNS record or Nginx site for it.
+Postgres (the `accounts` and `audit` schemas from `db/migrations`). It runs at `accounts.limitsiz.si` on port 3003.
+First setup on the VPS: `deploy/setup-platform.sh`. After that `.github/workflows/deploy-platform.yml` deploys every push.
 
 ## What it does
 
