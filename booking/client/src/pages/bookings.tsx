@@ -4,7 +4,7 @@ import { get, post, type Appt } from "../api";
 import { fmtDateTime, hm, todayIn, dayOf } from "../lib";
 import { useI18n } from "../i18n";
 import { useApp } from "../session";
-import { Banner, StatusPill, useAction } from "../ui";
+import { Banner, ExportButton, StatusPill, useAction } from "../ui";
 
 export function BookingList() {
   const { t, lang, d } = useI18n();
@@ -13,16 +13,17 @@ export function BookingList() {
   const tz = look.clinic.timezone;
   const [f, setF] = useState({ from: todayIn(tz), to: "", doctor: "", status: "", source: "", q: "", voided: false });
   const [rows, setRows] = useState<Appt[] | null>(null);
+  const p = new URLSearchParams();
+  if (f.from) p.set("from", f.from); if (f.to) p.set("to", f.to); if (f.doctor) p.set("doctor", f.doctor);
+  if (f.status) p.set("status", f.status); if (f.source) p.set("source", f.source); if (f.q) p.set("q", f.q); if (f.voided) p.set("voided", "1");
+  const params = p.toString();
   const load = useCallback(() => {
-    const p = new URLSearchParams();
-    if (f.from) p.set("from", f.from); if (f.to) p.set("to", f.to); if (f.doctor) p.set("doctor", f.doctor);
-    if (f.status) p.set("status", f.status); if (f.source) p.set("source", f.source); if (f.q) p.set("q", f.q); if (f.voided) p.set("voided", "1");
-    get<Appt[]>(`/api/appointments?${p}`).then(setRows).catch(() => setRows([]));
-  }, [f]);
+    get<Appt[]>(`/api/appointments?${params}`).then(setRows).catch(() => setRows([]));
+  }, [params]);
   useEffect(load, [load]);
   return (
     <main className="wrap page">
-      <div className="row between"><h1 className="display">{t("bookings")}</h1>{can("booking.appointments.create") && <Link className="btn btn-accent btn-sm" to="/new">{t("newBooking")}</Link>}</div>
+      <div className="row between"><h1 className="display">{t("bookings")}</h1><div className="row"><ExportButton url={`/api/export/bookings?${params}`} />{can("booking.appointments.create") && <Link className="btn btn-accent btn-sm" to="/new">{t("newBooking")}</Link>}</div></div>
       <section className="panel">
         <div className="filters">
           <label className="field">{t("from")}<input type="date" value={f.from} onChange={(e) => setF({ ...f, from: e.target.value })} /></label>

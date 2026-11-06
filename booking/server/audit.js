@@ -130,5 +130,5 @@ export function createAudit({ pool, auditPool, now = () => new Date() }) {
     return "﻿" + [head.join(","), ...lines].join("\r\n") + "\r\n";     // the mark makes Excel read Arabic correctly
   }
 
-  return { list, facets, status, verify, exportCsv };
+  return { list, facets, status, verify, exportCsv, record };
 }

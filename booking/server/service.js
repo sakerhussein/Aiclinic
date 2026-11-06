@@ -6,6 +6,7 @@
 import { HttpError, bad, denied, notFound } from "./http.js";
 import { createSettings } from "./settings.js";
 import { createAudit } from "./audit.js";
+import { bookingsFile, patientsFile, todayIn, MAX_EXPORT_ROWS } from "./export.js";
 
 const ACTIVE = ["booked", "confirmed"];
 const MIN = 60_000;
@@ -151,7 +152,7 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
     join doctors d on d.clinic_id = a.clinic_id and d.id = a.doctor_id
     join services s on s.clinic_id = a.clinic_id and s.id = a.service_id`;
 
-  async function listAppointments(ctx, q) {
+  async function listAppointments(ctx, q, limit = 500) {
     const where = ["a.clinic_id = $1"], p = [ctx.clinicId];
     const add = (sql, v) => { p.push(v); where.push(sql.replace("?", `$${p.length}`)); };
     if (ctx.onlyDoctor) add("a.doctor_id = ?", ctx.onlyDoctor);
@@ -163,7 +164,7 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
     if (q.source) add("a.source = ?", q.source);
     if (q.status) add("a.status = ?::appointment_status", q.status); else if (!q.includeVoided) where.push("a.status <> 'voided'");
     if (q.q) { p.push(`%${q.q.replace(/[%_\\]/g, "\\$&")}%`); where.push(`(p.full_name ilike $${p.length} or p.phone_e164 like $${p.length})`); }
-    const { rows } = await pool.query(`${SELECT} where ${where.join(" and ")} order by a.starts_at, d.name_en limit 500`, p);
+    const { rows } = await pool.query(`${SELECT} where ${where.join(" and ")} order by a.starts_at, d.name_en limit ${Number(limit)}`, p);
     return rows;
   }
   async function getAppointment(ctx, id, c = pool) {
@@ -227,7 +228,7 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
          phone ? (b.whatsappReminders ?? cur.whatsapp_reminders) : false]);
     });
   }
-  async function searchPatients(ctx, q) {
+  async function searchPatients(ctx, q, limit = 50) {
     const like = `%${String(q || "").replace(/[%_\\]/g, "\\$&")}%`;
     const { rows } = await pool.query(
       `select p.id, p.full_name, p.phone_e164, p.preferred_language, p.whatsapp_reminders,
@@ -235,7 +236,7 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
                   and ($3::uuid is null or a.doctor_id = $3)) as last_visit
          from patients p where p.clinic_id = $1 and ($2 = '%%' or p.full_name ilike $2 or p.phone_e164 like $2)
           and ($3::uuid is null or exists (select 1 from appointments a where a.clinic_id = p.clinic_id and a.patient_id = p.id and a.doctor_id = $3 and a.status <> 'voided'))
-        order by p.full_name nulls last limit 50`, [ctx.clinicId, like, ctx.onlyDoctor ?? null]);
+        order by p.full_name nulls last limit ${Number(limit)}`, [ctx.clinicId, like, ctx.onlyDoctor ?? null]);
     return rows;
   }
   async function getPatient(ctx, id) {
@@ -403,6 +404,18 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
 
   const settings = createSettings({ pool, tx, now });
   const audit = createAudit({ pool, auditPool, now });
+
+  // ---------------------------------------------------------------- Excel files. Recorded before the file exists: no record, no file.
+  async function exportFile(ctx, what, fetchRows, build, filters, lang) {
+    const tz = (await pool.query("select timezone from clinics where id = $1", [ctx.clinicId])).rows[0].timezone;
+    const found = await fetchRows(MAX_EXPORT_ROWS + 1);
+    const truncated = found.length > MAX_EXPORT_ROWS;
+    const rows = truncated ? found.slice(0, MAX_EXPORT_ROWS) : found;
+    await audit.record(ctx, "data_exported", { what, rows: rows.length, truncated, filters, language: lang });
+    return { buffer: await build(rows, { lang, tz, truncated }), filename: `limitsiz-${what}-${todayIn(now(), tz)}.xlsx` };
+  }
+  const exportBookings = (ctx, q, lang) => exportFile(ctx, "bookings", (n) => listAppointments(ctx, q, n), bookingsFile, q, lang);
+  const exportPatients = (ctx, q, lang) => exportFile(ctx, "patients", (n) => searchPatients(ctx, q, n), patientsFile, q ? { q } : {}, lang);
   return { settings, audit, lookups, timeOffOn, slots, listAppointments, getAppointment, history, createAppointment, updateAppointment, setStatus, restore,
-           searchPatients, getPatient, createPatient: (ctx, b) => createPatient(ctx, b), updatePatient, tx };
+           searchPatients, exportBookings, exportPatients, getPatient, createPatient: (ctx, b) => createPatient(ctx, b), updatePatient, tx };
 }

@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "description": "Limitsiz Clinic Booking: appointments, patients and history for clinic staff",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
@@ -13,6 +15,7 @@
   },
   "dependencies": {
     "dotenv": "16.4.5",
+    "exceljs": "4.4.0",
     "express": "^4.22.3",
     "nodemailer": "10.3.1",
     "pg": "8.13.1",

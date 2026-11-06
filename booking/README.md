@@ -20,6 +20,12 @@ A locked screen answers 423 and the page goes back through Accounts to the lock 
 - Saves carry the version they were based on; a change made meanwhile (a colleague, or the WhatsApp assistant) is refused, nothing overwritten.
 - Every change is audited with the signed-in person as actor.
 
+## Export to Excel
+
+**Export to Excel** on the Bookings and Patients pages, for clinic administrators (`booking.data.export`): `GET /api/export/bookings` and
+`/api/export/patients` (`server/export.js`). The file holds every row matching the page's filters, up to 50,000, in the screen's language
+and clinic time. Internal notes stay out. Each export is recorded in the audit log as `data_exported` before the file is made.
+
 ## Audit log
 
 `/audit`, for clinic administrators (`booking.audit.view`, export `booking.audit.export`): integrity status with **Verify now**, filters

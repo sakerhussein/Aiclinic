@@ -74,6 +74,7 @@ Rules enforced by the system, not just by screens:
 | `booking.settings.view` / `edit` | view / ❌ | ❌ | ❌ | ✅ / ✅ |
 | `booking.conversations.view` (scope set in Settings) | ✅ | ❌ | ❌ | ✅ |
 | `booking.audit.view` / `export` | ❌ | ❌ | ❌ | ✅ |
+| `booking.data.export` (Excel files of bookings and patients) | ❌ | ❌ | ❌ | ✅ |
 | `accounts.users.*`, sessions of other users | ❌ | ❌ | ❌ | ✅ |
 
 ---

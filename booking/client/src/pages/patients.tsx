@@ -4,7 +4,7 @@ import { get, patch, post, type Appt, type Patient } from "../api";
 import { fmtDateTime } from "../lib";
 import { useI18n } from "../i18n";
 import { useApp } from "../session";
-import { Banner, Field, StatusPill, useAction } from "../ui";
+import { Banner, ExportButton, Field, StatusPill, useAction } from "../ui";
 
 export function PatientList() {
   const { t, lang } = useI18n();
@@ -13,7 +13,7 @@ export function PatientList() {
   useEffect(() => { const h = window.setTimeout(() => get<Patient[]>(`/api/patients?q=${encodeURIComponent(q)}`).then(setRows).catch(() => {}), 200); return () => window.clearTimeout(h); }, [q]);
   return (
     <main className="wrap page">
-      <div className="row between"><h1 className="display">{t("patients")}</h1>{can("booking.patients.edit") && me.role !== "doctor" && <Link className="btn btn-accent btn-sm" to="/patients/new">{t("newPatientTitle")}</Link>}</div>
+      <div className="row between"><h1 className="display">{t("patients")}</h1><div className="row"><ExportButton url={`/api/export/patients?q=${encodeURIComponent(q)}`} />{can("booking.patients.edit") && me.role !== "doctor" && <Link className="btn btn-accent btn-sm" to="/patients/new">{t("newPatientTitle")}</Link>}</div></div>
       <section className="panel">
         <input placeholder={t("pickPatient")} value={q} onChange={(e) => setQ(e.target.value)} />
         <div className="tablewrap"><table>

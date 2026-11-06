@@ -112,13 +112,14 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
   }));
 
   // ---------------------------------------------------------------- appointments
+  const apptFilter = z.object({
+    from: day.optional(), to: day.optional(), doctor: uuid.optional(), patient: uuid.optional(), q: z.string().max(80).optional(),
+    status: z.enum(["booked", "confirmed", "cancelled", "completed", "no_show", "voided"]).optional(),
+    source: z.enum(["whatsapp", "phone", "walkin", "staff", "web"]).optional(), voided: z.enum(["1"]).optional(),
+  });
+  const apptQuery = (q) => ({ from: q.from, to: q.to, doctorId: q.doctor, patientId: q.patient, q: q.q, status: q.status, source: q.source, includeVoided: !!q.voided });
   app.get("/api/appointments", auth("booking.appointments.view"), wrap(async (req, res) => {
-    const q = parse(z.object({
-      from: day.optional(), to: day.optional(), doctor: uuid.optional(), patient: uuid.optional(), q: z.string().max(80).optional(),
-      status: z.enum(["booked", "confirmed", "cancelled", "completed", "no_show", "voided"]).optional(),
-      source: z.enum(["whatsapp", "phone", "walkin", "staff", "web"]).optional(), voided: z.enum(["1"]).optional(),
-    }), req.query);
-    res.json(await svc.listAppointments(req.ctx, { from: q.from, to: q.to, doctorId: q.doctor, patientId: q.patient, q: q.q, status: q.status, source: q.source, includeVoided: !!q.voided }));
+    res.json(await svc.listAppointments(req.ctx, apptQuery(parse(apptFilter, req.query))));
   }));
   app.get("/api/appointments/:id", auth("booking.appointments.view"), wrap(async (req, res) => res.json(await svc.getAppointment(req.ctx, parse(uuid, req.params.id)))));
   app.get("/api/appointments/:id/history", auth("booking.appointments.view"), wrap(async (req, res) => res.json(await svc.history(req.ctx, parse(uuid, req.params.id)))));
@@ -163,6 +164,21 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
   app.patch("/api/patients/:id", auth("booking.patients.edit"), wrap(async (req, res) => {
     const b = parse(newPatient.partial(), req.body);
     res.json(await svc.updatePatient(req.ctx, parse(uuid, req.params.id), b));
+  }));
+
+  // ---------------------------------------------------------------- Excel files (administrators)
+  const sendXlsx = (res, f) => {
+    res.set({ "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Content-Disposition": `attachment; filename="${f.filename}"` });
+    res.send(f.buffer);
+  };
+  const fileLang = z.object({ lang: z.enum(["ar", "en"]).default("en") });
+  app.get("/api/export/bookings", auth("booking.data.export"), wrap(async (req, res) => {
+    const q = parse(apptFilter.merge(fileLang), req.query);
+    sendXlsx(res, await svc.exportBookings(req.ctx, apptQuery(q), q.lang));
+  }));
+  app.get("/api/export/patients", auth("booking.data.export"), wrap(async (req, res) => {
+    const q = parse(z.object({ q: z.string().max(80).default("") }).merge(fileLang), req.query);
+    sendXlsx(res, await svc.exportPatients(req.ctx, q.q, q.lang));
   }));
 
   // ---------------------------------------------------------------- settings

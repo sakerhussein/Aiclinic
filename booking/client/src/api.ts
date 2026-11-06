@@ -20,6 +20,18 @@ export async function api<T = any>(method: string, url: string, body?: unknown):
   if (!res.ok) throw new ApiError(res.status, data?.error || "server_error", data || {});
   return data as T;
 }
+// A file from the server: on any error nothing is saved and the page stays where it is.
+export async function download(url: string) {
+  const res = await fetch(url, { credentials: "same-origin" });
+  if (res.status === 401 || res.status === 423) { goSignIn(); await new Promise(() => {}); }
+  if (!res.ok) { const data = await res.json().catch(() => ({})); throw new ApiError(res.status, data?.error || "server_error", data || {}); }
+  const name = /filename="([^"]+)"/.exec(res.headers.get("content-disposition") || "")?.[1] || "limitsiz.xlsx";
+  const href = URL.createObjectURL(await res.blob());
+  const a = document.createElement("a");
+  a.href = href; a.download = name; document.body.append(a); a.click(); a.remove();
+  window.setTimeout(() => URL.revokeObjectURL(href), 10000);
+}
+
 export const get = <T = any>(u: string) => api<T>("GET", u);
 export const post = <T = any>(u: string, b: unknown = {}) => api<T>("POST", u, b);
 export const patch = <T = any>(u: string, b: unknown) => api<T>("PATCH", u, b);
