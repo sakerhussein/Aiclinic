@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Limitsiz Clinic website: React client and Node.js (Express) API",
   "engines": {
-    "node": ">=18.18"
+    "node": ">=20"
   },
   "scripts": {
     "install:all": "npm install && npm --prefix client install",
@@ -19,6 +19,6 @@
     "dotenv": "16.4.5",
     "express": "^4.22.3",
     "express-rate-limit": "7.4.1",
-    "nodemailer": "6.9.16"
+    "nodemailer": "10.3.1"
   }
 }
