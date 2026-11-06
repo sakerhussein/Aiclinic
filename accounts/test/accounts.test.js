@@ -168,6 +168,31 @@ test("invitation: admin invites, the person sets a password, link works once", a
   assert.ok((await auditActions("invite")).includes("invite_created"));
 });
 
+test("accepting an invitation in a browser someone else is signed in to ends their session", async () => {
+  const admin = await t.makeUser({ email: "boss@clinic.jo", role: "clinic_admin", name: "Boss", mfa: true });
+  const { b } = await t.signIn(admin); await b.post("/api/mfa/verify", { code: t.code(admin.secret) });
+  const inv = await b.post("/api/invites", { email: "reception@clinic.jo", fullName: "Rana", roleKey: "secretary" });
+
+  // A refused attempt leaves the administrator signed in.
+  assert.equal((await b.post("/api/invites/accept", { token: tokenOf(inv.json.link), password: "password12345" })).status, 400);
+  assert.equal((await b.get("/api/me")).json.user.email, "boss@clinic.jo");
+
+  assert.equal((await b.post("/api/invites/accept", { token: tokenOf(inv.json.link), password: GOOD })).status, 201);
+  assert.equal((await b.get("/api/me")).status, 401, "the administrator is no longer signed in here");
+  const signedIn = await b.post("/api/login", { email: "reception@clinic.jo", password: GOOD });
+  assert.deepEqual([signedIn.json.user.email, signedIn.json.role], ["reception@clinic.jo", "secretary"]);
+  assert.ok((await auditActions("session")).includes("switch_user"));
+});
+
+test("a password reset in a browser someone else is signed in to ends their session", async () => {
+  const other = await t.makeUser({ email: "other@clinic.jo", name: "Other" });
+  await t.makeUser({ email: "owner@clinic.jo", name: "Owner" });
+  const { b } = await t.signIn(other);
+  await t.browser().post("/api/password/forgot", { email: "owner@clinic.jo" });
+  assert.equal((await b.post("/api/password/reset", { token: tokenOf(t.mails.at(-1).link), password: GOOD + "x" })).status, 200);
+  assert.equal((await b.get("/api/me")).status, 401);
+});
+
 test("the server command creates the first administrator's invitation (no email, link printed)", async () => {
   const link = await t.core.bootstrapInvite({ email: "First@Clinic.jo", fullName: "First Admin", clinicSlug: "demo-derma", roleKey: "clinic_admin" });
   const anon = t.browser();

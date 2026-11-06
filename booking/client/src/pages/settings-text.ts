@@ -26,6 +26,7 @@ const EN = {
   alertEmails: "Who gets hand-off alert emails", alertHint: "Separate several addresses with commas.", visibility: "What staff may see", visibilityHint: "Takes effect when conversations move into Booking.",
   visNone: "No conversations", visHandoff: "Hand-off chats only", visAll: "All conversations", visAllWarn: "Pending legal review: confirm with your compliance advisor before turning this on for a real clinic. Every opened chat is recorded in the audit trail.",
   lockAfter: "Lock the screen after", lockHint: "The same person unlocks with their password.", idleAfter: "Sign out after", twoStepAll: "Require two-step verification for everyone", twoStepHint: "It is always required for administrators.",
+  auditLogHint: "See who did what, check the log is intact, and export it.", openAuditLog: "Open the audit log",
   retention: "Keep the audit trail for", retentionHint: "The minimum is 12 months. Only Limitsiz can go lower. Older entries are removed in the nightly job, and the removal is recorded.", keepForever: "Keep for ever", monthsUnit: "months", yearUnit: "year", yearsUnit: "years",
   min: "min", hour: "hour", hours: "hours", day: "day", dayPlural: "days",
 };
@@ -55,6 +56,7 @@ const AR: typeof EN = {
   alertEmails: "من يستلم تنبيهات التحويل بالبريد", alertHint: "افصل بين العناوين بفواصل.", visibility: "ما يمكن للموظفين رؤيته", visibilityHint: "يُطبَّق عند نقل المحادثات إلى الحجوزات.",
   visNone: "لا محادثات", visHandoff: "المحادثات المحوّلة فقط", visAll: "كل المحادثات", visAllWarn: "بانتظار المراجعة القانونية: تأكد مع مستشار الامتثال قبل تفعيلها لعيادة حقيقية. كل محادثة تُفتح تُسجَّل في سجل التدقيق.",
   lockAfter: "قفل الشاشة بعد", lockHint: "يفتحها الشخص نفسه بكلمة المرور.", idleAfter: "تسجيل الخروج بعد", twoStepAll: "طلب التحقق بخطوتين من الجميع", twoStepHint: "مطلوب دائماً من المدراء.",
+  auditLogHint: "اعرف من فعل ماذا، وافحص سلامة السجل، وصدّره.", openAuditLog: "فتح سجل التدقيق",
   retention: "الاحتفاظ بسجل التدقيق لمدة", retentionHint: "الحد الأدنى 12 شهراً. Limitsiz فقط يمكنها التخفيض. تُحذف السجلات الأقدم في الفحص الليلي، ويُسجَّل الحذف.", keepForever: "الاحتفاظ دائماً", monthsUnit: "شهراً", yearUnit: "سنة", yearsUnit: "سنوات",
   min: "دقيقة", hour: "ساعة", hours: "ساعات", day: "يوم", dayPlural: "أيام",
 };

@@ -66,11 +66,11 @@ export function AppBar() {
         <nav aria-label="Main">
           <NavLink to="/" end>{t("appsTitle")}</NavLink>
           {canUsers && <NavLink to="/users">{t("users")}</NavLink>}
-          <NavLink to="/account">{t("account")}</NavLink>
         </nav>
         <span className="grow" />
         <LangInline />
         <UserMenu name={me.user.name} email={me.user.email} items={[
+          { label: t("account"), onClick: () => nav("/account") },
           { label: t("lock"), onClick: async () => { await post("/api/lock").catch(() => {}); await refresh(); nav("/unlock"); } },
           { label: t("switchUser"), onClick: async () => { await post("/api/switch").catch(() => {}); window.location.assign("/signin"); } },
           { label: t("signOut"), onClick: async () => { await signOut(); nav("/signin"); } },

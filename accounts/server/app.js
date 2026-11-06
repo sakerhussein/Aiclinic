@@ -64,6 +64,14 @@ export function createApp({ core, config, now = () => Date.now(), limits = {} })
   });
   const OK = ["ok"];
 
+  // An invitation or reset link names one person, and whoever had this browser before may be someone else (the administrator
+  // on a shared computer). End their session so the next sign-in is the person's own, not a carry-on as the previous one.
+  const endBrowserSession = async (req, res) => {
+    const s = await core.loadSession(parseCookies(req.headers.cookie)[config.cookieName]);
+    if (s) await core.logout(s, req.ctx, "switch_user");
+    clearCookie(res);
+  };
+
   const publicSession = async (s) => ({
     state: s.state, user: s.user,
     clinic: s.memberships.find((m) => m.clinic_id === s.clinic_id)?.clinic_id ? await core.describe(s).then((d) => d.clinic) : null,
@@ -142,6 +150,7 @@ export function createApp({ core, config, now = () => Date.now(), limits = {} })
     if (!acceptLimit(req.ip)) throw tooMany();
     const b = parse(z.object({ token: z.string().max(100), password: z.string().max(200) }), req.body);
     await core.resetPassword(b.token, b.password, req.ctx);
+    await endBrowserSession(req, res);
     res.json({ ok: true });
   }));
   app.post("/api/password/change", session(OK), wrap(async (req, res) => {
@@ -160,6 +169,7 @@ export function createApp({ core, config, now = () => Date.now(), limits = {} })
     if (!acceptLimit(req.ip)) throw tooMany();
     const b = parse(z.object({ token: z.string().max(100), password: z.string().max(200), fullName: z.string().trim().min(1).max(120).optional() }), req.body);
     await core.acceptInvite(b.token, b, req.ctx);
+    await endBrowserSession(req, res);
     res.status(201).json({ ok: true });
   }));
   app.post("/api/invites", session(OK), wrap(async (req, res) => {

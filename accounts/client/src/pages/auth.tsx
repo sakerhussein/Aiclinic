@@ -72,13 +72,14 @@ export function Forgot() {
 
 export function Reset() {
   const { t } = useI18n();
+  const { setMe } = useSession();
   const [q] = useSearchParams();
   const [pw, setPw] = useState(""); const [done, setDone] = useState(false);
   const a = useAction();
   return (
     <CardPage title={t("resetTitle")}>
       {done ? <><Banner kind="ok">{t("resetDone")}</Banner><Link className="btn btn-accent btn-block" to="/signin">{t("signIn")}</Link></> : (
-        <form className="row" style={{ flexDirection: "column", alignItems: "stretch", gap: 14 }} onSubmit={a.submit(async () => { await post("/api/password/reset", { token: q.get("token"), password: pw }); setDone(true); })}>
+        <form className="row" style={{ flexDirection: "column", alignItems: "stretch", gap: 14 }} onSubmit={a.submit(async () => { await post("/api/password/reset", { token: q.get("token"), password: pw }); setMe(null); setDone(true); })}>
           <Field label={t("newPassword")} hint={t("passwordHint")} type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} required minLength={12} autoFocus />
           {a.err && <Banner>{a.err}</Banner>}
           <button className="btn btn-accent btn-block" disabled={a.busy}>{t("savePassword")}</button>
@@ -90,6 +91,7 @@ export function Reset() {
 
 export function Accept() {
   const { t, dict, lang } = useI18n();
+  const { setMe } = useSession();
   const [q] = useSearchParams();
   const token = q.get("token") || "";
   const [info, setInfo] = useState<{ full_name: string; email: string; role_key: string; clinic_name_en: string | null; clinic_name_ar: string | null; has_account: boolean } | null>(null);
@@ -103,7 +105,7 @@ export function Accept() {
   return (
     <CardPage title={t("acceptTitle")} sub={t("acceptSub", { clinic, role: dict.roles[info.role_key] || info.role_key })}>
       {done ? <><Banner kind="ok">{t("acceptDone")}</Banner><Link className="btn btn-accent btn-block" to="/signin">{t("signIn")}</Link></> : (
-        <form className="row" style={{ flexDirection: "column", alignItems: "stretch", gap: 14 }} onSubmit={a.submit(async () => { await post("/api/invites/accept", { token, password: pw, fullName: info.has_account ? undefined : name }); setDone(true); })}>
+        <form className="row" style={{ flexDirection: "column", alignItems: "stretch", gap: 14 }} onSubmit={a.submit(async () => { await post("/api/invites/accept", { token, password: pw, fullName: info.has_account ? undefined : name }); setMe(null); setDone(true); })}>
           <p className="mono sub">{info.email}</p>
           {info.has_account ? <p className="hint">{t("existingAccount")}</p> : <Field label={t("yourName")} value={name} onChange={(e) => setName(e.target.value)} required />}
           <Field label={info.has_account ? t("currentPassword") : t("newPassword")} hint={info.has_account ? undefined : t("passwordHint")} type="password" autoComplete={info.has_account ? "current-password" : "new-password"} value={pw} onChange={(e) => setPw(e.target.value)} required minLength={info.has_account ? 1 : 12} />

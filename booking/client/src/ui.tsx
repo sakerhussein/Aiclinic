@@ -1,12 +1,20 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { Link, NavLink, Outlet } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { ApiError, post } from "./api";
 import { useI18n } from "./i18n";
 import { useApp } from "./session";
 
+const GearIcon = () => (
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
 export function Layout() {
   const { t, lang, setLang } = useI18n();
   const { me, can } = useApp();
+  const { pathname } = useLocation();
   const clinic = lang === "ar" ? me.clinic.nameAr : me.clinic.nameEn;
   return (
     <>
@@ -17,14 +25,16 @@ export function Layout() {
             <NavLink to="/" end>{me.role === "doctor" ? t("mySchedule") : t("calendar")}</NavLink>
             {can("booking.appointments.view") && <NavLink to="/bookings">{t("bookings")}</NavLink>}
             {can("booking.patients.view") && <NavLink to="/patients">{t("patients")}</NavLink>}
-            {can("booking.audit.view") && <NavLink to="/audit">{t("auditLog")}</NavLink>}
-            {can("booking.settings.view") && <NavLink to="/settings">{t("settings")}</NavLink>}
           </nav>
           <span className="grow" />
           <span className="clinic">{clinic}</span>
+          {can("booking.settings.view") && (
+            // Rarely used, so it sits with the system controls instead of the daily pages. The audit log lives inside Settings.
+            <NavLink to="/settings" className={({ isActive }) => `iconbtn${isActive || pathname === "/audit" ? " on" : ""}`} aria-label={t("settings")} title={t("settings")}><GearIcon /></NavLink>
+          )}
           <button className="linkbtn" onClick={() => setLang(lang === "ar" ? "en" : "ar")}>{t("langSwitch")}</button>
           <UserMenu name={me.user.name} email={me.user.email} items={[
-            { label: t("accounts"), href: me.accountsUrl },
+            { label: t("myServices"), href: me.accountsUrl },
             { label: t("switchUser"), onClick: async () => { const r = await post("/api/logout").catch(() => null); window.location.assign(r?.next || me.accountsUrl); } },
           ]} />
         </div>

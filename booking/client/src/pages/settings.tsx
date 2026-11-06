@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { del, get, patch, post, put } from "../api";
 import { addDays, fmtDateTime, fmtShortDate, dayOf, localToIso, todayIn } from "../lib";
 import { useI18n } from "../i18n";
@@ -28,7 +28,8 @@ type Tab = (typeof TABS)[number];
 export function Settings() {
   const s = useS();
   const { can } = useApp();
-  const [tab, setTab] = useState<Tab>("profile");
+  const [q] = useSearchParams();                              // ?tab=audit: the way back from the audit log
+  const [tab, setTab] = useState<Tab>(TABS.find((k) => k === q.get("tab")) ?? "profile");
   const [data, setData] = useState<Data | null>(null);
   const load = useCallback(() => get<Data>("/api/settings").then(setData).catch(() => {}), []);
   useEffect(() => { void load(); }, [load]);
@@ -393,7 +394,7 @@ function RulesTab({ data, reload }: P) {
   return (
     <div className="stack">
       <Banner kind="warn">{s.neverOverlap}</Banner>
-      <div className="grid2 top">{["patient", "staff"].map((k) => <RuleForm key={k} rule={data.rules.find((r) => r.audience === k)!} reload={reload} />)}</div>
+      <div className="grid2">{["patient", "staff"].map((k) => <RuleForm key={k} rule={data.rules.find((r) => r.audience === k)!} reload={reload} />)}</div>
     </div>
   );
 }
@@ -466,10 +467,12 @@ function SecurityTab(p: P) {
 
 function AuditTab(p: P) {
   const s = useS();
+  const { can } = useApp();
   const { f, setF, a, ok, onSubmit } = useGeneral(p);
   return (
     <SForm className="panel stack" onSubmit={onSubmit}>
       <h2>{s.tabs.audit}</h2>
+      {can("booking.audit.view") && <p className="row"><span className="grow">{s.auditLogHint}</span><Link className="btn btn-outline btn-sm" to="/audit">{s.openAuditLog}</Link></p>}
       <Field label={s.retention} hint={s.retentionHint}><Pick value={f.auditRetentionMonths ?? ""} onChange={(v) => setF({ ...f, auditRetentionMonths: v ? Number(v) : null })}
         options={[["", s.keepForever], ...withCurrent([12, 24, 60, 84, 120], f.auditRetentionMonths).map((m) => [m, m % 12 ? `${m} ${s.monthsUnit}` : `${m / 12} ${m === 12 ? s.yearUnit : s.yearsUnit}`] as [number, string])]} /></Field>
       <Saver a={a} ok={ok} />

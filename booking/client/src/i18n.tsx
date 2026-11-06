@@ -5,8 +5,8 @@ export type Lang = "en" | "ar";
 // English and Arabic for every piece of text. The Arabic is a working draft for a native reader to review.
 const EN = {
   brand: "Limitsiz Clinic", product: "Booking", langSwitch: "العربية",
-  calendar: "Calendar", bookings: "Bookings", patients: "Patients", mySchedule: "My schedule", settings: "Settings", auditLog: "Audit log", bookAnyway: "Book anyway",
-  accounts: "Accounts", switchUser: "Switch user", signOut: "Sign out",
+  calendar: "Calendar", bookings: "Bookings", patients: "Patients", mySchedule: "My schedule", settings: "Settings", bookAnyway: "Book anyway",
+  myServices: "My services", switchUser: "Switch user", signOut: "Sign out",
   today: "Today", prev: "Previous day", next: "Next day", newBooking: "New booking", allDoctors: "All doctors",
   noBookings: "No bookings.", loading: "Loading…", save: "Save", cancel: "Cancel", back: "Back", edit: "Edit", search: "Search", clear: "Clear",
   patient: "Patient", service: "Service", doctor: "Doctor", date: "Date", time: "Time", status: "Status", source: "How it was booked", note: "Internal note",
@@ -47,8 +47,8 @@ const EN = {
 
 const AR: typeof EN = {
   brand: "Limitsiz Clinic", product: "الحجوزات", langSwitch: "English",
-  calendar: "التقويم", bookings: "الحجوزات", patients: "المرضى", mySchedule: "جدولي", settings: "الإعدادات", auditLog: "سجل التدقيق", bookAnyway: "احجز رغم ذلك",
-  accounts: "الحسابات", switchUser: "تبديل المستخدم", signOut: "تسجيل الخروج",
+  calendar: "التقويم", bookings: "الحجوزات", patients: "المرضى", mySchedule: "جدولي", settings: "الإعدادات", bookAnyway: "احجز رغم ذلك",
+  myServices: "خدماتي", switchUser: "تبديل المستخدم", signOut: "تسجيل الخروج",
   today: "اليوم", prev: "اليوم السابق", next: "اليوم التالي", newBooking: "حجز جديد", allDoctors: "كل الأطباء",
   noBookings: "لا توجد حجوزات.", loading: "جارٍ التحميل…", save: "حفظ", cancel: "إلغاء", back: "رجوع", edit: "تعديل", search: "بحث", clear: "مسح",
   patient: "المريض", service: "الخدمة", doctor: "الطبيب", date: "التاريخ", time: "الوقت", status: "الحالة", source: "طريقة الحجز", note: "ملاحظة داخلية",

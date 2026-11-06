@@ -13,7 +13,7 @@ type Verify = { ok: boolean; checked: number; brokenSeq: number | null };
 type Facets = { actors: { id: string; label: string; type: string }[]; types: string[] };
 
 const EN = {
-  title: "Audit log", intact: "Chain intact", broken: "Chain broken", notChecked: "Not checked yet", entries: "entries", lastCheck: "last checked", retention: "retention", forever: "kept for ever", months: "months", years: "years", year: "year",
+  title: "Audit log", backToSettings: "Back to Settings", intact: "Chain intact", broken: "Chain broken", notChecked: "Not checked yet", entries: "entries", lastCheck: "last checked", retention: "retention", forever: "kept for ever", months: "months", years: "years", year: "year",
   brokenBody: "Entry {seq} does not match its hash: it was changed or removed outside the system. Keep a copy of the log and contact Limitsiz.",
   missingBody: "Entries are missing from the end of the log: they were removed outside the system. Keep a copy of the log and contact Limitsiz.",
   verify: "Verify now", exportCsv: "Export CSV", from: "From", to: "To", user: "User", type: "Type", search: "Search", all: "All", more: "Load more", none: "No entries match.",
@@ -31,7 +31,7 @@ const EN = {
   yes: "yes", no: "no", rows: "rows", result: { ok: "intact", bad: "broken" },
 };
 const AR: typeof EN = {
-  title: "سجل التدقيق", intact: "السلسلة سليمة", broken: "السلسلة معطوبة", notChecked: "لم يُفحص بعد", entries: "سجلاً", lastCheck: "آخر فحص", retention: "الاحتفاظ", forever: "دائماً", months: "شهراً", years: "سنوات", year: "سنة",
+  title: "سجل التدقيق", backToSettings: "العودة إلى الإعدادات", intact: "السلسلة سليمة", broken: "السلسلة معطوبة", notChecked: "لم يُفحص بعد", entries: "سجلاً", lastCheck: "آخر فحص", retention: "الاحتفاظ", forever: "دائماً", months: "شهراً", years: "سنوات", year: "سنة",
   brokenBody: "السجل {seq} لا يطابق بصمته: تم تغييره أو حذفه خارج النظام. احتفظ بنسخة من السجل وتواصل مع Limitsiz.",
   missingBody: "هناك سجلات مفقودة من نهاية السجل: حُذفت خارج النظام. احتفظ بنسخة من السجل وتواصل مع Limitsiz.",
   verify: "فحص الآن", exportCsv: "تصدير CSV", from: "من", to: "إلى", user: "المستخدم", type: "النوع", search: "بحث", all: "الكل", more: "تحميل المزيد", none: "لا توجد سجلات مطابقة.",
@@ -120,6 +120,7 @@ export function AuditLog() {
   const last = check ? { ok: check.ok, brokenSeq: check.brokenSeq } : status?.lastCheck ?? null;
   return (
     <main className="wrap page">
+      <p><Link to="/settings?tab=audit">{T.backToSettings}</Link></p>
       <h1 className="display">{T.title}</h1>
       {unavailable ? <Banner kind="warn">{T.unavailable}</Banner> : <>
         <div className={`integrity ${last ? (last.ok ? "good" : "bad") : ""}`}>
