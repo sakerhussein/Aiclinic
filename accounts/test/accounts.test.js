@@ -120,6 +120,8 @@ test("administrators must set up two-step before anything else; then sign-in nee
   assert.equal((await b.get("/api/users")).status, 409);
   const setup = (await b.post("/api/mfa/setup")).json;
   assert.match(setup.otpauth, /^otpauth:\/\/totp\//);
+  const logged = (await t.owner.query("select actor_type, actor_label from audit.events where entity = 'user' and changed_fields @> array['mfa_secret_enc'] order by at desc limit 1")).rows[0];
+  assert.deepEqual(logged, { actor_type: "user", actor_label: "Admin" }, "the audit log names the person, not direct database access");
   assert.equal((await b.post("/api/mfa/enable", { code: "000000" })).status, 401);
   const en = await b.post("/api/mfa/enable", { code: t.code(setup.secret) });
   assert.equal(en.status, 200);

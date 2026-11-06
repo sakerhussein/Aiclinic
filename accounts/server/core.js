@@ -194,10 +194,11 @@ export function createCore({ pool, config, mail, now = () => new Date(), securit
   }
 
   // ---------------------------------------------------------------- two-step (TOTP)
-  async function mfaSetup(session) {
+  async function mfaSetup(session, ctx) {
     if (session.user.mfaEnabled) throw bad("already_enabled");
     const secret = newTotpSecret();
-    await pool.query("update accounts.users set mfa_secret_enc = $2 where id = $1", [session.user_id, encrypt(secret, config.mfaKey)]);
+    await tx(userActor(session.user, ctx, session.clinic_id), (c) => c.query(
+      "update accounts.users set mfa_secret_enc = $2 where id = $1", [session.user_id, encrypt(secret, config.mfaKey)]));
     const issuer = "Limitsiz Clinic";
     return { secret, otpauth: `otpauth://totp/${encodeURIComponent(issuer)}:${encodeURIComponent(session.email)}?secret=${secret}&issuer=${encodeURIComponent(issuer)}&digits=6&period=30` };
   }

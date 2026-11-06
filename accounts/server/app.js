@@ -119,7 +119,7 @@ export function createApp({ core, config, now = () => Date.now(), limits = {} })
   }));
 
   // ---------------------------------------------------------------- two-step
-  app.post("/api/mfa/setup", session(["ok", "mfa_setup_required"]), wrap(async (req, res) => res.json(await core.mfaSetup(req.session))));
+  app.post("/api/mfa/setup", session(["ok", "mfa_setup_required"]), wrap(async (req, res) => res.json(await core.mfaSetup(req.session, req.ctx))));
   app.post("/api/mfa/enable", session(["ok", "mfa_setup_required"]), wrap(async (req, res) => {
     const b = parse(z.object({ code: z.string().regex(/^\d{6}$/) }), req.body);
     res.json(await core.mfaEnable(req.session, b.code, req.ctx));
