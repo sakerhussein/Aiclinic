@@ -58,7 +58,7 @@ server/seo.js           Titles, link previews, hreflang, robots.txt, sitemap
 
 ## Run it locally
 
-Requires **Node.js 18.18 or newer**.
+Requires **Node.js 20 or newer**.
 
 ```bash
 # 1. Install everything
