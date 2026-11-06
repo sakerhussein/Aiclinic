@@ -388,6 +388,7 @@ test("role change, can-manage-bookings, last-administrator rule and clinic isola
   const list = (await b.get("/api/users")).json;
   assert.deepEqual(list.users.map((x) => x.email).sort(), ["adm@clinic.jo", "s1@clinic.jo"], "only this clinic's people");
   assert.equal((await b.patch(`/api/users/${foreign.id}`, { roleKey: "readonly" })).status, 404);
+  assert.equal((await b.patch("/api/users/00000000-0000-0000-0000-000000000001", { roleKey: "readonly" })).status, 404, "an id outside RFC 9562 is still only an unknown id");
   assert.equal((await b.patch(`/api/users/${admin.id}`, { roleKey: "secretary" })).json.error, "cannot_change_own_access");
   assert.equal((await b.patch(`/api/users/${sec.id}`, { roleKey: "doctor" })).json.error, "doctor_record_required");
   assert.equal((await b.patch(`/api/users/${sec.id}`, { roleKey: "doctor", doctorId: t.doctorA, canManageBookings: true })).status, 200);

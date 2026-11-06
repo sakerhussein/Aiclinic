@@ -6,7 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { HttpError, parseCookies, cookieString, parse, z, denied } from "./http.js";
 
-const uuid = z.string().uuid();
+const uuid = z.guid();         // any UUID Postgres stores; z.string().uuid() would refuse ids outside RFC 9562
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const dist = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "client", "dist");
 

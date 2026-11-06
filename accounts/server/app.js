@@ -7,7 +7,7 @@ import { HttpError, parseCookies, cookieString, parse, z, limiter, unauthorized,
 import { randomToken } from "./crypto.js";
 
 const email = z.string().trim().toLowerCase().email().max(200);
-const uuid = z.string().uuid();
+const uuid = z.guid();         // any UUID Postgres stores; z.string().uuid() would refuse ids outside RFC 9562
 const dist = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "client", "dist");
 
 // Request limits per 15 minutes (per hour for forgot-by-email). Sign-ins from one clinic share an address, so they are generous;

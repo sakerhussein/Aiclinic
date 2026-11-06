@@ -298,6 +298,7 @@ test("patients: create, find by name or phone, duplicates refused, patients with
 test("the patient page lists their bookings, voided included; read-only people cannot edit patients", async () => {
   const b = await secretary();
   const a = (await book(b)).json;
+  assert.equal((await b.get("/api/patients/00000000-0000-0000-0000-000000000001")).status, 404, "an id outside RFC 9562 is still only an unknown id");
   const pg = (await b.get(`/api/patients/${a.patient_id}`)).json;
   assert.equal(pg.appointments.length, 1);
   const ro = (await t.login(P.readonly)).b;
