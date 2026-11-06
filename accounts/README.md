@@ -16,7 +16,7 @@ First setup on the VPS: `deploy/setup-platform.sh`. After that `.github/workflow
   a person or signing out takes effect at once. `POST /app-logout` ends the service's own session.
   A service has **no database access** to `accounts`; it only talks to this API. `POST /people` gives a service the names for its audit
   page, only for people of the asking session's clinic.
-- People and access (administrators): invite, change role, "can also manage bookings", disable, sign out everywhere, send a reset link.
+- Users and access (administrators): invite, change role, "can also manage bookings", disable, sign out everywhere, send a reset link.
   Sensitive changes re-ask the password if it was last checked over 10 minutes ago. The last administrator of a clinic cannot be removed.
 - Everything that matters is in the audit trail (`audit.events`): sign-ins and failures, locks, invitations, role changes.
 
