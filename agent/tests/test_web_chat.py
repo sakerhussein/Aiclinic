@@ -7,7 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from limitsiz_agent import web_chat
-from limitsiz_agent.agent.web import WEB_TOOLS, build_web_agent, build_web_prompt, run_web_turn
+from limitsiz_agent.agent.web import WEB_TOOLS, build_web_agent, build_web_prompt, page_settings, run_web_turn
 from limitsiz_agent.booking import clinic_info
 from test_agent import CLINIC, CONSULT, LINA, NOW, FakeClaude, msg, text, tool
 
@@ -29,6 +29,28 @@ def test_only_booking_tools_and_web_rules(conn):
     p = build_web_prompt(clinic_info(conn, CLINIC))
     assert "cannot see, move or cancel existing appointments" in p and "Never ask for the patient's name or phone" in p
     assert "Clinic details" in p and "WhatsApp booking assistant" not in p
+
+
+def test_the_prompt_follows_the_page_settings(conn):
+    info = clinic_info(conn, CLINIC)
+    hidden = build_web_prompt(info, {"show_prices": False, "find": False})
+    assert "JOD" not in hidden and "does not show prices" in hidden and "Find my booking" not in hidden
+    shown = build_web_prompt(info, {"show_prices": True, "find": True})
+    assert "JOD" in shown and "does not show prices" not in shown and '"Find my booking" on the page' in shown
+    # Read from the clinic's settings: the online page's defaults hide prices, and Find my booking needs WhatsApp.
+    assert page_settings(conn, CLINIC) == {"show_prices": False, "find": False}
+
+
+def test_text_next_to_a_tool_call_is_not_lost(conn, web):
+    graph, _ = web(
+        msg(text("That's a question for the doctor; I can't give medical advice."),
+            tool("show_buttons", labels=["Book a consultation", "Call me back"]), stop="tool_use"),
+        msg(text("Would you like to book, or should the clinic call you?")),
+    )
+    out = run_web_turn(graph, CLINIC, CHAT, "Is this cream safe in pregnancy?")
+    assert out["reply"] == ("That's a question for the doctor; I can't give medical advice.\n\n"
+                            "Would you like to book, or should the clinic call you?")
+    assert out["buttons"] == ["Book a consultation", "Call me back"]
 
 
 def test_propose_shows_a_card_and_books_nothing(conn, web):
