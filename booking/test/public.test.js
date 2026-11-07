@@ -151,29 +151,40 @@ test("a new time chosen by the patient goes back to the clinic; any move restart
   a = (await sec.post(`/api/appointments/${r.id}/status`, { status: "confirmed", expectedVersion: a.row_version })).json;
   assert.equal(a.status, "confirmed"); assert.equal((await view()).shownStatus, "confirmed");
   await t.owner.query("update appointments set reminder_24h_at = now(), reminder_2h_at = now() where id = $1", [r.id]);
-  // The patient moves it: not confirmed any more, and not checked, until the clinic agrees.
+  // The patient moves it: back to booked and "Time changed by patient" until the clinic confirms. The person stays checked.
   const mv = await t.pub("POST", `/api/c/${SLUG}/manage/reschedule`, { token: r.manageToken, startsAt: at("11:00") });
   assert.equal(mv.status, 200); assert.equal(mv.json.status, "booked"); assert.equal(mv.json.shownStatus, "waiting");
   a = await staff();
-  assert.equal(a.unchecked, true); assert.equal(a.checked_by, null);
-  assert.ok((await sec.get(`/api/appointments?from=${DAY}&to=${DAY}&unchecked=1`)).json.some((x) => x.id === r.id));
+  assert.equal(a.unchecked, false); assert.ok(a.checked_by, "the check of the person stays");
+  assert.equal(a.moved_by_patient, true);
+  assert.ok((await sec.get(`/api/appointments?from=${DAY}&to=${DAY}&unchecked=1`)).json.some((x) => x.id === r.id), "in the filter");
   let rem = (await t.owner.query("select reminder_24h_at, reminder_2h_at from appointments where id = $1", [r.id])).rows[0];
   assert.equal(rem.reminder_24h_at, null); assert.equal(rem.reminder_2h_at, null);
-  // Without staff check the move still drops "confirmed", but there is nothing to check.
-  a = (await sec.post(`/api/appointments/${r.id}/check`, { expectedVersion: a.row_version })).json;
+  // Mark as checked is not needed again; Confirm accepts the new time.
+  assert.equal((await sec.post(`/api/appointments/${r.id}/check`, { expectedVersion: a.row_version })).json.error, "nothing_to_check");
   a = (await sec.post(`/api/appointments/${r.id}/status`, { status: "confirmed", expectedVersion: a.row_version })).json;
+  assert.equal(a.moved_by_patient, false); assert.equal((await view()).shownStatus, "confirmed");
+  assert.ok(!(await sec.get(`/api/appointments?from=${DAY}&to=${DAY}&unchecked=1`)).json.some((x) => x.id === r.id), "out of the filter");
+  // A booking that was only checked (never confirmed): the patient's move still waits for the clinic.
   await turnOn({ staffCheck: false });
-  const mv2 = (await t.pub("POST", `/api/c/${SLUG}/manage/reschedule`, { token: r.manageToken, startsAt: at("11:30") })).json;
-  assert.equal(mv2.status, "booked");
+  const r2 = (await book({ phone: "0787777777", startsAt: at("12:30") })).json;
+  assert.equal(r2.shownStatus, "booked");
+  const mv2 = (await t.pub("POST", `/api/c/${SLUG}/manage/reschedule`, { token: r2.manageToken, startsAt: at("13:00") })).json;
+  assert.equal(mv2.status, "booked"); assert.equal(mv2.shownStatus, "waiting");
   // A secretary moving it keeps its status, and the reminders start again for the new time.
   a = await staff();
-  a = (await sec.post(`/api/appointments/${r.id}/status`, { status: "confirmed", expectedVersion: a.row_version })).json;
   await t.owner.query("update appointments set reminder_24h_at = now() where id = $1", [r.id]);
   a = await staff();
   const moved = await sec.patch(`/api/appointments/${r.id}`, { expectedVersion: a.row_version, startsAt: at("12:00") });
   assert.equal(moved.status, 200); assert.equal(moved.json.status, "confirmed");
   rem = (await t.owner.query("select reminder_24h_at from appointments where id = $1", [r.id])).rows[0];
   assert.equal(rem.reminder_24h_at, null);
+  // A secretary choosing another time for a patient's move settles it too.
+  let b2 = (await sec.get(`/api/appointments/${r2.id}`)).json;
+  assert.equal(b2.moved_by_patient, true);
+  const p2 = await sec.patch(`/api/appointments/${r2.id}`, { expectedVersion: b2.row_version, startsAt: at("11:30") });
+  assert.equal(p2.status, 200, JSON.stringify(p2.json));
+  assert.equal(p2.json.moved_by_patient, false);
 });
 
 test("limits per connection come from Settings; bots and other sites get nowhere", async () => {

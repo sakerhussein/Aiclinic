@@ -140,7 +140,7 @@ export function createPublicService({ pool, now = () => new Date() }) {
 
   // What the patient may see of a booking: never the phone number or the clinic's notes.
   async function summary(c, id) {
-    const a = await one(c, `select a.id, a.clinic_id, a.starts_at, a.ends_at, a.status, a.needs_check, a.checked_at, a.booked_name,
+    const a = await one(c, `select a.id, a.clinic_id, a.starts_at, a.ends_at, a.status, a.needs_check, a.checked_at, a.booked_name, a.moved_online_at,
         s.id as service_id, s.name_en as service_name_en, s.name_ar as service_name_ar, s.duration_minutes,
         d.id as doctor_id, d.name_en as doctor_name_en, d.name_ar as doctor_name_ar, d.title_en as doctor_title_en, d.title_ar as doctor_title_ar
       from appointments a join services s on s.id = a.service_id join doctors d on d.id = a.doctor_id where a.id = $1`, [id]);
@@ -149,8 +149,10 @@ export function createPublicService({ pool, now = () => new Date() }) {
     const inTime = a.starts_at.getTime() - t >= k.change_notice_minutes * MIN;
     return {
       id: a.id, startsAt: a.starts_at, endsAt: a.ends_at, status: a.status, name: a.booked_name, waitingForCheck: a.needs_check && !a.checked_at,
-      // What the patient is told: a booking the clinic confirmed or checked is "confirmed"; one it has not checked yet is "waiting".
-      shownStatus: !active ? a.status : a.status === "confirmed" || (a.needs_check && a.checked_at) ? "confirmed" : a.needs_check ? "waiting" : "booked",
+      // What the patient is told: "waiting" while the clinic has not checked the person or not accepted the patient's new time;
+      // "confirmed" once it confirmed the booking or checked the person (and the time is the one it agreed to).
+      shownStatus: !active ? a.status : a.status === "confirmed" ? "confirmed"
+        : a.moved_online_at || (a.needs_check && !a.checked_at) ? "waiting" : a.needs_check ? "confirmed" : "booked",
       service: { id: a.service_id, nameEn: a.service_name_en, nameAr: a.service_name_ar, durationMinutes: a.duration_minutes },
       doctor: { id: a.doctor_id, nameEn: a.doctor_name_en, nameAr: a.doctor_name_ar, titleEn: a.doctor_title_en, titleAr: a.doctor_title_ar },
       clinic: { slug: k.slug, nameEn: k.name_en, nameAr: k.name_ar, phone: k.phone, addressEn: k.address_en, addressAr: k.address_ar, mapsUrl: k.maps_url,
@@ -193,8 +195,8 @@ export function createPublicService({ pool, now = () => new Date() }) {
     return starts.map((t) => ({ doctorId: a.doctor_id, startsAt: new Date(t).toISOString() }));
   }
 
-  // Same doctor and service, a new time. The database (migration 0012) puts it back to booked and, where the clinic checks online
-  // bookings, to "Online, not checked": the clinic has not agreed to the new time yet.
+  // Same doctor and service, a new time. The database (migration 0012) puts it back to booked and marks it "Time changed by
+  // patient" until the clinic confirms: the clinic has not agreed to the new time yet. The check of the person stays.
   async function reschedule(slug, token, startsAtRaw, ctx) {
     const startsAt = new Date(startsAtRaw);
     if (Number.isNaN(startsAt.getTime())) throw bad("invalid_time");

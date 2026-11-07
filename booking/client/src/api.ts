@@ -54,6 +54,6 @@ export type Appt = {
   patient_name: string | null; patient_phone: string | null; whatsapp_reminders: boolean;
   doctor_name_en: string; doctor_name_ar: string; service_name_en: string; service_name_ar: string; duration_minutes: number; price_jod: string | null;
   outside_hours?: boolean;
-  online_from?: string | null; booked_name?: string | null; booked_for_other?: boolean; unchecked?: boolean; name_differs?: boolean;
+  online_from?: string | null; booked_name?: string | null; booked_for_other?: boolean; unchecked?: boolean; name_differs?: boolean; moved_by_patient?: boolean;
 };
 export type Patient = { id: string; full_name: string | null; phone_e164: string | null; preferred_language: "ar" | "en" | null; whatsapp_reminders: boolean; last_visit?: string | null };

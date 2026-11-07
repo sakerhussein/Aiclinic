@@ -46,7 +46,7 @@ export function BookingList() {
               <td>{lang === "ar" ? a.service_name_ar : a.service_name_en}</td>
               {!own && <td>{lang === "ar" ? a.doctor_name_ar : a.doctor_name_en}</td>}
               <td>{d.sources[a.source] ?? a.source}{a.online_from ? ` · ${a.online_from}` : ""}</td>
-              <td><StatusPill status={a.status} />{a.unchecked && <> <span className="pill warn">{t("notChecked")}</span></>}</td>
+              <td><StatusPill status={a.status} />{a.unchecked && <> <span className="pill warn">{t("notChecked")}</span></>}{a.moved_by_patient && <> <span className="pill warn">{t("movedByPatient")}</span></>}</td>
             </tr>))}</tbody>
         </table>{rows && rows.length === 0 && <p className="hint">{t("noBookings")}</p>}</div>
       </section>
@@ -86,7 +86,7 @@ export function BookingDetail() {
 
   return (
     <main className="wrap page">
-      <div className="row between"><h1 className="display">{a.patient_name || a.patient_phone}</h1><div className="row"><StatusPill status={a.status} />{a.unchecked && <span className="pill warn">{t("notChecked")}</span>}</div></div>
+      <div className="row between"><h1 className="display">{a.patient_name || a.patient_phone}</h1><div className="row"><StatusPill status={a.status} />{a.unchecked && <span className="pill warn">{t("notChecked")}</span>}{a.moved_by_patient && <span className="pill warn">{t("movedByPatient")}</span>}</div></div>
       <section className="panel">
         <dl className="facts">
           <dt>{t("time")}</dt><dd>{fmtDateTime(a.starts_at, tz, lang)} – {hm(a.ends_at, tz)}</dd>
@@ -100,6 +100,7 @@ export function BookingDetail() {
         </dl>
         {a.name_differs && <Banner kind="warn">{t("nameDiffers", { name: a.booked_name ?? "" })}</Banner>}
         {a.unchecked && active && <Banner kind="warn">{t("checkHint")}</Banner>}
+        {a.moved_by_patient && <Banner kind="warn">{t("movedHint")}</Banner>}
         {act.err && (conflict
           ? <Banner><b>{t("conflictTitle")}</b> {act.message} <button className="link" onClick={() => { act.clear(); load(); }}>{t("reload")}</button></Banner>
           : <Banner>{act.message}</Banner>)}

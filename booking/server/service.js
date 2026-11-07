@@ -110,6 +110,7 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
       s.duration_minutes, s.price_jod,
       a.online_from, a.booked_name, a.booked_for_other, a.needs_check, a.checked_at, a.checked_by,
       (a.needs_check and a.checked_at is null) as unchecked,
+      a.moved_online_at, (a.moved_online_at is not null and a.status = 'booked') as moved_by_patient,
       (a.booked_name is not null and lower(trim(a.booked_name)) is distinct from lower(trim(p.full_name))) as name_differs
     from appointments a
     join patients p on p.clinic_id = a.clinic_id and p.id = a.patient_id
@@ -126,7 +127,8 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
     if (q.doctorId) add("a.doctor_id = ?", q.doctorId);
     if (q.patientId) add("a.patient_id = ?", q.patientId);
     if (q.source) add("a.source = ?", q.source);
-    if (q.unchecked) where.push("a.needs_check and a.checked_at is null and a.status in ('booked','confirmed')");
+    // Online bookings waiting for the clinic: the person not checked yet, or a new time chosen by the patient not confirmed yet.
+    if (q.unchecked) where.push("((a.needs_check and a.checked_at is null and a.status in ('booked','confirmed')) or (a.moved_online_at is not null and a.status = 'booked'))");
     if (q.status) add("a.status = ?::appointment_status", q.status); else if (!q.includeVoided) where.push("a.status <> 'voided'");
     if (q.q) { p.push(`%${q.q.replace(/[%_\\]/g, "\\$&")}%`); where.push(`(p.full_name ilike $${p.length} or p.phone_e164 like $${p.length})`); }
     const { rows } = await pool.query(`${SELECT} where ${where.join(" and ")} order by a.starts_at, d.name_en limit ${Number(limit)}`, p);

@@ -31,7 +31,8 @@ const EN = {
   warnOutside: "Outside the doctor's free times", warnFlag: "outside free times",
   notChecked: "Online, not checked", markChecked: "Mark as checked", checkHint: "Call or message the number to make sure the booking is real, then mark it as checked.",
   nameDiffers: "Typed online as “{name}”. The patient record was not changed.", forOther: "Booked for someone else", onlineFrom: "Came from",
-  onlyUnchecked: "Online, not checked only", sendLink: "Send booking link", linkCopied: "Message copied. Paste it into WhatsApp.",
+  movedByPatient: "Time changed by patient", movedHint: "The patient chose this new time on their private link. Press Confirm so they see the clinic agrees, or call them.",
+  onlyUnchecked: "Online, waiting for the clinic only", sendLink: "Send booking link", linkCopied: "Message copied. Paste it into WhatsApp.",
   errors: {
     slot_taken: "That time was just taken. Choose another.", slot_unavailable: "No doctor is free at that time.",
     not_a_free_time: "That is not one of the free times.", patient_exists: "A patient with this phone number already exists.", own_bookings_only: "You can only work with your own bookings.",
@@ -77,7 +78,8 @@ const AR: typeof EN = {
   warnOutside: "خارج الأوقات المتاحة للطبيب", warnFlag: "خارج الأوقات المتاحة",
   notChecked: "إلكتروني، لم يُراجع", markChecked: "تمّت المراجعة", checkHint: "اتصل أو راسل الرقم للتأكد أن الحجز حقيقي، ثم علّمه كمراجَع.",
   nameDiffers: "كُتب في الصفحة باسم «{name}». لم يتغيّر سجل المريض.", forOther: "حُجز لشخص آخر", onlineFrom: "جاء من",
-  onlyUnchecked: "الإلكتروني غير المراجَع فقط", sendLink: "إرسال رابط الحجز", linkCopied: "نُسخت الرسالة. الصقها في واتساب.",
+  movedByPatient: "غيّر المريض الوقت", movedHint: "اختار المريض هذا الوقت الجديد عبر رابطه الخاص. اضغط «تأكيد» ليعرف أن العيادة موافقة، أو اتصل به.",
+  onlyUnchecked: "الإلكتروني بانتظار العيادة فقط", sendLink: "إرسال رابط الحجز", linkCopied: "نُسخت الرسالة. الصقها في واتساب.",
   errors: {
     slot_taken: "هذا الوقت حُجز للتو. اختر وقتاً آخر.", slot_unavailable: "لا يوجد طبيب متاح في هذا الوقت.",
     not_a_free_time: "هذا ليس من الأوقات المتاحة.", patient_exists: "يوجد مريض بهذا الرقم بالفعل.", own_bookings_only: "يمكنك التعامل مع حجوزاتك فقط.",
