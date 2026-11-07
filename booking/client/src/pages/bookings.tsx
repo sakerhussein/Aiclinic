@@ -4,18 +4,18 @@ import { get, post, type Appt } from "../api";
 import { fmtDateTime, hm, todayIn, dayOf } from "../lib";
 import { useI18n } from "../i18n";
 import { useApp } from "../session";
-import { Banner, ExportButton, StatusPill, useAction } from "../ui";
+import { Banner, ExportButton, SendLinkButton, StatusPill, useAction } from "../ui";
 
 export function BookingList() {
   const { t, lang, d } = useI18n();
   const { look, me, can } = useApp();
   const own = me.role === "doctor";                     // a doctor's list holds only their own bookings
   const tz = look.clinic.timezone;
-  const [f, setF] = useState({ from: todayIn(tz), to: "", doctor: "", status: "", source: "", q: "", voided: false });
+  const [f, setF] = useState({ from: todayIn(tz), to: "", doctor: "", status: "", source: "", q: "", voided: false, unchecked: false });
   const [rows, setRows] = useState<Appt[] | null>(null);
   const p = new URLSearchParams();
   if (f.from) p.set("from", f.from); if (f.to) p.set("to", f.to); if (f.doctor) p.set("doctor", f.doctor);
-  if (f.status) p.set("status", f.status); if (f.source) p.set("source", f.source); if (f.q) p.set("q", f.q); if (f.voided) p.set("voided", "1");
+  if (f.status) p.set("status", f.status); if (f.source) p.set("source", f.source); if (f.q) p.set("q", f.q); if (f.voided) p.set("voided", "1"); if (f.unchecked) p.set("unchecked", "1");
   const params = p.toString();
   const load = useCallback(() => {
     get<Appt[]>(`/api/appointments?${params}`).then(setRows).catch(() => setRows([]));
@@ -23,7 +23,7 @@ export function BookingList() {
   useEffect(load, [load]);
   return (
     <main className="wrap page">
-      <div className="row between"><h1 className="display">{t("bookings")}</h1><div className="row"><ExportButton url={`/api/export/bookings?${params}`} />{can("booking.appointments.create") && <Link className="btn btn-accent btn-sm" to="/new">{t("newBooking")}</Link>}</div></div>
+      <div className="row between"><h1 className="display">{t("bookings")}</h1><div className="row"><SendLinkButton /><ExportButton url={`/api/export/bookings?${params}`} />{can("booking.appointments.create") && <Link className="btn btn-accent btn-sm" to="/new">{t("newBooking")}</Link>}</div></div>
       <section className="panel">
         <div className="filters">
           <label className="field">{t("from")}<input type="date" value={f.from} onChange={(e) => setF({ ...f, from: e.target.value })} /></label>
@@ -32,18 +32,21 @@ export function BookingList() {
           <label className="field">{t("status")}<select value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })}><option value="">{t("allStatuses")}</option>{Object.entries(d.statuses).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
           <label className="field">{t("source")}<select value={f.source} onChange={(e) => setF({ ...f, source: e.target.value })}><option value="">{t("allSources")}</option>{Object.entries(d.sources).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
           <label className="field">{t("search")}<input value={f.q} onChange={(e) => setF({ ...f, q: e.target.value })} /></label>
-          <label className="check"><input type="checkbox" checked={f.voided} onChange={(e) => setF({ ...f, voided: e.target.checked })} /> {t("showVoided")}</label>
+          <div className="filter-checks">
+            <label className="check"><input type="checkbox" checked={f.voided} onChange={(e) => setF({ ...f, voided: e.target.checked })} /> {t("showVoided")}</label>
+            <label className="check"><input type="checkbox" checked={f.unchecked} onChange={(e) => setF({ ...f, unchecked: e.target.checked })} /> {t("onlyUnchecked")}</label>
+          </div>
         </div>
         <div className="tablewrap"><table>
           <thead><tr><th>{t("time")}</th><th>{t("patient")}</th><th>{t("service")}</th>{!own && <th>{t("doctor")}</th>}<th>{t("source")}</th><th>{t("status")}</th></tr></thead>
           <tbody>{rows?.map((a) => (
             <tr key={a.id}>
               <td><Link to={`/bookings/${a.id}`}>{fmtDateTime(a.starts_at, tz, lang)}</Link></td>
-              <td>{a.patient_name || "—"} <span className="mono hint">{a.patient_phone}</span></td>
+              <td>{a.patient_name || "—"} <span className="mono hint">{a.patient_phone}</span>{a.name_differs && <div className="hint warntext">{t("nameDiffers", { name: a.booked_name ?? "" })}</div>}</td>
               <td>{lang === "ar" ? a.service_name_ar : a.service_name_en}</td>
               {!own && <td>{lang === "ar" ? a.doctor_name_ar : a.doctor_name_en}</td>}
-              <td>{d.sources[a.source] ?? a.source}</td>
-              <td><StatusPill status={a.status} /></td>
+              <td>{d.sources[a.source] ?? a.source}{a.online_from ? ` · ${a.online_from}` : ""}</td>
+              <td><StatusPill status={a.status} />{a.unchecked && <> <span className="pill warn">{t("notChecked")}</span></>}</td>
             </tr>))}</tbody>
         </table>{rows && rows.length === 0 && <p className="hint">{t("noBookings")}</p>}</div>
       </section>
@@ -83,22 +86,26 @@ export function BookingDetail() {
 
   return (
     <main className="wrap page">
-      <div className="row between"><h1 className="display">{a.patient_name || a.patient_phone}</h1><StatusPill status={a.status} /></div>
+      <div className="row between"><h1 className="display">{a.patient_name || a.patient_phone}</h1><div className="row"><StatusPill status={a.status} />{a.unchecked && <span className="pill warn">{t("notChecked")}</span>}</div></div>
       <section className="panel">
         <dl className="facts">
           <dt>{t("time")}</dt><dd>{fmtDateTime(a.starts_at, tz, lang)} – {hm(a.ends_at, tz)}</dd>
           <dt>{t("service")}</dt><dd>{lang === "ar" ? a.service_name_ar : a.service_name_en} · {a.duration_minutes} {t("min")}{a.price_jod ? ` · ${a.price_jod} ${t("jod")}` : ""}</dd>
           <dt>{t("doctor")}</dt><dd>{lang === "ar" ? a.doctor_name_ar : a.doctor_name_en}</dd>
           <dt>{t("patient")}</dt><dd><Link to={`/patients/${a.patient_id}`}>{a.patient_name || "—"}</Link> <span className="mono">{a.patient_phone}</span></dd>
-          <dt>{t("source")}</dt><dd>{d.sources[a.source] ?? a.source}</dd>
+          <dt>{t("source")}</dt><dd>{d.sources[a.source] ?? a.source}{a.online_from ? ` · ${t("onlineFrom")} ${a.online_from}` : ""}{a.booked_for_other ? ` · ${t("forOther")}` : ""}</dd>
           {a.internal_note && <><dt>{t("note")}</dt><dd>{a.internal_note}</dd></>}
           {a.cancel_reason && <><dt>{t("reason")}</dt><dd>{a.cancel_reason}</dd></>}
           {a.void_reason && <><dt>{t("reason")}</dt><dd>{a.void_reason}</dd></>}
         </dl>
+        {a.name_differs && <Banner kind="warn">{t("nameDiffers", { name: a.booked_name ?? "" })}</Banner>}
+        {a.unchecked && active && <Banner kind="warn">{t("checkHint")}</Banner>}
         {act.err && (conflict
           ? <Banner><b>{t("conflictTitle")}</b> {act.message} <button className="link" onClick={() => { act.clear(); load(); }}>{t("reload")}</button></Banner>
           : <Banner>{act.message}</Banner>)}
         <div className="row">
+          {a.unchecked && active && can("booking.appointments.edit") && <button className="btn btn-accent btn-sm" disabled={act.busy}
+            onClick={() => void act.run(async () => { setA(await post<Appt>(`/api/appointments/${a.id}/check`, { expectedVersion: a.row_version })); load(); })}>{t("markChecked")}</button>}
           {active && can("booking.appointments.edit") && <Link className="btn btn-ink btn-sm" to={`/bookings/${a.id}/edit`}>{t("edit")}</Link>}
           {options.map((s) => <button key={s} className={`btn btn-sm ${s === "voided" || s === "cancelled" ? "btn-outline" : "btn-accent"}`} disabled={act.busy}
             onClick={() => (needsReason(s) ? setAsking(s) : void apply(s))}>{d.actions[s]}</button>)}
@@ -115,7 +122,7 @@ export function BookingDetail() {
       <section className="panel">
         <h2>{t("history")}</h2>
         <ol className="hist">{hist.map((e, i) => (
-          <li key={i}><b>{d.historyActions[e.action] ?? e.action}</b> · {t("by")} {actorName(e)} · <span className="hint">{fmtDateTime(e.at, tz, lang)}</span>{e.reason && <> · “{e.reason}”</>}</li>))}</ol>
+          <li key={i}><b>{d.historyActions[e.action === "updated" && e.changed_fields?.includes("checked_at") ? "checked" : e.action] ?? e.action}</b> · {t("by")} {actorName(e)} · <span className="hint">{fmtDateTime(e.at, tz, lang)}</span>{e.reason && <> · “{e.reason}”</>}</li>))}</ol>
       </section>
       <Link to="/bookings" className="link">{t("back")}</Link>
       <span hidden>{dayOf(a.starts_at, tz)}</span>

@@ -9,13 +9,23 @@ export const OPTIONS = {
   reminderMinutes: [2880, 1440, 720, 240, 120, 60],
 };
 
+// Settings > Online booking: each body field and its column.
+export const ONLINE_FIELDS = {
+  enabled: "enabled", staffCheck: "staff_check", showPrices: "show_prices", allowAnyDoctor: "allow_any_doctor", allowCancel: "allow_cancel",
+  allowReschedule: "allow_reschedule", allowForOther: "allow_for_other", offerReminders: "offer_reminders", defaultCountryCode: "default_country_code",
+  maxUncheckedPerPhone: "max_unchecked_per_phone", bookingsPerPhonePerDay: "bookings_per_phone_per_day", bookingsPerIpPerDay: "bookings_per_ip_per_day",
+  lookupsPerIpPerMinute: "lookups_per_ip_per_minute", managePerIpPerHour: "manage_per_ip_per_hour", daysPerPage: "days_per_page",
+  introEn: "intro_en", introAr: "intro_ar", doneNoteEn: "done_note_en", doneNoteAr: "done_note_ar", shareMessageEn: "share_message_en", shareMessageAr: "share_message_ar", privacyUrl: "privacy_url",
+};
+const ONLINE_COLS = Object.values(ONLINE_FIELDS);
+
 export function createSettings({ pool, tx, now = () => new Date() }) {
   const one = async (c, sql, p) => (await c.query(sql, p)).rows[0];
 
   async function read(ctx) {
     const id = ctx.clinicId;
     const q = (sql) => pool.query(sql, [id]).then((r) => r.rows);
-    const [[profile], hours, closures, doctors, services, faqs, rules, [general]] = await Promise.all([
+    const [[profile], hours, closures, doctors, services, faqs, rules, [general], [online]] = await Promise.all([
       q(`select id, slug, name_en, name_ar, timezone, phone, address_en, address_ar, maps_url, default_language, week_start, slot_step_minutes from clinics where id = $1`),
       q(`select id, weekday, to_char(start_time, 'HH24:MI') as start, to_char(end_time, 'HH24:MI') as "end" from clinic_hours where clinic_id = $1 order by weekday, start_time`),
       q(`select id, doctor_id, starts_at, ends_at, reason from time_off where clinic_id = $1 and ends_at > now() - interval '30 days' order by starts_at`),
@@ -32,8 +42,9 @@ export function createSettings({ pool, tx, now = () => new Date() }) {
                 reminder_offsets_minutes, to_char(quiet_start, 'HH24:MI') as quiet_start, to_char(quiet_end, 'HH24:MI') as quiet_end,
                 assistant_enabled, after_hours_message_en, after_hours_message_ar, handoff_alert_emails
            from clinic_settings where clinic_id = $1`),
+      q(`select ${ONLINE_COLS.join(", ")} from online_booking where clinic_id = $1`),
     ]);
-    return { profile, hours, closures, doctors, services, faqs, rules, general, options: OPTIONS, outside: await outside(ctx) };
+    return { profile, hours, closures, doctors, services, faqs, rules, general, online, options: OPTIONS, outside: await outside(ctx) };
   }
 
   // Upcoming active bookings that no longer fit the hours, a closure or leave, or whose doctor was switched off.
@@ -185,6 +196,15 @@ export function createSettings({ pool, tx, now = () => new Date() }) {
     return { ok: true };
   }
 
+  // Settings > Online booking. Every limit and text of the public page is here.
+  async function updateOnline(ctx, b) {
+    const keys = Object.keys(ONLINE_FIELDS);
+    const sets = keys.map((k, i) => `${ONLINE_FIELDS[k]} = $${i + 2}`).join(", ");
+    const vals = keys.map((k) => (typeof b[k] === "string" ? b[k].trim() || null : b[k] ?? null));
+    await write(ctx, (c) => c.query(`update online_booking set ${sets} where clinic_id = $1`, [ctx.clinicId, ...vals]));
+    return { ok: true };
+  }
+
   async function addFaq(ctx, b) {
     const r = await write(ctx, (c) => one(c, `insert into clinic_faqs (clinic_id, topic, question_en, question_ar, answer_en, answer_ar, sort)
       values ($1,$2,$3,$4,$5,$6,(select coalesce(max(sort), 0) + 1 from clinic_faqs where clinic_id = $1)) returning id`,
@@ -207,5 +227,5 @@ export function createSettings({ pool, tx, now = () => new Date() }) {
   }
 
   return { read, outside, updateProfile, setClinicHours, addTimeOff, removeTimeOff, createDoctor, updateDoctor, setDoctorHours, setDoctorServices,
-           createService, updateService, updateRules, updateGeneral, addFaq, updateFaq, removeFaq };
+           createService, updateService, updateRules, updateGeneral, updateOnline, addFaq, updateFaq, removeFaq };
 }

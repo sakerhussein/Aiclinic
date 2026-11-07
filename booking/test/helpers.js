@@ -5,16 +5,19 @@ import { setup as accountsSetup, GOOD } from "../../accounts/test/helpers.js";
 import { sha256 } from "../../accounts/server/crypto.js";
 import { createService } from "../server/service.js";
 import { createApp } from "../server/app.js";
+import { createPublicService } from "../server/public-service.js";
+import { createPublicApp } from "../server/public-app.js";
 
 export { GOOD };
 const SECRET = "x".repeat(40);
 
 export async function setup() {
   const a = await accountsSetup();
-  await a.owner.query("alter role booking_app password 'test'; alter role audit_reader password 'test'");
+  await a.owner.query("alter role booking_app password 'test'; alter role audit_reader password 'test'; alter role public_app password 'test'");
   const url = (user) => { const u = new URL("postgresql://postgres:test@localhost:54329/accounts_test"); u.username = user; u.password = "test"; return u.toString(); };
   const pool = new pg.Pool({ connectionString: url("booking_app"), max: 6 });
   const auditPool = new pg.Pool({ connectionString: url("audit_reader"), max: 2 });
+  const publicPool = new pg.Pool({ connectionString: url("public_app"), max: 4 });
   const config = {
     siteUrl: "", origin: "", accountsUrl: a.base, accountsInternalUrl: a.base, clientSecret: SECRET, secureCookies: false,
     sessionCookie: "lc_booking", stateCookie: "lc_state", trustProxy: "false",
@@ -24,6 +27,18 @@ export async function setup() {
   const server = await new Promise((r) => { const s = app.listen(0, "127.0.0.1", () => r(s)); });
   const base = `http://127.0.0.1:${server.address().port}`;
   config.siteUrl = base; config.origin = base;
+  // The online booking page, its own app on its own login, on the same clock.
+  const publicConfig = { siteUrl: "", origin: "", secure: false, trustProxy: "false" };
+  const publicApp = createPublicApp({ svc: createPublicService({ pool: publicPool, now: () => new Date(a.clock.t) }), config: publicConfig, now: () => a.clock.t });
+  const publicServer = await new Promise((r) => { const s = publicApp.listen(0, "127.0.0.1", () => r(s)); });
+  const publicBase = `http://127.0.0.1:${publicServer.address().port}`;
+  publicConfig.siteUrl = publicBase; publicConfig.origin = publicBase; config.publicBookingUrl = publicBase;
+  async function pub(method, path, body, { origin = publicBase, ip } = {}) {
+    const res = await fetch(publicBase + path, { method, headers: { "content-type": "application/json", ...(origin ? { origin } : {}) },
+      body: body === undefined ? undefined : JSON.stringify(body) });
+    let json = null; try { json = await res.json(); } catch { /* none */ }
+    return { status: res.status, json };
+  }
   await a.owner.query("update accounts.apps set redirect_uris = array[$1], secret_hash = $2 where key = 'booking'", [`${base}/auth/callback`, sha256(SECRET)]);
 
   function jar(origin = base) {
@@ -78,6 +93,7 @@ export async function setup() {
       update booking_rules set min_notice_minutes = 0, window_days = 365, change_notice_minutes = 0, max_upcoming = null, outside_hours = 'warn', walkin_back_minutes = 120, require_cancel_reason = true where audience = 'staff';
       update booking_rules set min_notice_minutes = 60, window_days = 30, change_notice_minutes = 120, max_upcoming = 3 where audience = 'patient';
       update clinic_settings set idle_timeout_minutes = 60, lock_after_minutes = 10, require_2fa_all = false, audit_retention_months = null, assistant_enabled = true;
-      delete from doctors where name_en like 'Test %'; delete from services where name_en like 'Test %';`); await a.reset(); }
-  return { ...a, accountsBase: a.base, reset, base, bookingJar: jar, login, people, seedIds, pool, async close() { server.close(); await pool.end(); await auditPool.end(); await a.close(); } };
+      delete from doctors where name_en like 'Test %'; delete from services where name_en like 'Test %';
+      delete from online_booking; insert into online_booking (clinic_id) select id from clinics;`); publicApp.locals.forget(); await a.reset(); }
+  return { ...a, accountsBase: a.base, reset, base, publicBase, pub, forgetPublic: () => publicApp.locals.forget(), bookingJar: jar, login, people, seedIds, pool, async close() { server.close(); publicServer.close(); await publicPool.end(); await pool.end(); await auditPool.end(); await a.close(); } };
 }

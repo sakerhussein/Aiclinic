@@ -60,6 +60,25 @@ rules for patients and for staff, reminders, WhatsApp assistant, security, audit
 - Accounts reads the lock and sign-out times and "two-step for everyone".
 - Stored but not acted on yet: `conversation_visibility` (no conversation screen in Booking yet).
 
+## Online booking link
+
+Patients book at `book.limitsiz.si/<clinic>` with no account (plan: `PLAN_public_link_and_voice.md`, feature 1; migration 0011).
+
+- **Its own process and login.** `server/public-index.js` (PM2 `limitsiz-public`, 127.0.0.1:3005) runs as the `public_app` database login, which
+  cannot read patients at all; a patient is found or added only through `public.online_patient()`. Its page is its own build
+  (`client/book.html`, `src/book/`, output `client/dist-public`), so the public site never serves the staff app's code.
+- **Settings > Online booking** holds the switch (off by default) and every limit and text: staff check, prices, any doctor, cancel and
+  change by the private link, booking for someone else, the reminders tick box, country code, limits per number and per connection,
+  days per page, the intro, arrival note, WhatsApp message and privacy link. Notice, window, change notice and the upcoming limit are the
+  Patient rules, shared with the WhatsApp assistant.
+- **Online, not checked.** Until WhatsApp proves who owns a number, each online booking is marked until a secretary presses Mark as
+  checked (Bookings filter, calendar edge). An existing number never changes the patient record; staff see a warning when the typed name
+  differs. Every refusal tied to a number gets the same answer.
+- **Private link** `/<clinic>/manage#<token>`: only the token's SHA-256 is stored; it works only on its own clinic's page.
+- **Send booking link** on Bookings and the patient page opens WhatsApp with the clinic's message; Limitsiz sends nothing itself.
+- Audit: the page's bookings, changes and cancellations are recorded with the actor type `patient` and the connection address.
+- Settings for the server (`.env`): `PUBLIC_SITE_URL` (also read by Booking for the link), `PUBLIC_PORT`, `PUBLIC_DATABASE_URL`.
+
 ## Not built yet
 
 - The hand-off inbox and chat replies; "tell the patient" template; week view; support access.
@@ -69,7 +88,8 @@ rules for patients and for staff, reminders, WhatsApp assistant, security, audit
 
 ```bash
 npm install && npm --prefix client install && npm --prefix client run build
-node test/dev-server.mjs     # Accounts on 3003 + Booking on 3004 on the throwaway Postgres (agent/evals/pg); open http://localhost:3004
+node test/dev-server.mjs     # Accounts 3003 + Booking 3004 + online booking 3005 on the throwaway Postgres (agent/evals/pg); open http://localhost:3004
+                             # and http://localhost:3005/demo-derma
 npm test                     # tests; they start the real Accounts app too (../accounts must have its packages installed)
 ```
 

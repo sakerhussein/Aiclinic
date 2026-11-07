@@ -9,7 +9,9 @@
   },
   "scripts": {
     "start": "node server/index.js",
+    "start:public": "node server/public-index.js",
     "dev": "node --watch server/index.js",
+    "dev:public": "node --watch server/public-index.js",
     "nightly": "node server/nightly.js",
     "test": "node --test --test-concurrency=1 \"test/*.test.js\""
   },

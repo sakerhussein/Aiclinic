@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import QRCode from "qrcode";
 import { Link, useSearchParams } from "react-router-dom";
 import { del, get, patch, post, put } from "../api";
 import { addDays, fmtDateTime, fmtShortDate, dayOf, localToIso, todayIn } from "../lib";
@@ -19,10 +20,16 @@ type General = { idle_timeout_minutes: number; lock_after_minutes: number; requi
   after_hours_message_en: string | null; after_hours_message_ar: string | null; handoff_alert_emails: string[] };
 type Profile = { name_en: string; name_ar: string; phone: string | null; address_en: string | null; address_ar: string | null; maps_url: string | null; timezone: string; default_language: "ar" | "en"; week_start: number; slot_step_minutes: number };
 type Outside = { id: string; starts_at: string; patient_name: string | null; patient_phone: string | null; doctor_name_en: string; doctor_name_ar: string };
+type Online = { enabled: boolean; staff_check: boolean; show_prices: boolean; allow_any_doctor: boolean; allow_cancel: boolean; allow_reschedule: boolean; allow_for_other: boolean;
+  offer_reminders: boolean; default_country_code: string; max_unchecked_per_phone: number; bookings_per_phone_per_day: number; bookings_per_ip_per_day: number;
+  lookups_per_ip_per_minute: number; manage_per_ip_per_hour: number; days_per_page: number; intro_en: string | null; intro_ar: string | null;
+  done_note_en: string | null; done_note_ar: string | null; share_message_en: string; share_message_ar: string; privacy_url: string };
+type OnlineLink = { enabled: boolean; url?: string; qrUrl?: string };
 type Data = { profile: Profile; hours: Period[]; closures: TimeOff[]; doctors: Doctor[]; services: Service[]; faqs: Faq[]; rules: Rule[]; general: General; outside: Outside[];
+  online: Online; onlineLink: OnlineLink;
   options: { slotMinutes: number[]; bufferMinutes: number[]; idleMinutes: number[]; lockMinutes: number[]; reminderMinutes: number[] } };
 
-const TABS = ["profile", "hours", "doctors", "services", "rules", "reminders", "assistant", "security", "audit"] as const;
+const TABS = ["profile", "hours", "doctors", "services", "rules", "online", "reminders", "assistant", "security", "audit"] as const;
 type Tab = (typeof TABS)[number];
 
 export function Settings() {
@@ -42,7 +49,7 @@ export function Settings() {
       {!canEdit && <Banner kind="warn">{s.readOnly}</Banner>}
       <div className="setwrap">
         <nav className="settabs" aria-label={s.title}>
-          {TABS.map((k) => <button key={k} type="button" className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{s.tabs[k]}</button>)}
+          {TABS.map((k) => <button key={k} type="button" className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{s.tabs[k]}{k === "online" && <span className="newtag">{s.newTag}</span>}</button>)}
         </nav>
         <div className="setbody">
           <OutsideList rows={data.outside} />
@@ -51,6 +58,7 @@ export function Settings() {
           {tab === "doctors" && <DoctorsTab {...P} />}
           {tab === "services" && <ServicesTab {...P} />}
           {tab === "rules" && <RulesTab {...P} />}
+          {tab === "online" && <OnlineTab {...P} />}
           {tab === "reminders" && <RemindersTab {...P} />}
           {tab === "assistant" && <AssistantTab {...P} />}
           {tab === "security" && <SecurityTab {...P} />}
@@ -462,6 +470,95 @@ function SecurityTab(p: P) {
       <p className="hint">{s.twoStepHint}</p>
       <Saver a={a} ok={ok} />
     </SForm>
+  );
+}
+
+// Settings > Online booking: the public page's switch, what patients may do, its limits and its texts. All in one row (online_booking).
+function OnlineTab({ data, reload }: P) {
+  const s = useS();
+  const o = data.online, link = data.onlineLink;
+  const [f, setF] = useState({ enabled: o.enabled, staffCheck: o.staff_check, showPrices: o.show_prices, allowAnyDoctor: o.allow_any_doctor, allowCancel: o.allow_cancel,
+    allowReschedule: o.allow_reschedule, allowForOther: o.allow_for_other, offerReminders: o.offer_reminders, defaultCountryCode: o.default_country_code,
+    maxUncheckedPerPhone: o.max_unchecked_per_phone, bookingsPerPhonePerDay: o.bookings_per_phone_per_day, bookingsPerIpPerDay: o.bookings_per_ip_per_day,
+    lookupsPerIpPerMinute: o.lookups_per_ip_per_minute, managePerIpPerHour: o.manage_per_ip_per_hour, daysPerPage: o.days_per_page,
+    introEn: o.intro_en || "", introAr: o.intro_ar || "", doneNoteEn: o.done_note_en || "", doneNoteAr: o.done_note_ar || "",
+    shareMessageEn: o.share_message_en, shareMessageAr: o.share_message_ar, privacyUrl: o.privacy_url });
+  type K = keyof typeof f;
+  const { a, ok, submit } = useSave(reload);
+  const sw = (k: K, label: string, hint?: string) => (
+    <Check checked={!!f[k]} onChange={(v) => setF({ ...f, [k]: v })}>{label}{hint && <><br /><small className="hint">{hint}</small></>}</Check>);
+  const num = (k: K, label: string, hint: string, min: number, max: number) => (
+    <Field label={label} hint={hint}><input type="number" min={min} max={max} value={Number(f[k])} onChange={(e) => setF({ ...f, [k]: Number(e.target.value) })} required /></Field>);
+  const txt = (k: K, label: string, dir: "rtl" | "ltr", required = false, hint?: string) => (
+    <Field label={label} hint={hint}><textarea dir={dir} rows={2} maxLength={500} value={String(f[k])} onChange={(e) => setF({ ...f, [k]: e.target.value })} required={required} /></Field>);
+  return (
+    <SForm className="stack" onSubmit={submit(() => patch("/api/settings/online", f))}>
+      <section className="panel stack">
+        <div className="row between"><h2>{s.tabs.online}</h2><span className={`pill ${o.enabled ? "ok" : ""}`}>{o.enabled ? s.onlineOn : s.onlineOff}</span></div>
+        <LinkBox link={link} />
+        {sw("enabled", s.onlineEnabled, s.onlineEnabledHint)}
+      </section>
+      <section className="panel stack">
+        <h2>{s.whatPatients}</h2>
+        {sw("staffCheck", s.staffCheck, s.staffCheckHint)}
+        {sw("showPrices", s.showPrices, s.showPricesHint)}
+        {sw("allowAnyDoctor", s.allowAny)}
+        {sw("allowCancel", s.allowCancel, s.allowCancelHint)}
+        {sw("allowReschedule", s.allowReschedule, s.allowRescheduleHint)}
+        {sw("allowForOther", s.allowForOther, s.allowForOtherHint)}
+        {sw("offerReminders", s.offerReminders)}
+        <Field label={s.countryCode} hint={s.countryCodeHint}><input className="mono" dir="ltr" inputMode="numeric" pattern="[1-9][0-9]{0,3}" style={{ maxWidth: 140 }} required
+          value={f.defaultCountryCode} onChange={(e) => setF({ ...f, defaultCountryCode: e.target.value.replace(/\D/g, "") })} /></Field>
+        <p className="hint">{s.sharedRules}</p>
+      </section>
+      <section className="panel stack">
+        <h2>{s.limits}</h2>
+        <div className="grid2">
+          {num("maxUncheckedPerPhone", s.maxUnchecked, s.maxUncheckedHint, 1, 20)}
+          {num("bookingsPerPhonePerDay", s.perPhoneDay, s.perPhoneDayHint, 1, 50)}
+          {num("bookingsPerIpPerDay", s.perIpDay, s.perIpDayHint, 1, 200)}
+          {num("lookupsPerIpPerMinute", s.lookupsPerMin, s.lookupsPerMinHint, 5, 1000)}
+          {num("managePerIpPerHour", s.managePerHour, s.managePerHourHint, 5, 1000)}
+          {num("daysPerPage", s.daysPerPage, s.daysPerPageHint, 1, 31)}
+        </div>
+      </section>
+      <section className="panel stack">
+        <h2>{s.texts}</h2>
+        <p className="hint">{s.textsHint}</p>
+        <div className="grid2">
+          {txt("introAr", s.introAr, "rtl")}{txt("introEn", s.introEn, "ltr")}
+          {txt("doneNoteAr", s.doneAr, "rtl")}{txt("doneNoteEn", s.doneEn, "ltr")}
+          {txt("shareMessageAr", s.shareAr, "rtl", true, s.shareHint)}{txt("shareMessageEn", s.shareEn, "ltr", true)}
+        </div>
+        <Field label={s.privacyUrl} hint={s.privacyUrlHint}><input type="url" dir="ltr" className="mono" pattern="https://.*" maxLength={300} required value={f.privacyUrl} onChange={(e) => setF({ ...f, privacyUrl: e.target.value })} /></Field>
+      </section>
+      <Saver a={a} ok={ok} />
+    </SForm>
+  );
+}
+
+// The link, with Copy, a QR code drawn in the browser (nothing is sent elsewhere) and a PNG download for printing.
+function LinkBox({ link }: { link: OnlineLink }) {
+  const s = useS();
+  const canvas = useRef<HTMLCanvasElement>(null);
+  const [copied, setCopied] = useState(false);
+  useEffect(() => { if (link.qrUrl && canvas.current) void QRCode.toCanvas(canvas.current, link.qrUrl, { width: 264, margin: 1, errorCorrectionLevel: "M" }); }, [link.qrUrl]);
+  if (!link.url) return <Banner kind="warn">{s.linkNotSet}</Banner>;
+  const shown = link.url.replace(/^https?:\/\//, "");
+  const png = () => { const el = document.createElement("a"); el.href = canvas.current!.toDataURL("image/png"); el.download = `booking-qr-${shown.split("/").pop()}.png`; el.click(); };
+  return (
+    <div className="qrbox">
+      <div className="stack grow" style={{ minWidth: 0 }}>
+        <b>{s.linkTitle}</b><span className="hint">{s.linkHint}</span>
+        <div className="linkbox">{shown}</div>
+        <div className="row">
+          <button type="button" className="btn btn-outline btn-sm" onClick={() => void navigator.clipboard?.writeText(link.url!).then(() => setCopied(true))}>{copied ? s.copied : s.copyLink}</button>
+          <button type="button" className="btn btn-outline btn-sm" onClick={png}>{s.downloadQr}</button>
+          <a className="btn btn-outline btn-sm" href={link.url} target="_blank" rel="noopener">{s.openPage}</a>
+        </div>
+      </div>
+      <canvas ref={canvas} aria-label="QR" />
+    </div>
   );
 }
 

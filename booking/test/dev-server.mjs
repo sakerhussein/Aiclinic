@@ -6,6 +6,8 @@ import { createApp as accountsApp } from "../../accounts/server/app.js";
 import { createService } from "../server/service.js";
 import { createApp as bookingApp } from "../server/app.js";
 import { sha256 } from "../../accounts/server/crypto.js";
+import { createPublicService } from "../server/public-service.js";
+import { createPublicApp } from "../server/public-app.js";
 
 const t = await setup();
 await t.reset();
@@ -32,7 +34,13 @@ accountsApp({ core, config: accConfig }).listen(3003, "127.0.0.1");
 const pool = new pg.Pool({ connectionString: "postgresql://booking_app:test@localhost:54329/accounts_test", max: 5 });
 const auditPool = new pg.Pool({ connectionString: "postgresql://audit_reader:test@localhost:54329/accounts_test", max: 2 });
 const bkConfig = { ...common, siteUrl: "http://localhost:3004", origin: "http://localhost:3004", accountsUrl: "http://localhost:3003", accountsInternalUrl: "http://127.0.0.1:3003",
-  clientSecret: SECRET, sessionCookie: "lc_booking", stateCookie: "lc_state" };
+  clientSecret: SECRET, sessionCookie: "lc_booking", stateCookie: "lc_state", publicBookingUrl: "http://localhost:3005" };
+// The online booking page on 3005, on its own login, with the demo clinic's link switched on.
+await t.owner.query("update online_booking set enabled = true, done_note_en = 'Please arrive 10 minutes early.', done_note_ar = 'يرجى الحضور قبل الموعد بـ10 دقائق.' where clinic_id = $1", [t.clinicA]);
+await t.owner.query("update clinics set phone = '06 592 0000', address_en = 'Abdoun, Amman', address_ar = 'عبدون، عمّان' where id = $1", [t.clinicA]);
+const publicPool = new pg.Pool({ connectionString: "postgresql://public_app:test@localhost:54329/accounts_test", max: 4 });
+const pubConfig = { siteUrl: "http://localhost:3005", origin: "http://localhost:3005", secure: false, trustProxy: "false" };
+createPublicApp({ svc: createPublicService({ pool: publicPool }), config: pubConfig }).listen(3005, "127.0.0.1", () => console.log("READY  Online booking http://localhost:3005/demo-derma"));
 bookingApp({ svc: createService({ pool, auditPool }), config: bkConfig }).listen(3004, "127.0.0.1", () =>
   console.log(`READY  Booking http://localhost:3004   sign in: sec@demo.jo / ${GOOD}   (administrator admin@demo.jo needs two-step)`));
 console.log(`Administrator admin@demo.jo has two-step on. Current code:  node -e "import('../accounts/server/crypto.js').then(m=>console.log(m.totp('${P.admin.secret}')))"  (run it in the repo's accounts/ folder... see README)`);

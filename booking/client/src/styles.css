@@ -110,6 +110,8 @@ td select{font:inherit;min-height:36px;border:1px solid var(--field);border-radi
 .chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
 .lbl{font-size:14px}
 .filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;align-items:end}
+.filter-checks{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;column-gap:28px;row-gap:8px}
+.filter-checks .check{align-items:center}.filter-checks .check input{margin-top:0}
 .facts{display:grid;grid-template-columns:max-content 1fr;gap:8px 20px;margin:0}
 .facts dt{color:var(--muted);font-size:13px}.facts dd{margin:0}
 .hist{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;gap:6px}
@@ -133,6 +135,7 @@ td select{font:inherit;min-height:36px;border:1px solid var(--field);border-radi
 .cal-card.st-no_show{background:var(--amber-tint);border-color:var(--amber)}
 .cal-card.st-voided{display:none}
 .cal-card.src-whatsapp{border-inline-start:5px solid #25D366}
+.cal-card.unchecked{border-inline-start:5px solid var(--amber);background:var(--amber-tint)}
 
 /* short cards (15-30 min) show everything on one line; tall cards stack it */
 .cal-card.short{flex-direction:row;align-items:center;gap:8px;padding-block:0;white-space:nowrap}
@@ -186,3 +189,14 @@ td select{font:inherit;min-height:36px;border:1px solid var(--field);border-radi
 .detailrow td{background:var(--paper)}
 .detailrow pre{background:#fff;border:1px solid var(--rule-soft);border-radius:10px;padding:10px;font:12px var(--font-mono);overflow:auto;max-height:280px;margin:6px 0 0;text-align:left}
 .wrapany{overflow-wrap:anywhere}
+
+/* Online booking link */
+.btn-wa{background:#25D366;color:#0A0F14}
+.btn-wa:hover{filter:brightness(.95)}
+.warntext{color:#8a5200}
+.qrbox{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.qrbox canvas{border:1px solid var(--rule);border-radius:12px;background:#fff;padding:8px;width:132px;height:132px}
+.linkbox{font-family:var(--font-mono);direction:ltr;background:#fff;border:1px solid var(--rule);border-radius:10px;padding:8px 12px;font-size:14px;word-break:break-all}
+.newtag{font-size:10.5px;background:var(--accent);color:var(--ink);border-radius:999px;padding:1px 7px;margin-inline-start:6px}
+.field textarea{font:inherit;font-weight:400;padding:10px 14px;border:1px solid var(--field);border-radius:12px;background:#fff;color:var(--text);width:100%;resize:vertical;min-height:72px}
+html[lang="ar"] textarea{font-family:var(--font-ar)}

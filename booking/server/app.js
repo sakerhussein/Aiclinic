@@ -115,9 +115,10 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
   const apptFilter = z.object({
     from: day.optional(), to: day.optional(), doctor: uuid.optional(), patient: uuid.optional(), q: z.string().max(80).optional(),
     status: z.enum(["booked", "confirmed", "cancelled", "completed", "no_show", "voided"]).optional(),
-    source: z.enum(["whatsapp", "phone", "walkin", "staff", "web"]).optional(), voided: z.enum(["1"]).optional(),
+    source: z.enum(["whatsapp", "phone", "walkin", "staff", "web"]).optional(), voided: z.enum(["1"]).optional(), unchecked: z.enum(["1"]).optional(),
   });
-  const apptQuery = (q) => ({ from: q.from, to: q.to, doctorId: q.doctor, patientId: q.patient, q: q.q, status: q.status, source: q.source, includeVoided: !!q.voided });
+  const apptQuery = (q) => ({ from: q.from, to: q.to, doctorId: q.doctor, patientId: q.patient, q: q.q, status: q.status, source: q.source,
+                              includeVoided: !!q.voided, unchecked: !!q.unchecked });
   app.get("/api/appointments", auth("booking.appointments.view"), wrap(async (req, res) => {
     res.json(await svc.listAppointments(req.ctx, apptQuery(parse(apptFilter, req.query))));
   }));
@@ -149,6 +150,11 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
     if (!can(req, NEEDS[b.status])) throw denied("forbidden");
     res.json(await svc.setStatus(req.ctx, parse(uuid, req.params.id), b, req.session.permissions));
   }));
+  app.post("/api/appointments/:id/check", auth("booking.appointments.edit"), wrap(async (req, res) => {
+    const b = parse(z.object({ expectedVersion: z.number().int() }), req.body);
+    res.json(await svc.markChecked(req.ctx, parse(uuid, req.params.id), b));
+  }));
+  app.get("/api/online-link", auth("booking.appointments.view"), wrap(async (req, res) => res.json(await svc.onlineLink(req.ctx, config.publicBookingUrl))));
   app.post("/api/appointments/:id/restore", auth("booking.appointments.restore"), wrap(async (req, res) => {
     const b = parse(z.object({ expectedVersion: z.number().int() }), req.body);
     res.json(await svc.restore(req.ctx, parse(uuid, req.params.id), b));
@@ -189,7 +195,17 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
   const pick = (...v) => z.number().int().refine((x) => v.includes(x));
   const S = svc.settings;
 
-  app.get("/api/settings", VIEW, wrap(async (req, res) => res.json(await S.read(req.ctx))));
+  app.get("/api/settings", VIEW, wrap(async (req, res) => res.json({ ...(await S.read(req.ctx)), onlineLink: await svc.onlineLink(req.ctx, config.publicBookingUrl) })));
+  const n = (lo, hi) => z.number().int().min(lo).max(hi), text500 = z.string().trim().max(500).nullish();
+  app.patch("/api/settings/online", EDIT, wrap(async (req, res) => res.json(await S.updateOnline(req.ctx, parse(z.object({
+    enabled: z.boolean(), staffCheck: z.boolean(), showPrices: z.boolean(), allowAnyDoctor: z.boolean(), allowCancel: z.boolean(),
+    allowReschedule: z.boolean(), allowForOther: z.boolean(), offerReminders: z.boolean(), defaultCountryCode: z.string().regex(/^[1-9][0-9]{0,3}$/),
+    maxUncheckedPerPhone: n(1, 20), bookingsPerPhonePerDay: n(1, 50), bookingsPerIpPerDay: n(1, 200), lookupsPerIpPerMinute: n(5, 1000),
+    managePerIpPerHour: n(5, 1000), daysPerPage: n(1, 31),
+    introEn: text500, introAr: text500, doneNoteEn: text500, doneNoteAr: text500,
+    shareMessageEn: z.string().trim().min(1).max(500).refine((m) => m.includes("{link}")), shareMessageAr: z.string().trim().min(1).max(500).refine((m) => m.includes("{link}")),
+    privacyUrl: z.string().trim().url().max(300).refine((u) => u.startsWith("https://")),
+  }), req.body)))));
   app.patch("/api/settings/profile", EDIT, wrap(async (req, res) => res.json(await S.updateProfile(req.ctx, parse(z.object({
     nameEn: name, nameAr: name, phone: z.string().trim().max(30).nullish(), addressEn: optText, addressAr: optText, mapsUrl: z.string().trim().url().max(500).nullish().or(z.literal("")),
     timezone: z.string().max(60), defaultLanguage: z.enum(["ar", "en"]), weekStart: z.number().int().min(0).max(6), slotStepMinutes: pick(5, 10, 15, 20, 30, 60),

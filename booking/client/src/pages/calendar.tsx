@@ -83,7 +83,7 @@ export function Calendar() {
                 {appts.filter((a) => a.doctor_id === doc.id && a.status !== "cancelled").map((a) => {
                   const s = minutesOfDay(a.starts_at, tz), h = Math.max(a.duration_minutes, 15);
                   return (
-                    <Link key={a.id} to={`/bookings/${a.id}`} className={`cal-card st-${a.status} src-${a.source} ${h * PX >= 58 ? "tall" : "short"}`} style={{ top: (s - from) * PX, height: h * PX - 2 }}>
+                    <Link key={a.id} to={`/bookings/${a.id}`} className={`cal-card st-${a.status} src-${a.source}${a.unchecked ? " unchecked" : ""} ${h * PX >= 58 ? "tall" : "short"}`} style={{ top: (s - from) * PX, height: h * PX - 2 }}>
                       <b>{hm(a.starts_at, tz)} {a.patient_name || a.patient_phone || "?"}</b>
                       <span>{lang === "ar" ? a.service_name_ar : a.service_name_en}</span>
                       <em>{d.sources[a.source] ?? a.source}</em>

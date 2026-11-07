@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Online booking link designs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;500;600&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap">
+<style>
+:root{
+  --ink:#0A0F14;--ink-2:#121A21;--ink-3:#1E2A33;--ink-line:#2A3640;--on-ink:#E8EEF0;--on-ink-muted:#93A3AD;
+  --paper:#F2F4F3;--white:#fff;--text:#0A0F14;--muted:#4B5863;--rule:#C9D6D2;--rule-soft:#E1E6E4;--field:#8A99A3;
+  --accent:#2EE6B5;--accent-ink:#0B7A64;--accent-tint:#DDF7EE;--amber:#FFB23E;--amber-tint:#FFF0D6;--error:#B42318;--error-tint:#FDE7E4;
+  --wa:#25D366;
+  --font-display:"Unbounded","Geist",system-ui,sans-serif;--font-body:"Geist",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"Geist Mono",ui-monospace,Menlo,monospace;--font-ar:"IBM Plex Sans Arabic","Segoe UI",Tahoma,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{overflow-x:clip}
+body{margin:0;background:var(--paper);color:var(--text);font:15px/1.5 var(--font-body)}
+[lang="ar"],[lang="ar"] button,[lang="ar"] input{font-family:var(--font-ar)}
+.display{font-family:var(--font-display);font-weight:500;letter-spacing:-.01em}
+[lang="ar"] .display{font-family:var(--font-ar);font-weight:600;letter-spacing:0}
+.mono{font-family:var(--font-mono);direction:ltr;unicode-bidi:isolate}
+h1,h2,h3,p{margin:0}
+.wrap{max-width:1240px;margin-inline:auto;padding-inline:16px}
+.spacer{flex:1}
+
+/* mockup chrome */
+.topnote{position:sticky;top:0;z-index:40;background:var(--ink);color:var(--on-ink);border-bottom:1px solid var(--ink-3)}
+.topnote .wrap{display:flex;gap:12px;align-items:center;justify-content:space-between;min-height:54px;flex-wrap:wrap;padding-block:6px}
+.topnote span{color:var(--on-ink-muted);font-size:13px}
+.lang-toggle{min-height:38px;padding:0 16px;border-radius:999px;border:1px solid var(--ink-line);background:transparent;color:var(--on-ink);font:inherit;cursor:pointer}
+.idx{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding-block:12px;border-bottom:1px solid var(--rule)}
+.idx b{font-size:12px;color:var(--muted);font-family:var(--font-mono);letter-spacing:.06em;text-transform:uppercase;margin-inline-end:4px}
+.idx a{min-width:30px;height:30px;padding:0 8px;border-radius:999px;border:1px solid var(--rule);background:#fff;color:var(--text);text-decoration:none;display:inline-grid;place-items:center;font:500 13px var(--font-mono)}
+.idx a:hover{background:var(--ink);color:#fff}
+.group{margin-block:56px 0;padding-top:24px;border-top:2px solid var(--ink);font-family:var(--font-display);font-size:26px;font-weight:500}
+.group small{display:block;font:400 14px var(--font-body);color:var(--muted);margin-top:4px}
+.frame-title{margin-block:44px 6px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-ink);font-family:var(--font-mono);font-weight:500}
+.frame-h{font-size:21px;margin-bottom:6px}
+.frame-p{color:var(--muted);max-width:780px;margin-bottom:14px}
+.legend{margin-top:10px;display:flex;flex-wrap:wrap;gap:6px 20px;color:var(--muted);font-size:14px}
+.legend b{color:var(--text)}
+
+/* shared parts */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:52px;padding:0 26px;border-radius:999px;border:1px solid transparent;font:inherit;font-weight:600;cursor:pointer;text-decoration:none;white-space:nowrap}
+.btn-sm{min-height:44px;padding:0 20px;font-size:15px}.btn-xs{min-height:36px;padding:0 14px;font-size:14px}
+.btn-accent{background:var(--accent);color:var(--ink)}.btn-ink{background:var(--ink);color:#fff}
+.btn-outline{border-color:var(--text);color:var(--text);background:transparent}
+.btn-ghost{border-color:var(--rule);color:var(--text);background:#fff}
+.btn-danger-o{border-color:var(--error);color:var(--error);background:#fff}
+.btn-wa{background:var(--wa);color:#06361b}
+.btn-block{width:100%}
+.field{display:flex;flex-direction:column;gap:6px;font-size:14px;font-weight:600}
+.fakein{font:inherit;font-weight:400;min-height:48px;padding:0 14px;border:1px solid var(--field);border-radius:12px;background:#fff;color:var(--text);width:100%;display:flex;align-items:center;gap:8px}
+.fakein.ta{min-height:76px;align-items:flex-start;padding-block:10px;font-size:14px}
+.fakein .ph{color:var(--field)}
+.hint{font-weight:400;color:var(--muted);font-size:13px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;background:var(--rule-soft);color:var(--text);white-space:nowrap}
+.pill.ok{background:var(--accent-tint);color:var(--accent-ink)}.pill.warn{background:var(--amber-tint);color:#8a5200}.pill.bad{background:var(--error-tint);color:var(--error)}
+.dot{width:8px;height:8px;border-radius:50%;background:currentColor;flex:none}
+.banner{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:14px;font-size:14px;border:1px solid}
+.banner.warn{background:var(--amber-tint);border-color:var(--amber);color:#5c3700}
+.banner.info{background:var(--accent-tint);border-color:var(--accent-ink);color:var(--accent-ink)}
+.banner.bad{background:var(--error-tint);border-color:var(--error);color:#7a1a12}
+.tg{display:inline-block;width:42px;height:24px;border-radius:999px;background:var(--rule);position:relative;flex:none}
+.tg::after{content:"";position:absolute;top:3px;inset-inline-start:3px;width:18px;height:18px;border-radius:50%;background:#fff}
+.tg.on{background:var(--accent-ink)}.tg.on::after{inset-inline-start:21px}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:14px;font-weight:400}
+.box{width:20px;height:20px;border-radius:6px;border:1.5px solid var(--field);background:#fff;flex:none;display:grid;place-items:center;margin-top:1px}
+.box.on{background:var(--accent-ink);border-color:var(--accent-ink)}
+.box.on::after{content:"";width:9px;height:5px;border-inline-start:2px solid #fff;border-bottom:2px solid #fff;transform:translateY(-1px) rotate(-45deg)}
+[dir="rtl"] .box.on::after{transform:translateY(-1px) rotate(45deg)}
+.card{background:#fff;border:1px solid var(--rule);border-radius:20px;padding:22px}
+.stack{display:flex;flex-direction:column;gap:12px}
+.row-between{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.flip{display:inline-block}[dir="rtl"] .flip{transform:scaleX(-1)}
+
+/* phones */
+.phones{display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start}
+.phone-col{display:flex;flex-direction:column;gap:8px;align-items:center}
+.phone-col .cap{font:500 12px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.phone{width:340px;max-width:calc(100vw - 32px);background:#fff;border:10px solid var(--ink);border-radius:40px;overflow:hidden;box-shadow:0 18px 40px -24px rgba(10,15,20,.45)}
+.urlbar{background:var(--paper);padding:10px 14px 8px;border-bottom:1px solid var(--rule-soft);display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+.urlbar .u{flex:1;background:#fff;border:1px solid var(--rule-soft);border-radius:999px;padding:4px 12px;text-align:center;font:12px var(--font-mono);direction:ltr}
+.pbody{padding:18px 18px 22px;display:flex;flex-direction:column;gap:14px;min-height:560px}
+.phead{display:flex;align-items:center;gap:10px}
+.clogo{width:42px;height:42px;border-radius:12px;background:var(--ink);display:grid;place-items:center;flex:none}
+.phead b{display:block;font-size:15px;line-height:1.25}.phead span{font-size:12.5px;color:var(--muted)}
+.plang{margin-inline-start:auto;font-size:12.5px;border:1px solid var(--rule);border-radius:999px;padding:3px 10px;white-space:nowrap}
+.steps{display:flex;gap:6px}.steps i{flex:1;height:4px;border-radius:2px;background:var(--rule-soft)}.steps i.on{background:var(--accent-ink)}
+.ptitle{font-size:19px;line-height:1.3}
+.choice{display:flex;gap:12px;align-items:center;padding:14px;border:1px solid var(--rule);border-radius:16px;background:#fff}
+.choice .ic{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;flex:none;background:var(--accent-tint);color:var(--accent-ink)}
+.choice b{display:block;font-size:15px}.choice span{font-size:13px;color:var(--muted)}
+.choice.on{border:2px solid var(--accent-ink);background:#F6FDFA}
+.choice.off{opacity:.55;background:var(--paper)}
+.choice .end{margin-inline-start:auto;color:var(--muted)}
+.days{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.days span{display:flex;flex-direction:column;align-items:center;padding:6px 0;border-radius:12px;border:1px solid var(--rule-soft);font-size:11px;color:var(--muted)}
+.days span b{font-size:15px;color:var(--text)}
+.days span.on{background:var(--ink);border-color:var(--ink);color:#c9d2d7}.days span.on b{color:#fff}
+.days span.x{opacity:.4}
+.times{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.times span{text-align:center;padding:9px 0;border-radius:12px;border:1px solid var(--rule);font:500 14px var(--font-mono)}
+.times span.on{background:var(--accent);border-color:var(--accent)}
+.navrow{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--muted)}
+.sumrow{display:flex;justify-content:space-between;gap:10px;padding-block:8px;border-bottom:1px solid var(--rule-soft);font-size:14px}
+.sumrow:last-child{border-bottom:0}.sumrow span{color:var(--muted)}.sumrow b{text-align:end}
+.big-ok{width:56px;height:56px;border-radius:50%;background:var(--accent-tint);display:grid;place-items:center;color:var(--accent-ink)}
+.linkbox{display:flex;gap:8px;align-items:center;padding:10px 12px;border-radius:12px;background:var(--paper);font:12.5px var(--font-mono);direction:ltr;overflow:hidden;white-space:nowrap}
+.pfoot{margin-top:auto;font-size:11.5px;color:var(--muted);text-align:center;display:flex;gap:4px;justify-content:center;align-items:center}
+
+/* staff app */
+.scroll{overflow-x:auto;border-radius:20px;border:1px solid var(--rule)}
+.scroll>.shot{min-width:1020px}
+.shot{background:var(--paper);overflow:hidden;position:relative}
+.appbar{background:var(--ink);color:var(--on-ink);display:flex;align-items:center;gap:12px;padding:6px 20px;min-height:60px;flex-wrap:wrap}
+.gear{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:999px;color:var(--on-ink)}
+.gear.on{background:var(--ink-3)}
+.lang{color:var(--on-ink);padding:8px 12px;border-radius:999px;font-size:14px}
+.um{display:inline-flex;align-items:center;gap:8px;color:var(--on-ink);background:var(--ink-3);border-radius:999px;padding:8px 14px;font-size:14px;white-space:nowrap}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--font-display);font-size:17px;white-space:nowrap}
+[lang="ar"] .brand{font-family:var(--font-ar)}
+.where{color:var(--on-ink-muted);font-size:13px;white-space:nowrap}
+.tabs{display:flex;gap:4px;flex-wrap:wrap}
+.tabs a{color:var(--on-ink);text-decoration:none;white-space:nowrap;padding:8px 12px;border-radius:999px;font-size:14px}
+.tabs a.on{background:var(--ink-3)}
+.user{display:flex;align-items:center;gap:10px;font-size:14px;white-space:nowrap}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--accent);color:var(--ink);display:grid;place-items:center;font-weight:700;font-size:13px;flex:none}
+.settings{display:grid;grid-template-columns:230px 1fr;gap:20px;padding:20px;align-items:start}
+.snav{background:#fff;border:1px solid var(--rule);border-radius:16px;padding:8px;display:flex;flex-direction:column;gap:2px;position:sticky;top:12px}
+.snav h3{font:500 12px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:6px 12px}
+.snav a{padding:10px 12px;border-radius:10px;text-decoration:none;color:var(--text);font-size:14px}
+.snav a.on{background:var(--ink);color:#fff}
+.snav a .new{font-size:10.5px;background:var(--accent);color:var(--ink);border-radius:999px;padding:1px 7px;margin-inline-start:6px}
+.spage{padding:22px;display:flex;flex-direction:column;gap:16px;min-width:0}
+.spage h2.display{font-size:21px}
+.sec h3{font:500 12px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent-ink);margin-bottom:4px}
+.setrow{display:grid;grid-template-columns:minmax(200px,1fr) 2fr;gap:8px 20px;align-items:center;padding-block:12px;border-bottom:1px solid var(--rule-soft)}
+.setrow:last-child{border-bottom:0}
+.lbl{font-weight:600;font-size:14px}.lbl small{display:block;font-weight:400;color:var(--muted);font-size:12.5px}
+.num{display:inline-flex;align-items:center;border:1px solid var(--field);border-radius:12px;background:#fff;overflow:hidden}
+.num i{font-style:normal;width:36px;text-align:center;color:var(--muted);font-size:18px}
+.num b{min-width:52px;text-align:center;font:500 15px var(--font-mono);border-inline:1px solid var(--rule-soft);padding:9px 0}
+.limits{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.limit{border:1px solid var(--rule);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px;background:#fff}
+.limit .lbl{font-size:13.5px}
+.texts{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.qr{width:92px;height:92px;border-radius:10px;background:#fff;border:1px solid var(--rule);padding:6px;flex:none}
+.savebar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.tablewrap{border:1px solid var(--rule);border-radius:18px;overflow:hidden;background:#fff}
+table{width:100%;border-collapse:collapse;background:#fff;font-size:14px}
+th,td{padding:10px 12px;border-bottom:1px solid var(--rule-soft);text-align:start;vertical-align:middle}
+th{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);background:var(--paper);font-weight:600}
+tr.hl td{background:#FFFBF2}
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.chipbtn{padding:6px 14px;border-radius:999px;border:1px solid var(--rule);background:#fff;font-size:14px;display:inline-flex;gap:6px;align-items:center}
+.chipbtn.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.chipbtn .n{background:var(--amber);color:var(--ink);border-radius:999px;font-size:11.5px;padding:0 7px;font-weight:700}
+.drawer{display:grid;grid-template-columns:1.25fr 1fr;gap:18px;padding:22px}
+.wa-sheet{background:#0b141a;color:#e9edef;border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.wa-head{display:flex;gap:10px;align-items:center;font-size:14px}
+.wa-head .avatar{background:#2a3942;color:#e9edef}
+.wa-bubble{align-self:flex-end;background:#005c4b;border-radius:12px;padding:8px 10px;max-width:90%;font-size:14px;line-height:1.45}
+.wa-bubble a{color:#53bdeb}
+.wa-input{display:flex;gap:8px;align-items:center;background:#202c33;border-radius:999px;padding:8px 14px;font-size:13px;color:#8696a0}
+.wa-send{margin-inline-start:auto;width:34px;height:34px;border-radius:50%;background:#00a884;display:grid;place-items:center}
+
+@media (max-width:900px){.settings,.drawer,.texts{grid-template-columns:1fr}.limits{grid-template-columns:1fr 1fr}.snav{flex-direction:row;overflow-x:auto;position:static}.snav a{white-space:nowrap}}
+@media (max-width:560px){.setrow{grid-template-columns:1fr}.limits{grid-template-columns:1fr}.phones{justify-content:center}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="loop" viewBox="0 0 40 20"><path d="M20 10 C16.6 5.5 13.2 2 8.8 2 A8 8 0 0 0 8.8 18 C13.2 18 16.6 14.5 20 10 C23.4 5.5 26.8 2 31.2 2 A8 8 0 0 1 38.4 12.9" fill="none" stroke="#2EE6B5" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="33.6" cy="17.2" r="1.8" fill="#2EE6B5"/></symbol>
+  <symbol id="cal" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="chat" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+  <symbol id="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="tick" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="phone" viewBox="0 0 24 24"><path d="M6.6 3h3l1.6 4.2-2 1.4a12 12 0 0 0 6.2 6.2l1.4-2L21 14.4v3A2.6 2.6 0 0 1 18.4 20 15.4 15.4 0 0 1 4 5.6 2.6 2.6 0 0 1 6.6 3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+  <symbol id="wa" viewBox="0 0 24 24"><path d="M12 3a9 9 0 0 0-7.8 13.5L3 21l4.6-1.2A9 9 0 1 0 12 3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 8.5c0 3.5 3 6.5 6.5 6.5l1-1.5-2-1-1 .8a5 5 0 0 1-2.3-2.3l.8-1-1-2z" fill="currentColor"/></symbol>
+  <symbol id="send" viewBox="0 0 24 24"><path d="M4 12l16-8-6 16-2.5-6.5z" fill="#fff"/></symbol>
+  <symbol id="warn" viewBox="0 0 24 24"><path d="M12 3l10 18H2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v5M12 18v.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+</svg>
+
+<div class="topnote"><div class="wrap">
+  <div><b style="font-family:var(--font-display);font-weight:500">Limitsiz Clinic</b> <span data-ar="تصميم رابط الحجز الإلكتروني · للموافقة">Online booking link designs · for approval</span></div>
+  <button class="lang-toggle" id="lang">العربية</button>
+</div></div>
+
+<main class="wrap">
+  <div class="idx"><b data-ar="الشاشات">Screens</b>
+    <a href="#s1">1</a><a href="#s2">2</a><a href="#s3">3</a><a href="#s4">4</a><a href="#s5">5</a><a href="#s6">6</a><a href="#s7">7</a>
+    <span style="width:14px"></span><a href="#s8">8</a><a href="#s9">9</a><a href="#s10">10</a>
+  </div>
+  <p class="frame-p" style="margin-top:14px" data-ar="الشاشات المرسومة هنا هي الخطوة الأولى من الخطة: رابط الحجز مع «اختر بنفسك». شاشات المريض معروضة بالعربية والإنجليزية جنباً إلى جنب. شاشات الموظفين تتبع زر اللغة في الأعلى. كل الأرقام والنصوص من إعدادات العيادة، وليست ثابتة في البرنامج.">These are the screens for step 1 of the plan: the booking link with "Choose it yourself". Patient screens are shown in Arabic and English side by side. Staff screens follow the language button at the top. Every number and text shown comes from the clinic's settings, not from the code.</p>
+
+  <h2 class="group" data-ar="صفحة المريض<small>book.limitsiz.si/demo-derma · على الهاتف · بلا حساب ولا كلمة مرور</small>">Patient page<small>book.limitsiz.si/demo-derma · on a phone · no account, no password</small></h2>
+  <div id="patient"></div>
+
+  <h2 class="group" data-ar="جهة الموظفين<small>داخل تطبيق الحجوزات الحالي</small>">Staff side<small>inside the existing Booking app</small></h2>
+  <div id="staff"></div>
+</main>
+
+<script>
+(function(){
+  // ---------------------------------------------------------------- patient screens, drawn twice (Arabic, English)
+  var LOOP='<svg width="28" height="14"><use href="#loop"/></svg>';
+  var I=function(id,s){return '<svg width="'+(s||20)+'" height="'+(s||20)+'"><use href="#'+id+'"/></svg>'};
+  function phone(L,url,body){
+    return '<div class="phone" dir="'+(L.ar?'rtl':'ltr')+'" lang="'+(L.ar?'ar':'en')+'"><div class="urlbar">'+I('lock',14)+'<span class="u">'+url+'</span></div><div class="pbody">'+body+'</div></div>';
+  }
+  function head(L){
+    return '<div class="phead"><div class="clogo">'+LOOP+'</div><div><b>'+L('Demo Dermatology Clinic','عيادة الجلدية التجريبية')+'</b><span>'+L('Abdoun, Amman','عبدون، عمّان')+'</span></div><span class="plang">'+(L.ar?'English':'العربية')+'</span></div>';
+  }
+  function steps(n){var s='';for(var i=1;i<=4;i++)s+='<i class="'+(i<=n?'on':'')+'"></i>';return '<div class="steps">'+s+'</div>'}
+  function foot(L){return '<div class="pfoot">'+L('Booking by','الحجز عبر')+' <b style="font-family:var(--font-display);font-weight:500">Limitsiz</b> · <a href="#">'+L('Privacy','الخصوصية')+'</a></div>'}
+  var U='book.limitsiz.si/demo-derma';
+
+  var P=[
+    {id:'s1',h:['Start','البداية'],p:['The clinic\'s own intro text from Settings. Two ways to book; the assistant is greyed out until step 5 of the plan.','نص التعريف من إعدادات العيادة. طريقتان للحجز؛ المساعد معطّل حتى الخطوة الخامسة من الخطة.'],
+     url:U+'?from=qr',draw:function(L){return head(L)+
+      '<h1 class="display ptitle" style="font-size:22px;margin-top:6px">'+L('Book your appointment','احجز موعدك')+'</h1>'+
+      '<p class="hint" style="font-size:14px">'+L('Choose a service and a free time. The clinic will confirm your booking.','اختر الخدمة والوقت المتاح. ستؤكّد العيادة حجزك.')+'</p>'+
+      '<div class="choice on"><div class="ic">'+I('cal',22)+'</div><div><b>'+L('Choose it yourself','اختر بنفسك')+'</b><span>'+L('Service, doctor, day and time','الخدمة والطبيب واليوم والوقت')+'</span></div><span class="end"><span class="flip">'+I('chev',18)+'</span></span></div>'+
+      '<div class="choice off"><div class="ic">'+I('chat',22)+'</div><div><b>'+L('Talk to the assistant','تحدّث مع المساعد')+'</b><span>'+L('Type or send a voice note','اكتب أو أرسل رسالة صوتية')+'</span></div><span class="end pill">'+L('Coming soon','قريباً')+'</span></div>'+
+      '<div class="banner info" style="margin-top:4px">'+I('phone',18)+'<div>'+L('Prefer to call? ','تفضّل الاتصال؟ ')+'<span class="mono">06 592 0000</span></div></div>'+foot(L)}},
+    {id:'s2',h:['Service, then doctor','الخدمة ثم الطبيب'],p:['Only services a doctor offers. Prices stay hidden unless the clinic turns "Show prices" on. "Any doctor" only if the clinic allows it.','تظهر فقط الخدمات التي يقدّمها طبيب. الأسعار مخفية ما لم تفعّل العيادة «إظهار الأسعار». «أي طبيب» فقط إذا سمحت العيادة.'],
+     url:U,draw:function(L){return head(L)+steps(1)+
+      '<h2 class="display ptitle">'+L('What is the visit for?','ما سبب الزيارة؟')+'</h2>'+
+      '<div class="choice"><div><b>'+L('Consultation','استشارة')+'</b><span>'+L('20 min','٢٠ دقيقة')+'</span></div></div>'+
+      '<div class="choice on"><div><b>'+L('Laser hair removal session','جلسة إزالة شعر بالليزر')+'</b><span>'+L('45 min','٤٥ دقيقة')+'</span></div><span class="end" style="color:var(--accent-ink)">'+I('tick',20)+'</span></div>'+
+      '<div class="choice"><div><b>'+L('Acne follow-up','متابعة حب الشباب')+'</b><span>'+L('15 min','١٥ دقيقة')+'</span></div></div>'+
+      '<h2 class="display ptitle" style="margin-top:6px">'+L('Which doctor?','أي طبيب؟')+'</h2>'+
+      '<div class="choice on"><div><b>'+L('Any doctor','أي طبيب')+'</b><span>'+L('The first free time','أقرب وقت متاح')+'</span></div><span class="end" style="color:var(--accent-ink)">'+I('tick',20)+'</span></div>'+
+      '<div class="choice"><div><b>'+L('Dr. Lina Haddad','د. لينا حداد')+'</b><span>'+L('Dermatologist','أخصائية جلدية')+'</span></div></div>'+
+      '<div class="choice"><div><b>'+L('Dr. Omar Khalil','د. عمر خليل')+'</b><span>'+L('Dermatologist','أخصائي جلدية')+'</span></div></div>'+
+      '<a class="btn btn-ink btn-block" href="#">'+L('Next','التالي')+'</a>'}},
+    {id:'s3',h:['Day and time','اليوم والوقت'],p:['Seven days a page (the clinic sets how many). Free times follow the clinic\'s patient rules: notice, how far ahead, opening hours, leave and closures.','سبعة أيام في الصفحة (العيادة تحدّد العدد). الأوقات المتاحة تتبع قواعد المرضى: المهلة، وأقصى مدة مسبقة، وساعات الدوام، والإجازات والإغلاق.'],
+     url:U,draw:function(L){
+      var D=L.ar?[['سبت','١٤'],['أحد','١٥'],['اثنين','١٦'],['ثلاثاء','١٧'],['أربعاء','١٨'],['خميس','١٩'],['جمعة','٢٠']]:[['Sat','14'],['Sun','15'],['Mon','16'],['Tue','17'],['Wed','18'],['Thu','19'],['Fri','20']];
+      var days=D.map(function(d,i){return '<span class="'+(i===2?'on':i===6?'x':'')+'">'+d[0]+'<b>'+d[1]+'</b></span>'}).join('');
+      var T=['09:00','09:45','10:30','12:00','12:45','16:00','16:45','17:30'];
+      var times=T.map(function(t,i){return '<span class="'+(i===5?'on':'')+'">'+t+'</span>'}).join('');
+      return head(L)+steps(2)+
+      '<h2 class="display ptitle">'+L('Choose a day and time','اختر اليوم والوقت')+'</h2>'+
+      '<div class="navrow"><span><span class="flip">‹</span> '+L('Earlier','السابق')+'</span><b style="color:var(--text)">'+L('November 2026','تشرين الثاني ٢٠٢٦')+'</b><span>'+L('Later','التالي')+' <span class="flip">›</span></span></div>'+
+      '<div class="days">'+days+'</div>'+
+      '<div class="hint">'+L('Monday 16 November · Laser hair removal · 45 min','الاثنين ١٦ تشرين الثاني · إزالة شعر بالليزر · ٤٥ دقيقة')+'</div>'+
+      '<div class="times">'+times+'</div>'+
+      '<div class="hint">'+L('Friday: the clinic is closed.','الجمعة: العيادة مغلقة.')+'</div>'+
+      '<a class="btn btn-ink btn-block" href="#" style="margin-top:auto">'+L('Next','التالي')+'</a>'}},
+    {id:'s4',h:['Your details','بياناتك'],p:['Name and phone only. Jordan (+962) is the default from Settings. The two tick boxes appear only if the clinic turns them on. A person at the clinic checks the booking, so no AI is involved on this route.','الاسم والهاتف فقط. الأردن (+962) هو الافتراضي من الإعدادات. خانتا الاختيار تظهران فقط إذا فعّلتهما العيادة. يراجع شخص من العيادة الحجز، فلا ذكاء اصطناعي في هذا المسار.'],
+     url:U,draw:function(L){return head(L)+steps(3)+
+      '<h2 class="display ptitle">'+L('Your details','بياناتك')+'</h2>'+
+      '<label class="field">'+L('Full name','الاسم الكامل')+'<span class="fakein">'+L('Hala Nasser','هالة ناصر')+'</span></label>'+
+      '<label class="field">'+L('Mobile number','رقم الهاتف')+'<span class="fakein" dir="ltr"><span class="mono" style="color:var(--muted);border-inline-end:1px solid var(--rule-soft);padding-inline-end:8px">🇯🇴 +962</span><span class="mono">79 123 4567</span></span><span class="hint">'+L('The clinic will contact you on this number.','ستتواصل العيادة معك على هذا الرقم.')+'</span></label>'+
+      '<div class="check"><span class="box"></span><span>'+L('I\'m booking for someone else (for example, my child)','أحجز لشخص آخر (مثلاً لطفلي)')+'</span></div>'+
+      '<div class="check"><span class="box on"></span><span>'+L('Remind me on WhatsApp before the appointment','ذكّرني على واتساب قبل الموعد')+'</span></div>'+
+      '<div class="check"><span class="box on"></span><span>'+L('I agree to the ','أوافق على ')+'<a href="#">'+L('privacy notice','إشعار الخصوصية')+'</a>'+L('. My name and number are used only for this booking.','. يُستخدم اسمي ورقمي لهذا الحجز فقط.')+'</span></div>'+
+      '<div class="card" style="padding:12px 14px;background:var(--paper);border-color:var(--rule-soft)"><div class="sumrow"><span>'+L('Laser hair removal','إزالة شعر بالليزر')+'</span><b>'+L('Any doctor','أي طبيب')+'</b></div><div class="sumrow"><span>'+L('Mon 16 Nov','الاثنين ١٦ ت٢')+'</span><b class="mono">16:00</b></div></div>'+
+      '<a class="btn btn-accent btn-block" href="#">'+L('Book this time','احجز هذا الموعد')+'</a>'}},
+    {id:'s5',h:['Done','تمّ الحجز'],p:['"Waiting for the clinic to confirm" shows while the booking is Online, not checked. The private link is shown once; only its hash is stored. The arrival note is the clinic\'s text from Settings.','تظهر «بانتظار تأكيد العيادة» ما دام الحجز «إلكتروني، لم يُراجع». الرابط الخاص يظهر مرة واحدة، ويُحفظ منه رمز مشفّر فقط. ملاحظة الوصول نص العيادة من الإعدادات.'],
+     url:U,draw:function(L){return head(L)+steps(4)+
+      '<div style="display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;margin-top:4px"><div class="big-ok">'+I('tick',30)+'</div><h2 class="display ptitle">'+L('Your booking is in','تم استلام حجزك')+'</h2></div>'+
+      '<div class="banner warn">'+I('warn',18)+'<div>'+L('Waiting for the clinic to confirm. They may call or message you on +962 79 123 4567.','بانتظار تأكيد العيادة. قد يتصلون بك أو يراسلونك على ‎+962 79 123 4567.')+'</div></div>'+
+      '<div class="card" style="padding:12px 14px"><div class="sumrow"><span>'+L('Service','الخدمة')+'</span><b>'+L('Laser hair removal session','جلسة إزالة شعر بالليزر')+'</b></div><div class="sumrow"><span>'+L('Doctor','الطبيب')+'</span><b>'+L('Dr. Lina Haddad','د. لينا حداد')+'</b></div><div class="sumrow"><span>'+L('When','الموعد')+'</span><b>'+L('Mon 16 Nov, ','الاثنين ١٦ ت٢، ')+'<span class="mono">16:00</span></b></div><div class="sumrow"><span>'+L('Name','الاسم')+'</span><b>'+L('Hala Nasser','هالة ناصر')+'</b></div></div>'+
+      '<div class="hint" style="font-size:13.5px;color:var(--text)">'+L('Please arrive 10 minutes early and avoid sun exposure for 48 hours before the session.','يرجى الحضور قبل الموعد بـ١٠ دقائق وتجنّب التعرض للشمس ٤٨ ساعة قبل الجلسة.')+'</div>'+
+      '<a class="btn btn-outline btn-block btn-sm" href="#">'+I('cal',18)+L('Add to calendar','أضف إلى التقويم')+'</a>'+
+      '<div class="field" style="font-size:13px">'+L('Your private link to change or cancel','رابطك الخاص للتعديل أو الإلغاء')+'<div class="linkbox">'+I('lock',14)+'book.limitsiz.si/demo-derma/manage#Xk2…</div><span class="hint">'+L('Keep it to yourself. Anyone with this link can change the booking.','احتفظ به لنفسك. من يملك الرابط يستطيع تعديل الحجز.')+'</span></div>'}},
+    {id:'s6',h:['Private link: change or cancel','الرابط الخاص: تعديل أو إلغاء'],p:['Same doctor and service, a new time from the free times. Inside the clinic\'s change notice the buttons go and the clinic\'s phone number shows instead. Both buttons can be switched off in Settings.','نفس الطبيب والخدمة بوقت جديد من الأوقات المتاحة. داخل مهلة التعديل تختفي الأزرار ويظهر هاتف العيادة. يمكن إيقاف الزرين من الإعدادات.'],
+     url:U+'/manage',two:true,draw:function(L,late){return head(L)+
+      '<h2 class="display ptitle">'+L('Your appointment','موعدك')+'</h2>'+
+      '<div class="card" style="padding:12px 14px"><div class="sumrow"><span>'+L('Service','الخدمة')+'</span><b>'+L('Laser hair removal session','جلسة إزالة شعر بالليزر')+'</b></div><div class="sumrow"><span>'+L('Doctor','الطبيب')+'</span><b>'+L('Dr. Lina Haddad','د. لينا حداد')+'</b></div><div class="sumrow"><span>'+L('When','الموعد')+'</span><b>'+(late?L('Today, ','اليوم، '):L('Mon 16 Nov, ','الاثنين ١٦ ت٢، '))+'<span class="mono">16:00</span></b></div><div class="sumrow"><span>'+L('Status','الحالة')+'</span><b><span class="pill ok"><span class="dot"></span>'+L('Confirmed','مؤكّد')+'</span></b></div></div>'+
+      (late?
+        '<div class="banner warn">'+I('phone',18)+'<div>'+L('It is too late to change this booking online. Please call the clinic: ','فات وقت تعديل هذا الحجز إلكترونياً. يرجى الاتصال بالعيادة: ')+'<span class="mono">06 592 0000</span></div></div><a class="btn btn-ink btn-block btn-sm" href="#">'+I('phone',18)+L('Call the clinic','اتصل بالعيادة')+'</a>'
+       :'<a class="btn btn-ink btn-block btn-sm" href="#">'+L('Change the time','تغيير الوقت')+'</a><a class="btn btn-danger-o btn-block btn-sm" href="#">'+L('Cancel the booking','إلغاء الحجز')+'</a><div class="hint">'+L('Changes are possible until 2 hours before the appointment.','التعديل ممكن حتى ساعتين قبل الموعد.')+'</div>')+
+      '<a class="btn btn-ghost btn-block btn-sm" href="#">'+I('cal',18)+L('Add to calendar','أضف إلى التقويم')+'</a>'+foot(L)}},
+    {id:'s7',h:['Refused for this number','رفض لهذا الرقم'],p:['One message for every refusal that depends on the phone number (too many bookings today, one already waiting for a check, the upcoming limit, the same time already booked). So nobody can use the page to learn about a number.','رسالة واحدة لكل رفض يعتمد على الرقم (حجوزات كثيرة اليوم، حجز ينتظر المراجعة، حدّ المواعيد القادمة، الموعد نفسه محجوز). فلا يمكن استخدام الصفحة لمعرفة أي شيء عن رقم.'],
+     url:U,draw:function(L){return head(L)+steps(3)+
+      '<h2 class="display ptitle">'+L('Your details','بياناتك')+'</h2>'+
+      '<div class="banner bad">'+I('warn',18)+'<div><b>'+L('We couldn\'t book online for this number.','تعذّر الحجز إلكترونياً لهذا الرقم.')+'</b><br>'+L('Please call the clinic and they will help you.','يرجى الاتصال بالعيادة وسيساعدونك.')+'</div></div>'+
+      '<a class="btn btn-ink btn-block btn-sm" href="#">'+I('phone',18)+'<span class="mono">06 592 0000</span></a>'+
+      '<label class="field">'+L('Full name','الاسم الكامل')+'<span class="fakein">'+L('Hala Nasser','هالة ناصر')+'</span></label>'+
+      '<label class="field">'+L('Mobile number','رقم الهاتف')+'<span class="fakein" dir="ltr"><span class="mono" style="color:var(--muted)">🇯🇴 +962</span><span class="mono">79 123 4567</span></span></label>'+
+      '<div class="hint" style="margin-top:6px">'+L('If someone else took the time while you were choosing, you see "That time was just taken" and the next free times instead.','إذا حجز شخص آخر الوقت أثناء اختيارك، تظهر «حُجز هذا الوقت للتو» مع أقرب الأوقات المتاحة.')+'</div>'+
+      '<div class="times"><span>16:45</span><span>17:30</span><span>09:00</span></div>'+foot(L)}},
+  ];
+  var out='';
+  P.forEach(function(s,n){
+    var both=function(late){return ['ar','en'].map(function(lg){var L=function(en,ar){return lg==='ar'?ar:en};L.ar=lg==='ar';return '<div class="phone-col"><span class="cap">'+(lg==='ar'?'العربية':'English')+(s.two?(late?' · too late':' · in time'):'')+'</span>'+phone(L,s.url,s.draw(L,late))+'</div>'}).join('')};
+    out+='<div class="frame-title" id="'+s.id+'">'+(n+1)+' · <span data-ar="'+s.h[1]+'">'+s.h[0]+'</span></div><p class="frame-p" data-ar="'+s.p[1].replace(/"/g,'&quot;')+'">'+s.p[0]+'</p><div class="phones">'+both(false)+(s.two?both(true):'')+'</div>';
+  });
+  document.getElementById('patient').innerHTML=out;
+
+  // ---------------------------------------------------------------- staff screens (follow the language button)
+  var T=function(en,ar){return '<span data-ar="'+ar.replace(/"/g,'&quot;')+'">'+en+'</span>'};
+  // Matches the live staff app (booking/client/src/ui.tsx Layout): brand, three daily pages, the clinic's name, the Settings gear
+  // (the audit log lives inside Settings), the language button and the person's menu.
+  var GEAR='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>';
+  function appbar(active){
+    var tabs=[['calendar','Calendar','التقويم'],['list','Bookings','الحجوزات'],['patients','Patients','المرضى']]
+      .map(function(t){return '<a class="'+(t[0]===active?'on':'')+'" href="#">'+T(t[1],t[2])+'</a>'}).join('');
+    return '<div class="appbar"><div class="brand"><svg width="30" height="16"><use href="#loop"/></svg><span>Limitsiz Clinic · '+T('Booking','الحجوزات')+'</span></div><nav class="tabs">'+tabs+'</nav><span class="spacer"></span>'+
+      '<span class="where">'+T('Demo Dermatology','العيادة التجريبية للجلدية')+'</span>'+
+      '<a class="gear'+(active==='settings'?' on':'')+'" href="#" title="Settings">'+GEAR+'</a>'+
+      '<span class="lang">'+T('العربية','English')+'</span>'+
+      '<span class="um">'+T('Sara Haddad','سارة حداد')+' <span aria-hidden="true">▾</span></span></div>';
+  }
+  // Matches the live Settings menu (booking/client/src/pages/settings.tsx TABS), with the new "Online booking" after Booking rules.
+  var SN=[['profile','Clinic profile','ملف العيادة'],['hours','Working hours','ساعات العمل'],['doctors','Doctors','الأطباء'],['services','Services','الخدمات'],['rules','Booking rules','قواعد الحجز'],['online','Online booking','الحجز الإلكتروني'],['reminders','Reminders','التذكيرات'],['assistant','WhatsApp assistant','مساعد واتساب'],['security','Security','الأمان'],['audit','Audit','سجل التدقيق']];
+  var snav='<nav class="snav">'+SN.map(function(s){return '<a class="'+(s[0]==='online'?'on':'')+'" href="#">'+T(s[1],s[2])+(s[0]==='online'?'<span class="new">'+T('new','جديد')+'</span>':'')+'</a>'}).join('')+'</nav>';
+  function sw(on,en,ar,sen,sar){return '<div class="setrow"><div class="lbl">'+T(en,ar)+(sen?'<small>'+T(sen,sar)+'</small>':'')+'</div><div><span class="tg'+(on?' on':'')+'"></span></div></div>'}
+  function lim(en,ar,v,sen,sar){return '<div class="limit"><div class="lbl">'+T(en,ar)+'<small>'+T(sen,sar)+'</small></div><span class="num"><i>−</i><b>'+v+'</b><i>+</i></span></div>'}
+  var QR='<svg class="qr" viewBox="0 0 21 21" shape-rendering="crispEdges">'+(function(){var s='',seed=7;function r(){seed=(seed*9301+49297)%233280;return seed/233280}
+    function f(x,y){s+='<rect x="'+x+'" y="'+y+'" width="7" height="7" fill="#0A0F14"/><rect x="'+(x+1)+'" y="'+(y+1)+'" width="5" height="5" fill="#fff"/><rect x="'+(x+2)+'" y="'+(y+2)+'" width="3" height="3" fill="#0A0F14"/>'}
+    for(var y=0;y<21;y++)for(var x=0;x<21;x++){if((x<8&&y<8)||(x>12&&y<8)||(x<8&&y>12))continue;if(r()>.52)s+='<rect x="'+x+'" y="'+y+'" width="1" height="1" fill="#0A0F14"/>'}
+    f(0,0);f(14,0);f(0,14);return s})()+'</svg>';
+
+  var s8='<div class="frame-title" id="s8">8 · '+T('Settings › Online booking','الإعدادات › الحجز الإلكتروني')+'</div>'+
+    '<p class="frame-p">'+T('Administrators only; secretaries see it read-only. Every switch, limit and text the page uses is here, with the defaults shown. Every change goes to the audit log with before and after.','للمديرين فقط؛ السكرتيرات يرونها للقراءة. كل مفتاح وحدّ ونص تستخدمه الصفحة موجود هنا بالقيم الافتراضية. كل تغيير يُسجّل في سجل التدقيق مع القيمة قبل وبعد.')+'</p>'+
+    '<div class="scroll"><div class="shot">'+appbar('settings')+'<div class="settings">'+snav+'<div class="spage">'+
+      '<div class="row-between"><h2 class="display">'+T('Online booking','الحجز الإلكتروني')+'</h2><span class="pill ok"><span class="dot"></span>'+T('On','مفعّل')+'</span></div>'+
+      '<div class="card stack"><div class="row-between" style="align-items:flex-start;flex-wrap:nowrap"><div class="stack" style="gap:8px;min-width:0">'+
+        '<div class="lbl">'+T('The clinic\'s booking link','رابط الحجز الخاص بالعيادة')+'<small>'+T('Printed under the QR code on the brochures. The address is fixed so printed codes keep working.','يُطبع تحت رمز QR في المطبوعات. العنوان ثابت حتى تبقى الرموز المطبوعة صالحة.')+'</small></div>'+
+        '<div class="linkbox" style="background:#fff;border:1px solid var(--rule);font-size:14px">book.limitsiz.si/demo-derma</div>'+
+        '<div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn btn-ghost btn-xs" href="#">'+T('Copy link','نسخ الرابط')+'</a><a class="btn btn-ghost btn-xs" href="#">'+T('Download QR code (PNG)','تنزيل رمز QR (PNG)')+'</a><a class="btn btn-ghost btn-xs" href="#">'+T('Open the page','فتح الصفحة')+'</a></div>'+
+      '</div>'+QR+'</div>'+
+      '<div class="setrow"><div class="lbl">'+T('Online booking','الحجز الإلكتروني')+'<small>'+T('Off by default. When off, the link shows "not available" and nothing can be booked.','مُطفأ افتراضياً. عند الإيقاف يظهر الرابط «غير متاح» ولا يمكن الحجز.')+'</small></div><div><span class="tg on"></span></div></div></div>'+
+      '<div class="card sec"><h3>'+T('What patients can do','ما يستطيع المريض فعله')+'</h3>'+
+        sw(true,'A secretary checks each online booking','تراجع السكرتيرة كل حجز إلكتروني','Shown as "Online, not checked" until someone checks it. Keep on until WhatsApp is connected.','يظهر «إلكتروني، لم يُراجع» حتى يراجعه أحد. أبقِه مفعّلاً حتى ربط واتساب.')+
+        sw(false,'Show prices','إظهار الأسعار','Off by default. Prices come from Services.','مُطفأ افتراضياً. الأسعار من الخدمات.')+
+        sw(true,'Allow "Any doctor"','السماح بـ«أي طبيب»')+
+        sw(true,'Patients may cancel with their private link','يمكن للمريض الإلغاء من رابطه الخاص','Within the change notice in Booking rules › Patients.','ضمن مهلة التعديل في قواعد الحجز › المرضى.')+
+        sw(true,'Patients may change the time with their private link','يمكن للمريض تغيير الوقت من رابطه الخاص','Same doctor and service.','نفس الطبيب والخدمة.')+
+        sw(true,'Allow booking for someone else','السماح بالحجز لشخص آخر','For a parent booking for a child.','لوليّ أمر يحجز لطفله.')+
+        sw(true,'Offer "Remind me on WhatsApp"','عرض «ذكّرني على واتساب»')+
+        '<div class="setrow"><div class="lbl">'+T('Default country code','رمز الدولة الافتراضي')+'<small>'+T('For numbers typed without one, such as 079…','للأرقام المكتوبة بدونه مثل ‎079…')+'</small></div><div><span class="fakein mono" style="width:120px">+962</span></div></div>'+
+        '<div class="hint">'+T('Notice, how far ahead, change notice and the upcoming limit are the Patient rules in Booking rules, shared with the WhatsApp assistant.','المهلة وأقصى مدة مسبقة ومهلة التعديل وحدّ المواعيد القادمة هي قواعد المرضى في قواعد الحجز، وهي نفسها لمساعد واتساب.')+'</div></div>'+
+      '<div class="card sec stack"><h3>'+T('Limits','الحدود')+'</h3><div class="limits">'+
+        lim('Unchecked bookings per number','حجوزات غير مراجَعة لكل رقم',1,'Waiting for a secretary at once','بانتظار السكرتيرة في نفس الوقت')+
+        lim('Bookings per number per day','حجوزات لكل رقم في اليوم',2,'Made on the page in 24 hours','من الصفحة خلال ٢٤ ساعة')+
+        lim('Bookings per connection per day','حجوزات لكل اتصال في اليوم',5,'One internet connection (IP address)','اتصال إنترنت واحد (عنوان IP)')+
+        lim('Page lookups per connection per minute','تصفّح الصفحة لكل اتصال في الدقيقة',60,'Free-time searches and page loads','البحث عن الأوقات وفتح الصفحة')+
+        lim('Private-link uses per connection per hour','استخدام الرابط الخاص لكل اتصال في الساعة',30,'Opening, changing or cancelling','فتح أو تعديل أو إلغاء')+
+        lim('Days per page','الأيام في الصفحة',7,'In the day picker','في اختيار اليوم')+
+      '</div></div>'+
+      '<div class="card sec stack"><h3>'+T('Texts','النصوص')+'</h3><div class="hint">'+T('Leave empty to use the page\'s own wording. Booking information only: no offers, prices or claims about results.','اتركه فارغاً لاستخدام نص الصفحة. معلومات الحجز فقط: بلا عروض أو أسعار أو وعود بالنتائج.')+'</div><div class="texts">'+
+        '<label class="field">'+T('Intro (Arabic)','التعريف (عربي)')+'<span class="fakein ta" dir="rtl" lang="ar">اختر الخدمة والوقت المتاح. ستؤكّد العيادة حجزك.</span></label>'+
+        '<label class="field">'+T('Intro (English)','التعريف (إنجليزي)')+'<span class="fakein ta" dir="ltr" lang="en">Choose a service and a free time. The clinic will confirm your booking.</span></label>'+
+        '<label class="field">'+T('Arrival note (Arabic)','ملاحظة الوصول (عربي)')+'<span class="fakein ta" dir="rtl" lang="ar">يرجى الحضور قبل الموعد بـ١٠ دقائق.</span></label>'+
+        '<label class="field">'+T('Arrival note (English)','ملاحظة الوصول (إنجليزي)')+'<span class="fakein ta" dir="ltr" lang="en">Please arrive 10 minutes early.</span></label>'+
+        '<label class="field">'+T('WhatsApp message with the link (Arabic)','رسالة واتساب مع الرابط (عربي)')+'<span class="fakein ta" dir="rtl" lang="ar">احجز موعدك في {clinic} من هذا الرابط: {link}</span><span class="hint">'+T('{clinic} and {link} are filled in.','يُستبدل {clinic} و{link} تلقائياً.')+'</span></label>'+
+        '<label class="field">'+T('WhatsApp message with the link (English)','رسالة واتساب مع الرابط (إنجليزي)')+'<span class="fakein ta" dir="ltr" lang="en">Book your appointment at {clinic} here: {link}</span></label>'+
+      '</div></div>'+
+      '<div class="savebar"><a class="btn btn-ink btn-sm" href="#">'+T('Save','حفظ')+'</a><a class="btn btn-ghost btn-sm" href="#">'+T('Discard changes','تجاهل التغييرات')+'</a></div>'+
+    '</div></div></div></div>';
+
+  var row=function(time,name,svc,doc,src,status,hl,warn){return '<tr class="'+(hl?'hl':'')+'"><td class="mono">'+time+'</td><td><b>'+name+'</b>'+(warn||'')+'</td><td>'+svc+'</td><td>'+doc+'</td><td>'+src+'</td><td>'+status+'</td></tr>'};
+  var s9='<div class="frame-title" id="s9">9 · '+T('Bookings: Online, not checked','الحجوزات: إلكتروني، لم يُراجع')+'</div>'+
+    '<p class="frame-p">'+T('Online bookings are marked until a secretary checks the number (a call or a message) and presses Mark as checked. A new filter shows only those. If the name typed online differs from the patient record, staff see a warning; the record is never changed by the page.','تُعلَّم الحجوزات الإلكترونية حتى تتحقق السكرتيرة من الرقم (اتصال أو رسالة) وتضغط «تمّت المراجعة». مرشّح جديد يعرضها وحدها. إذا اختلف الاسم المكتوب عن سجل المريض يظهر تنبيه؛ والصفحة لا تغيّر السجل أبداً.')+'</p>'+
+    '<div class="scroll"><div class="shot">'+appbar('list')+'<div class="drawer">'+
+      '<div class="stack"><div class="filters"><span class="chipbtn">'+T('All','الكل')+'</span><span class="chipbtn">'+T('Today','اليوم')+'</span><span class="chipbtn on">'+T('Online, not checked','إلكتروني، لم يُراجع')+' <span class="n">2</span></span><span class="chipbtn">'+T('Source: Online','المصدر: إلكتروني')+'</span></div>'+
+      '<div class="tablewrap"><table><thead><tr><th>'+T('When','الموعد')+'</th><th>'+T('Patient','المريض')+'</th><th>'+T('Service','الخدمة')+'</th><th>'+T('Doctor','الطبيب')+'</th><th>'+T('Source','المصدر')+'</th><th>'+T('Status','الحالة')+'</th></tr></thead><tbody>'+
+        row('16 Nov 16:00',T('Hala Nasser','هالة ناصر'),T('Laser session','جلسة ليزر'),T('Dr. Lina','د. لينا'),'<span class="pill">'+T('Online · QR','إلكتروني · QR')+'</span>','<span class="pill warn"><span class="dot"></span>'+T('Not checked','لم يُراجع')+'</span>',true)+
+        row('17 Nov 10:30',T('Yousef Odeh','يوسف عودة'),T('Consultation','استشارة'),T('Dr. Omar','د. عمر'),'<span class="pill">'+T('Online · WhatsApp link','إلكتروني · رابط واتساب')+'</span>','<span class="pill warn"><span class="dot"></span>'+T('Not checked','لم يُراجع')+'</span>',false,'<div style="font-size:12.5px;color:#8a5200;display:flex;gap:4px;align-items:center">'+I('warn',14)+T('Record says "Yousef Odeh Sr."','السجل: «يوسف عودة الأب»')+'</div>')+
+      '</tbody></table></div>'+
+      '<div class="hint">'+T('In the calendar these show with an amber edge and the label "Online, not checked".','في التقويم تظهر بحافة كهرمانية وعبارة «إلكتروني، لم يُراجع».')+'</div></div>'+
+      '<div class="card stack"><div class="row-between"><h3 class="display" style="font-size:18px">'+T('Hala Nasser','هالة ناصر')+'</h3><span class="pill warn"><span class="dot"></span>'+T('Online, not checked','إلكتروني، لم يُراجع')+'</span></div>'+
+        '<div class="sumrow"><span>'+T('When','الموعد')+'</span><b>'+T('Mon 16 Nov, ','الاثنين ١٦ ت٢، ')+'<span class="mono">16:00–16:45</span></b></div>'+
+        '<div class="sumrow"><span>'+T('Service','الخدمة')+'</span><b>'+T('Laser hair removal session','جلسة إزالة شعر بالليزر')+'</b></div>'+
+        '<div class="sumrow"><span>'+T('Doctor','الطبيب')+'</span><b>'+T('Dr. Lina Haddad','د. لينا حداد')+'</b></div>'+
+        '<div class="sumrow"><span>'+T('Phone','الهاتف')+'</span><b class="mono">+962 79 123 4567</b></div>'+
+        '<div class="sumrow"><span>'+T('Booked','الحجز')+'</span><b>'+T('Online page, from the QR code · 14 Nov 21:12','الصفحة الإلكترونية، من رمز QR · ١٤ ت٢ ٢١:١٢')+'</b></div>'+
+        '<div class="banner info" style="font-size:13.5px">'+T('Call or message the number to make sure the booking is real, then mark it as checked.','اتصل أو راسل الرقم للتأكد أن الحجز حقيقي، ثم علّمه كمراجَع.')+'</div>'+
+        '<div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn btn-accent btn-sm" href="#">'+I('tick',18)+T('Mark as checked','تمّت المراجعة')+'</a><a class="btn btn-ghost btn-sm" href="#">'+T('Confirm','تأكيد')+'</a><a class="btn btn-ghost btn-sm" href="#">'+T('Cancel','إلغاء')+'</a></div>'+
+        '<div class="hint">'+T('A booking that turns out to be fake is voided with a reason, as today.','الحجز الوهمي يُلغى إلغاءً نهائياً مع سبب، كما هو الآن.')+'</div></div>'+
+    '</div></div></div>';
+
+  var s10='<div class="frame-title" id="s10">10 · '+T('Send booking link','إرسال رابط الحجز')+'</div>'+
+    '<p class="frame-p">'+T('On the patient page and on Bookings. It opens WhatsApp on the secretary\'s phone or computer with the clinic\'s message and the link (tagged ?from=wa) ready; she presses send. Nothing is sent by Limitsiz itself, so it works before the WhatsApp connection with Meta.','في صفحة المريض وفي الحجوزات. يفتح واتساب على هاتف السكرتيرة أو حاسوبها مع رسالة العيادة والرابط (بعلامة ‎?from=wa) جاهزين؛ وهي تضغط إرسال. لا يُرسل Limitsiz شيئاً بنفسه، فيعمل قبل ربط واتساب مع Meta.')+'</p>'+
+    '<div class="scroll"><div class="shot">'+appbar('patients')+'<div class="drawer">'+
+      '<div class="card stack"><div class="row-between"><h3 class="display" style="font-size:18px">'+T('Rania Saleh','رانيا صالح')+'</h3><span class="mono hint">+962 78 555 0102</span></div>'+
+        '<div class="hint">'+T('Last visit 2 Oct · Acne follow-up · Dr. Lina','آخر زيارة ٢ ت١ · متابعة حب الشباب · د. لينا')+'</div>'+
+        '<div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn btn-ink btn-sm" href="#">'+T('New booking','حجز جديد')+'</a><a class="btn btn-wa btn-sm" href="#">'+I('wa',18)+T('Send booking link','إرسال رابط الحجز')+'</a><a class="btn btn-ghost btn-sm" href="#">'+T('Edit','تعديل')+'</a></div>'+
+        '<div class="hint">'+T('The message follows the patient\'s language. With no number on file, the button copies the message instead.','الرسالة بلغة المريض. إذا لم يكن هناك رقم، ينسخ الزر الرسالة بدلاً من ذلك.')+'</div></div>'+
+      '<div class="wa-sheet" dir="rtl" lang="ar"><div class="wa-head"><div class="avatar">ر</div><div><b>رانيا صالح</b><div style="font-size:12px;color:#8696a0" class="mono">+962 78 555 0102</div></div></div>'+
+        '<div style="flex:1;min-height:90px"></div>'+
+        '<div class="wa-bubble">احجز موعدك في عيادة الجلدية التجريبية من هذا الرابط: <a href="#" class="mono">book.limitsiz.si/demo-derma?from=wa</a></div>'+
+        '<div class="wa-input"><span>رسالة</span><span class="wa-send"><svg width="16" height="16"><use href="#send"/></svg></span></div></div>'+
+    '</div></div></div>';
+
+  document.getElementById('staff').innerHTML=s8+s9+s10;
+
+  // ---------------------------------------------------------------- language button (staff screens and page text)
+  var btn=document.getElementById('lang'),isAr=false;
+  btn.addEventListener('click',function(){
+    isAr=!isAr;
+    document.documentElement.dir=isAr?'rtl':'ltr';document.documentElement.lang=isAr?'ar':'en';
+    document.querySelectorAll('[data-ar]').forEach(function(e){
+      if(e.closest('.phone'))return;
+      if(e.dataset.en===undefined)e.dataset.en=e.innerHTML;
+      e.innerHTML=isAr?e.dataset.ar:e.dataset.en;
+    });
+    btn.textContent=isAr?'English':'العربية';
+  });
+})();
+</script>
+</body>
+</html>

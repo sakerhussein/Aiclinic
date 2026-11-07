@@ -7,9 +7,9 @@ import { HttpError, bad, denied, notFound } from "./http.js";
 import { createSettings } from "./settings.js";
 import { createAudit } from "./audit.js";
 import { bookingsFile, patientsFile, todayIn, MAX_EXPORT_ROWS } from "./export.js";
+import { freeStarts, MIN } from "./slots.js";
 
 const ACTIVE = ["booked", "confirmed"];
-const MIN = 60_000;
 
 export function normalizePhone(raw, country = "962") {
   const digits = String(raw ?? "").replace(/[\s\-().]/g, "");
@@ -69,46 +69,7 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
              outsideHours: r.outside_hours, walkinBackMinutes: r.walkin_back_minutes, requireCancelReason: r.require_cancel_reason };
   }
 
-  // ---------------------------------------------------------------- availability
-  // Same rule as the WhatsApp assistant (agent/limitsiz_agent/booking/slots.py): the doctor's hours inside the clinic's opening hours,
-  // the whole appointment inside one period, on the doctor's interval from the start of the period, nothing overlapping leave or a
-  // closure, and the doctor's buffer kept after every booking and after this one (the buffer may run past the end of a period).
-  async function freeStarts(c, clinic, doctorId, durationMin, dayFrom, dayTo, { earliest, latest, excludeId = null }) {
-    const shifts = (await c.query(
-      `with ch as (select weekday, start_time, end_time from clinic_hours where clinic_id = $5),
-            periods as (
-              select w.weekday, w.start_time as st, w.end_time as en from working_hours w
-               where w.doctor_id = $1 and not exists (select 1 from ch)
-              union all
-              select w.weekday, greatest(w.start_time, h.start_time), least(w.end_time, h.end_time)
-                from working_hours w join ch h on h.weekday = w.weekday
-               where w.doctor_id = $1 and w.start_time < h.end_time and h.start_time < w.end_time)
-       select (d::date + p.st) at time zone $4 as s, (d::date + p.en) at time zone $4 as e
-         from generate_series($2::date, $3::date, interval '1 day') d
-         join periods p on p.weekday = extract(dow from d)::int
-        order by 1`, [doctorId, dayFrom, dayTo, clinic.timezone, clinic.id])).rows;
-    if (!shifts.length) return [];
-    const lo = shifts[0].s, hi = shifts[shifts.length - 1].e;
-    const doctor = await one(c, "select slot_minutes, buffer_minutes from doctors where id = $1", [doctorId]);
-    const buffer = doctor.buffer_minutes * MIN;
-    // Wider than the day by the buffer: a booking just outside can still reach in.
-    const bookings = (await c.query(
-      `select starts_at, ends_at from appointments where doctor_id = $1 and status in ('booked','confirmed') and starts_at < $3 and ends_at > $2
-          and ($4::uuid is null or id <> $4::uuid)`, [doctorId, new Date(lo.getTime() - buffer), new Date(hi.getTime() + buffer), excludeId])).rows.map((r) => [r.starts_at.getTime(), r.ends_at.getTime()]);
-    const blocked = (await c.query(
-      `select starts_at, ends_at from time_off where clinic_id = $1 and (doctor_id is null or doctor_id = $2) and starts_at < $4 and ends_at > $3`,
-      [clinic.id, doctorId, lo, hi])).rows.map((r) => [r.starts_at.getTime(), r.ends_at.getTime()]);
-    const step = (doctor.slot_minutes ?? clinic.slot_step_minutes) * MIN, dur = durationMin * MIN, out = [];
-    for (const sh of shifts) {
-      for (let t = sh.s.getTime(); t + dur <= sh.e.getTime(); t += step) {
-        if (t < earliest || t > latest) continue;
-        if (blocked.some(([bs, be]) => bs < t + dur && t < be)) continue;
-        if (bookings.some(([bs, be]) => bs < t + dur + buffer && t < be + buffer)) continue;
-        out.push(t);
-      }
-    }
-    return out;
-  }
+  // ---------------------------------------------------------------- availability (the rule itself is in slots.js)
 
   async function clinicRow(c, ctx) {
     return one(c, "select id, timezone, slot_step_minutes from clinics where id = $1", [ctx.clinicId]);
@@ -146,7 +107,10 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
       a.row_version, a.created_at, a.updated_at, a.updated_by, a.created_by, a.voided_at, a.void_reason,
       p.full_name as patient_name, p.phone_e164 as patient_phone, p.whatsapp_reminders,
       d.name_en as doctor_name_en, d.name_ar as doctor_name_ar, s.name_en as service_name_en, s.name_ar as service_name_ar,
-      s.duration_minutes, s.price_jod
+      s.duration_minutes, s.price_jod,
+      a.online_from, a.booked_name, a.booked_for_other, a.needs_check, a.checked_at, a.checked_by,
+      (a.needs_check and a.checked_at is null) as unchecked,
+      (a.booked_name is not null and lower(trim(a.booked_name)) is distinct from lower(trim(p.full_name))) as name_differs
     from appointments a
     join patients p on p.clinic_id = a.clinic_id and p.id = a.patient_id
     join doctors d on d.clinic_id = a.clinic_id and d.id = a.doctor_id
@@ -162,6 +126,7 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
     if (q.doctorId) add("a.doctor_id = ?", q.doctorId);
     if (q.patientId) add("a.patient_id = ?", q.patientId);
     if (q.source) add("a.source = ?", q.source);
+    if (q.unchecked) where.push("a.needs_check and a.checked_at is null and a.status in ('booked','confirmed')");
     if (q.status) add("a.status = ?::appointment_status", q.status); else if (!q.includeVoided) where.push("a.status <> 'voided'");
     if (q.q) { p.push(`%${q.q.replace(/[%_\\]/g, "\\$&")}%`); where.push(`(p.full_name ilike $${p.length} or p.phone_e164 like $${p.length})`); }
     const { rows } = await pool.query(`${SELECT} where ${where.join(" and ")} order by a.starts_at, d.name_en limit ${Number(limit)}`, p);
@@ -386,6 +351,28 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
     });
   }
 
+  // "Online, not checked" -> checked: a secretary called or messaged the number and it is the patient's.
+  async function markChecked(ctx, id, { expectedVersion }) {
+    return tx(ctx, async (c) => {
+      const cur = await lockAppointment(c, ctx, id);
+      if (cur.row_version !== expectedVersion) throw conflict(cur);
+      if (!cur.needs_check || cur.checked_at) throw new HttpError(409, "nothing_to_check");
+      await c.query("update appointments set checked_at = now(), checked_by = $3, updated_by = $3 where clinic_id = $1 and id = $2", [ctx.clinicId, id, ctx.user.id]);
+      return getAppointment(ctx, id, c);
+    });
+  }
+
+  // For the "Send booking link" button: the clinic's link and message, only while the link is on.
+  async function onlineLink(ctx, baseUrl) {
+    const r = await one(pool, `select c.slug, c.name_en, c.name_ar, o.enabled, o.share_message_en, o.share_message_ar
+                                 from clinics c join online_booking o on o.clinic_id = c.id where c.id = $1`, [ctx.clinicId]);
+    if (!r || !baseUrl) return { enabled: false };
+    const url = `${baseUrl}/${r.slug}`;
+    const fill = (m, name, from) => m.replaceAll("{clinic}", name).replaceAll("{link}", `${url}?from=${from}`);
+    return { enabled: r.enabled, url, qrUrl: `${url}?from=qr`,
+             messageEn: fill(r.share_message_en, r.name_en, "wa"), messageAr: fill(r.share_message_ar, r.name_ar, "wa") };
+  }
+
   // A voided booking comes back as "booked", if the slot is still free.
   async function restore(ctx, id, { expectedVersion }) {
     return tx(ctx, async (c) => {
@@ -416,6 +403,6 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
   }
   const exportBookings = (ctx, q, lang) => exportFile(ctx, "bookings", (n) => listAppointments(ctx, q, n), bookingsFile, q, lang);
   const exportPatients = (ctx, q, lang) => exportFile(ctx, "patients", (n) => searchPatients(ctx, q, n), patientsFile, q ? { q } : {}, lang);
-  return { settings, audit, lookups, timeOffOn, slots, listAppointments, getAppointment, history, createAppointment, updateAppointment, setStatus, restore,
+  return { settings, audit, lookups, timeOffOn, slots, listAppointments, getAppointment, history, createAppointment, updateAppointment, setStatus, restore, markChecked, onlineLink,
            searchPatients, exportBookings, exportPatients, getPatient, createPatient: (ctx, b) => createPatient(ctx, b), updatePatient, tx };
 }

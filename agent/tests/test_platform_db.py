@@ -80,7 +80,7 @@ def test_roles_apps_and_permissions_are_seeded(conn):
     roles = {r[0] for r in conn.execute("select key from accounts.roles").fetchall()}
     assert roles == {"clinic_admin", "secretary", "doctor", "readonly", "platform_admin"}
     assert {r[0] for r in conn.execute("select key from accounts.apps").fetchall()} == {"accounts", "booking"}
-    assert conn.execute("select count(*) from accounts.permissions").fetchone()[0] == 19
+    assert conn.execute("select count(*) from accounts.permissions").fetchone()[0] == 20      # 19, plus booking.data.export (migration 0010)
 
 
 def test_permission_matrix(conn):

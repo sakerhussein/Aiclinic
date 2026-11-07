@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
-import { ApiError, download, post } from "./api";
+import { ApiError, download, get, post } from "./api";
 import { useI18n } from "./i18n";
 import { useApp } from "./session";
 
@@ -75,7 +75,31 @@ export function ExportButton({ url }: { url: string }) {
   );
 }
 
-export const StatusPill = ({ status }: { status: string }) => {
+// "Send booking link": opens WhatsApp on this phone or computer with the clinic's message and link ready; the secretary presses send.
+// Nothing is sent by Limitsiz itself. Shown only while the clinic has its online booking link on (Settings > Online booking).
+type OnlineLink = { enabled: boolean; url?: string; messageEn?: string; messageAr?: string };
+let linkCache: Promise<OnlineLink> | null = null;
+export function SendLinkButton({ phone, language }: { phone?: string | null; language?: "ar" | "en" | null }) {
+  const { t, lang } = useI18n();
+  const [l, setL] = useState<OnlineLink | null>(null);
+  const [copied, setCopied] = useState(false);
+  useEffect(() => { (linkCache ??= get<OnlineLink>("/api/online-link").catch(() => ({ enabled: false }))).then(setL); }, []);
+  if (!l?.enabled) return null;
+  const msg = ((language ?? lang) === "ar" ? l.messageAr : l.messageEn) || "";
+  const digits = (phone || "").replace(/\D/g, "");
+  const open = () => {
+    if (digits) { window.open(`https://wa.me/${digits}?text=${encodeURIComponent(msg)}`, "_blank", "noopener"); return; }
+    void navigator.clipboard?.writeText(msg).then(() => setCopied(true));            // no number: copy the message instead
+  };
+  return (
+    <>
+      <button type="button" className="btn btn-wa btn-sm" onClick={open}>{t("sendLink")}</button>
+      {copied && <span className="hint" role="status">{t("linkCopied")}</span>}
+    </>
+  );
+}
+
+export const StatusPill =({ status }: { status: string }) => {
   const { d } = useI18n();
   const kind = { confirmed: "ok", completed: "ok", booked: "", no_show: "warn", cancelled: "bad", voided: "bad" }[status] ?? "";
   return <span className={`pill ${kind}`}>{d.statuses[status] ?? status}</span>;

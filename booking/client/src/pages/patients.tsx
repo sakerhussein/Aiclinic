@@ -4,7 +4,7 @@ import { get, patch, post, type Appt, type Patient } from "../api";
 import { fmtDateTime } from "../lib";
 import { useI18n } from "../i18n";
 import { useApp } from "../session";
-import { Banner, ExportButton, Field, StatusPill, useAction } from "../ui";
+import { Banner, ExportButton, Field, SendLinkButton, StatusPill, useAction } from "../ui";
 
 export function PatientList() {
   const { t, lang } = useI18n();
@@ -65,7 +65,7 @@ export function PatientPage() {
       </form>
       {!isNew && (
         <section className="panel">
-          <div className="row between"><h2>{t("patientBookings")}</h2>{can("booking.appointments.create") && <Link className="btn btn-outline btn-sm" to={`/new?patient=${id}`}>{t("newBooking")}</Link>}</div>
+          <div className="row between"><h2>{t("patientBookings")}</h2><div className="row"><SendLinkButton phone={f.phone} language={f.language} />{can("booking.appointments.create") && <Link className="btn btn-outline btn-sm" to={`/new?patient=${id}`}>{t("newBooking")}</Link>}</div></div>
           <div className="tablewrap"><table><tbody>{appts.map((x) => (
             <tr key={x.id}><td><Link to={`/bookings/${x.id}`}>{fmtDateTime(x.starts_at, look.clinic.timezone, lang)}</Link></td>
               <td>{lang === "ar" ? x.service_name_ar : x.service_name_en}</td><td>{lang === "ar" ? x.doctor_name_ar : x.doctor_name_en}</td>
