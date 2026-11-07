@@ -242,6 +242,9 @@ test("Talk to the assistant: it proposes, the page books with the form's details
   assert.deepEqual(t.agent.calls[0], { clinic_id: t.agent.calls[0].clinic_id, chat_id: id, text: "A consultation on Wednesday please", events: [] });
   assert.equal((await chat(`/${id}/book`, { name: "Huda Chat", phone: "0791234567", language: "en", agree: true })).json.error, "nothing_to_book");
 
+  await chat(`/${id}/message`, { text: "ok", language: "ar" });
+  assert.equal(t.agent.calls.at(-1).language, "ar", "the page's language reaches the assistant");
+  assert.equal((await chat(`/${id}/message`, { text: "hi", language: "fr" })).status, 400);
   t.agent.next.push({ reply: "Please check the card and press Yes.", proposal: {
     serviceId: svc().id, doctorId: ids.lina, startsAt: at("10:00"), serviceEn: "Consultation", serviceAr: "استشارة",
     doctorEn: "Dr. Lina", doctorAr: "د. لينا", summary: "Consultation with Dr. Lina on Wednesday at 10:00" } });

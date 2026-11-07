@@ -169,7 +169,7 @@ def create_app(env: dict) -> FastAPI:
             raise HTTPException(400, "clinic_id, chat_id and text (up to 1000 characters) are needed")
         with web["lock"]:
             try:
-                out = run_web_turn(web_graph(), clinic_id, chat_id, text, events)
+                out = run_web_turn(web_graph(), clinic_id, chat_id, text, events, body.get("language"))
             except Exception:
                 log.exception("web chat turn failed")
                 if web["conn"] is not None and web["conn"].closed:

@@ -3,7 +3,7 @@
 // call-back request) straight to the clinic's page server; they are never part of a chat message, so they never reach the AI.
 import { Fragment, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Banner, Fail, Shell, ShareLink, call, hm, icsHref, longDate, message, useLang, type Info, type Summary } from "./app";
-import type { Tx } from "./text";
+import type { Lang, Tx } from "./text";
 
 type Proposal = { serviceEn: string; serviceAr: string; doctorEn: string; doctorAr: string; startsAt: string };
 type Turn = { reply: string | null; buttons: string[] | null; proposal: Proposal | null; callback: boolean; emergency: boolean };
@@ -24,6 +24,16 @@ function Rich({ text }: { text: string }) {
   return <>{text.split(/(\*[^*\n]+\*)/g).map((part, i) =>
     part.startsWith("*") && part.endsWith("*") && part.length > 2 ? <b key={i}>{part.slice(1, -1)}</b>
       : part.split("\n").map((line, j) => <Fragment key={`${i}-${j}`}>{j > 0 && <br />}{line}</Fragment>))}</>;
+}
+
+// The chat and the page always use one language. A message decides it only when it clearly is in one: Arabic letters, or
+// English words other than short neutral ones ("ok", "yes", "thanks" are often typed in Latin letters in an Arabic chat).
+// Anything else (a time like "10:30", a number, an emoji, "ok") keeps the language last used.
+const NEUTRAL = new Set(["ok", "okay", "k", "yes", "yeah", "no", "thanks", "thank", "thx", "hi", "hello", "bye", "sure", "done", "cool", "please", "pls"]);
+export function languageOf(text: string, last: Lang): Lang {
+  if (/[؀-ۿ]/.test(text)) return "ar";
+  const words = (text.toLowerCase().match(/[a-z]+/g) ?? []).filter((w) => !NEUTRAL.has(w));
+  return words.some((w) => w.length >= 2) ? "en" : last;
 }
 
 const masked = (phone: string, cc: string) => {
@@ -63,12 +73,15 @@ export function ChatPage({ slug }: { slug: string }) {
   async function send(t: string) {
     const msg = t.trim();
     if (!msg || busy || closed) return;
+    const language = languageOf(msg, lang);
+    if (language !== lang) setLang(language);           // the page follows the conversation: button, greeting, cards and forms
     setText(""); setBusy(true);
     setItems((v) => [...v.map((i) => (i.k === "buttons" ? { ...i, used: true } : i)), { k: "me", text: msg }]);
     try {
       let id = chatId;
       if (!id) { id = (await call<{ chatId: string }>("POST", `/api/c/${slug}/chat`, {})).chatId; setChatId(id); }
-      const r = await call<Turn>("POST", `/api/c/${slug}/chat/${id}/message`, { text: msg });
+      // The assistant answers in this language: the one the patient wrote in, or the button's choice.
+      const r = await call<Turn>("POST", `/api/c/${slug}/chat/${id}/message`, { text: msg, language });
       const out: Item[] = [];
       if (r.emergency && r.reply) out.push({ k: "emergency", text: r.reply });
       else if (r.reply) out.push({ k: "ai", text: r.reply });

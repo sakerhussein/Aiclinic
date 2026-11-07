@@ -62,6 +62,18 @@ def test_a_repeated_answer_is_shown_once(conn, web):
     assert "do not write it again" in fake.calls[0]["system"]
 
 
+def test_the_page_language_decides_the_reply_language(conn, web):
+    graph, fake = web(msg(text("10:30 is free.")), msg(text("10:30 فاضي.")))
+    run_web_turn(graph, CLINIC, CHAT, "10:30", language="en")
+    assert "The page is in English: reply in English." in fake.calls[0]["messages"][-1]["content"]
+    run_web_turn(graph, CLINIC, CHAT, "ok", language="ar")              # the patient pressed the button to Arabic
+    assert "The page is in Arabic: reply in Arabic." in fake.calls[1]["messages"][-1]["content"]
+    assert "Reply in that language" in fake.calls[0]["system"]
+    # Without the AI too: the emergency message follows the page's language, not the letters typed.
+    out = run_web_turn(graph, CLINIC, CHAT, "chest pain", language="ar")
+    assert out["emergency"] and "حالة طارئة" in out["reply"]
+
+
 def test_propose_shows_a_card_and_books_nothing(conn, web):
     graph, fake = web(
         msg(tool("find_available_times", service_id=CONSULT, date_from="2026-12-06", days=1), stop="tool_use"),
@@ -116,7 +128,7 @@ def test_turn_endpoint_needs_the_secret(db_url, monkeypatch):
     calls = []
     monkeypatch.setattr(server, "build_web_agent", lambda *a, **k: "graph")
     monkeypatch.setattr(server, "open_checkpointer", lambda url: None)
-    monkeypatch.setattr(server, "run_web_turn", lambda g, c, ch, t, e: calls.append((c, ch, t, e)) or
+    monkeypatch.setattr(server, "run_web_turn", lambda g, c, ch, t, e, lang=None: calls.append((c, ch, t, e)) or
                         {"reply": "hi", "buttons": None, "proposal": None, "callback": None, "emergency": False, "language": "en"})
     with TestClient(app) as http:
         body = {"clinic_id": CLINIC, "chat_id": CHAT, "text": "hello", "events": ["x"]}

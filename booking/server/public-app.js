@@ -108,8 +108,8 @@ export function createPublicApp({ svc, config, now = Date.now }) {
   const chatIdOf = (req) => parse(uuid, req.params.chatId);
   app.post("/api/c/:slug/chat", limit("lookup"), wrap(async (req, res) => res.status(201).json(await svc.chatStart(slugOf(req), req.ctx))));
   app.post("/api/c/:slug/chat/:chatId/message", limit("lookup"), wrap(async (req, res) => {
-    const b = parse(z.object({ text: z.string().trim().min(1).max(1000) }), req.body);
-    res.json(await svc.chatMessage(slugOf(req), chatIdOf(req), b.text));
+    const b = parse(z.object({ text: z.string().trim().min(1).max(1000), language: z.enum(["ar", "en"]).optional() }), req.body);
+    res.json(await svc.chatMessage(slugOf(req), chatIdOf(req), b.text, b.language));
   }));
   app.post("/api/c/:slug/chat/:chatId/book", limit("book"), wrap(async (req, res) => {
     const b = parse(z.object({

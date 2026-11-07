@@ -85,8 +85,10 @@ You are the booking assistant on the web page of {clinic_en} ({clinic_ar}), in a
 Patients chat with you to book an appointment and to ask practical questions about the clinic.
 
 Language
-- Reply in the patient's language. Arabic speakers get warm, natural Arabic; match a Jordanian dialect when the patient \
-uses one, otherwise simple Modern Standard Arabic. English speakers get plain English.
+- Each message comes with a system message giving the page's language. Reply in that language: the page switches to the \
+language the patient writes in, or to the one they choose with the language button, so the two always match. Arabic gets \
+warm, natural Arabic; match a Jordanian dialect when the patient uses one, otherwise simple Modern Standard Arabic. English \
+gets plain English.
 - Short messages, like a good receptionist. No headings or tables. *Bold* (single asterisks) is fine for a date and time.
 
 What you can do here
@@ -153,6 +155,7 @@ class WebState(TypedDict, total=False):
     messages: Annotated[list[dict], operator.add]
     inbound: str
     events: list[str]
+    page_language: str | None   # 'ar' or 'en' from the page, for this message
     language: str
     rounds: int
     reply: str | None
@@ -182,7 +185,8 @@ def build_web_agent(conn: psycopg.Connection, client: anthropic.Anthropic, *, mo
     def intake(state: WebState, config) -> dict:
         clinic_id = config["configurable"]["clinic_id"]
         text = state["inbound"]
-        language = guess_language(text) if text.strip() else state.get("language", "ar")
+        # The page's language (it follows the conversation and the language button); without one, guess from the text.
+        language = state.get("page_language") or (guess_language(text) if text.strip() else state.get("language", "ar"))
         fresh = {"proposal": None, "callback": None, "buttons": None, "emergency": False, "rounds": 0, "reply": None,
                  "said": [], "done": False, "language": language}
         user = {"role": "user", "content": [{"type": "text", "text": text}]}
@@ -192,7 +196,8 @@ def build_web_agent(conn: psycopg.Connection, client: anthropic.Anthropic, *, mo
                     "reply": reply, "done": True, "emergency": True}
         info, _ = clinic(clinic_id)
         local = now().astimezone(ZoneInfo(info["timezone"]))
-        notes = [f"Current time at the clinic: {WEEKDAYS_EN[local.weekday()]} {local:%Y-%m-%d %H:%M} ({info['timezone']})."]
+        notes = [f"Current time at the clinic: {WEEKDAYS_EN[local.weekday()]} {local:%Y-%m-%d %H:%M} ({info['timezone']}).",
+                 f"The page is in {'Arabic' if language == 'ar' else 'English'}: reply in {'Arabic' if language == 'ar' else 'English'}."]
         notes += [f"On the page: {e}" for e in (state.get("events") or [])]
         return {**fresh, "messages": [user, {"role": "system", "content": " ".join(notes)}]}
 
@@ -288,10 +293,12 @@ def build_web_agent(conn: psycopg.Connection, client: anthropic.Anthropic, *, mo
     return g.compile(checkpointer=checkpointer or InMemorySaver())
 
 
-def run_web_turn(graph, clinic_id: str, chat_id: str, text: str, events: list[str] | None = None) -> dict:
-    """One message from the page. Returns what the page shows: reply, buttons, proposal, callback, emergency."""
+def run_web_turn(graph, clinic_id: str, chat_id: str, text: str, events: list[str] | None = None,
+                 language: str | None = None) -> dict:
+    """One message from the page, in the page's language ('ar' or 'en'). Returns what the page shows: reply, buttons,
+    proposal, callback, emergency."""
     config = {"configurable": {"thread_id": f"web:{chat_id}", "clinic_id": str(clinic_id)}}
-    s = graph.invoke({"inbound": text, "events": events or []}, config)
+    s = graph.invoke({"inbound": text, "events": events or [], "page_language": language if language in ("ar", "en") else None}, config)
     return {"reply": s.get("reply"), "buttons": s.get("buttons"), "proposal": s.get("proposal"),
             "callback": s.get("callback"), "emergency": bool(s.get("emergency")), "language": s.get("language")}
 

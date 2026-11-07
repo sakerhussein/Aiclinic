@@ -91,7 +91,8 @@ export function createPublicService({ pool, now = () => new Date(), agent = null
     return { chatId: (await one(pool, "insert into web_chats (clinic_id, ip) values ($1, $2) returning id", [k.id, ctx.ip ?? null])).id };
   }
 
-  async function chatMessage(slug, chatId, text) {
+  // language: the page's language, which follows the conversation (see chat.tsx languageOf); the assistant answers in it.
+  async function chatMessage(slug, chatId, text, language) {
     const k = await chatClinic(slug);
     const c = await pool.connect();
     let events;
@@ -106,7 +107,7 @@ export function createPublicService({ pool, now = () => new Date(), agent = null
       await c.query("commit");
     } catch (e) { await c.query("rollback").catch(() => {}); throw e; } finally { c.release(); }
     let out;
-    try { out = await agent({ clinic_id: k.id, chat_id: chatId, text, events }); }
+    try { out = await agent({ clinic_id: k.id, chat_id: chatId, text, events, ...(language ? { language } : {}) }); }
     catch { throw new HttpError(503, "assistant_unavailable"); }
     // Kept for the Yes button and the call-back form: only what the assistant proposed or passed on, never typed details.
     await pool.query("update web_chats set proposal = coalesce($2::jsonb, proposal), callback = coalesce($3::jsonb, callback) where id = $1",
