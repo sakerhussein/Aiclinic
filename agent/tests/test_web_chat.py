@@ -53,6 +53,15 @@ def test_text_next_to_a_tool_call_is_not_lost(conn, web):
     assert out["buttons"] == ["Book a consultation", "Call me back"]
 
 
+def test_a_repeated_answer_is_shown_once(conn, web):
+    first = "Prices aren't shown here; the clinic will tell you by phone. Skin cleaning isn't on the list I can book."
+    again = "Prices aren't shown here; the clinic will tell you by phone or at the visit. Skin cleaning isn't one I can book."
+    graph, fake = web(msg(text(first), tool("show_buttons", labels=["Call me back"]), stop="tool_use"), msg(text(again)))
+    out = run_web_turn(graph, CLINIC, CHAT, "How much is skin cleaning?")
+    assert out["reply"] == again
+    assert "do not write it again" in fake.calls[0]["system"]
+
+
 def test_propose_shows_a_card_and_books_nothing(conn, web):
     graph, fake = web(
         msg(tool("find_available_times", service_id=CONSULT, date_from="2026-12-06", days=1), stop="tool_use"),
