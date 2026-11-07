@@ -193,7 +193,8 @@ export function createPublicService({ pool, now = () => new Date() }) {
     return starts.map((t) => ({ doctorId: a.doctor_id, startsAt: new Date(t).toISOString() }));
   }
 
-  // Same doctor and service, a new time. A booking a secretary already checked stays checked: the number was checked, not the time.
+  // Same doctor and service, a new time. The database (migration 0012) puts it back to booked and, where the clinic checks online
+  // bookings, to "Online, not checked": the clinic has not agreed to the new time yet.
   async function reschedule(slug, token, startsAtRaw, ctx) {
     const startsAt = new Date(startsAtRaw);
     if (Number.isNaN(startsAt.getTime())) throw bad("invalid_time");

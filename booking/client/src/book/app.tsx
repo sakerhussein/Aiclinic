@@ -314,7 +314,8 @@ export function ManagePage({ slug }: { slug: string }) {
   const [mode, setMode] = useState<"view" | "move" | "cancel">("view");
   const [slot, setSlot] = useState<Slot | null>(null);
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState("");
+  // Kept as what to say, not the words, so it follows the language button.
+  const [note, setNote] = useState<{ ok: boolean; say: (x: Tx) => string } | null>(null);
   useEffect(() => {
     if (!token) { setErr("link_not_found"); return; }
     const load = () => call<Summary>("POST", `/api/c/${slug}/manage`, { token }).then(setS).catch((e) => setErr(e instanceof Fail ? e.code : "server_error"));
@@ -327,10 +328,10 @@ export function ManagePage({ slug }: { slug: string }) {
   const loadSlots = useCallback((from: string) => call<Slot[]>("POST", `/api/c/${slug}/manage/slots`, { token, date: from }), [slug, token]);
   if (!s) return <Shell name="Limitsiz" lang={lang} setLang={setLang} x={x}>{err ? <Banner kind="warn">{message(new Fail(404, err), x)}</Banner> : <p className="bk-hint">…</p>}</Shell>;
   const c = s.clinic;
-  const act = async (fn: () => Promise<Summary>, done: string) => {
-    setBusy(true); setNote("");
-    try { setS(await fn()); setMode("view"); setSlot(null); setNote(done); }
-    catch (e) { setNote(message(e, x)); if (e instanceof Fail && e.code === "slot_taken") setSlot(null); }
+  const act = async (fn: () => Promise<Summary>, done: "moved" | null) => {
+    setBusy(true); setNote(null);
+    try { setS(await fn()); setMode("view"); setSlot(null); setNote(done ? { ok: true, say: (t) => t[done] } : null); }
+    catch (e) { setNote({ ok: false, say: (t) => message(e, t) }); if (e instanceof Fail && e.code === "slot_taken") setSlot(null); }
     finally { setBusy(false); }
   };
   const active = s.status === "booked" || s.status === "confirmed";
@@ -339,15 +340,15 @@ export function ManagePage({ slug }: { slug: string }) {
       <h1 className="bk-title sm">{x.yourAppt}</h1>
       <SummaryCard s={s} x={x} lang={lang} />
       {s.shownStatus === "waiting" && <Banner kind="warn">{x.waitingShort}</Banner>}
-      {note &&<Banner kind={note === x.moved ? "ok" : "warn"}>{note}</Banner>}
+      {note && <Banner kind={note.ok ? "ok" : "warn"}>{note.say(x)}</Banner>}
       {!active && <Banner kind="warn">{x.cancelled}</Banner>}
       {s.tooLateToChange && <>
         <Banner kind="warn">{x.tooLate} {c.phone && <Phone n={c.phone} />}</Banner>
         {c.phone && <a className="bk-btn ink" href={`tel:${c.phone.replace(/[^\d+]/g, "")}`}>{x.callClinic}</a>}
       </>}
       {mode === "view" && <>
-        {s.canReschedule && <button type="button" className="bk-btn ink" onClick={() => { setMode("move"); setNote(""); }}>{x.changeTime}</button>}
-        {s.canCancel && <button type="button" className="bk-btn danger" onClick={() => { setMode("cancel"); setNote(""); }}>{x.cancelBooking}</button>}
+        {s.canReschedule && <button type="button" className="bk-btn ink" onClick={() => { setMode("move"); setNote(null); }}>{x.changeTime}</button>}
+        {s.canCancel && <button type="button" className="bk-btn danger" onClick={() => { setMode("cancel"); setNote(null); }}>{x.cancelBooking}</button>}
         {(s.canCancel || s.canReschedule) && s.changeNoticeMinutes ? <p className="bk-hint">{x.changeUntil.replace("{t}", spell(s.changeNoticeMinutes, x))}</p> : null}
       </>}
       {mode === "move" && <>
@@ -356,14 +357,14 @@ export function ManagePage({ slug }: { slug: string }) {
         <div className="bk-row">
           <button type="button" className="bk-btn ghost" onClick={() => setMode("view")}>{x.back}</button>
           <button type="button" className="bk-btn accent" disabled={!slot || busy || slot.startsAt === s.startsAt}
-            onClick={() => void act(() => call<Summary>("POST", `/api/c/${slug}/manage/reschedule`, { token, startsAt: slot!.startsAt }), x.moved)}>{x.saveNew}</button>
+            onClick={() => void act(() => call<Summary>("POST", `/api/c/${slug}/manage/reschedule`, { token, startsAt: slot!.startsAt }), "moved")}>{x.saveNew}</button>
         </div>
       </>}
       {mode === "cancel" && <div className="bk-card stack">
         <b>{x.confirmCancel}</b>
         <div className="bk-row">
           <button type="button" className="bk-btn ghost" onClick={() => setMode("view")}>{x.keep}</button>
-          <button type="button" className="bk-btn danger" disabled={busy} onClick={() => void act(() => call<Summary>("POST", `/api/c/${slug}/manage/cancel`, { token }), "")}>{x.yesCancel}</button>
+          <button type="button" className="bk-btn danger" disabled={busy} onClick={() => void act(() => call<Summary>("POST", `/api/c/${slug}/manage/cancel`, { token }), null)}>{x.yesCancel}</button>
         </div>
       </div>}
       {active && <a className="bk-btn outline" href={icsHref(s, lang)} download="appointment.ics">{x.addCal}</a>}

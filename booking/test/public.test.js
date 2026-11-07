@@ -140,6 +140,42 @@ test("the private link: see, move, cancel; only on its own clinic's page; not to
   assert.equal(lm.canCancel, false); assert.equal(lm.tooLateToChange, true);
 });
 
+test("a new time chosen by the patient goes back to the clinic; any move restarts the reminders", async () => {
+  await turnOn();
+  const r = (await book()).json;
+  const view = async () => (await t.pub("POST", `/api/c/${SLUG}/manage`, { token: r.manageToken })).json;
+  const staff = async () => (await sec.get(`/api/appointments/${r.id}`)).json;
+  // The clinic checks and confirms it; reminders were already sent for the old time.
+  let a = await staff();
+  a = (await sec.post(`/api/appointments/${r.id}/check`, { expectedVersion: a.row_version })).json;
+  a = (await sec.post(`/api/appointments/${r.id}/status`, { status: "confirmed", expectedVersion: a.row_version })).json;
+  assert.equal(a.status, "confirmed"); assert.equal((await view()).shownStatus, "confirmed");
+  await t.owner.query("update appointments set reminder_24h_at = now(), reminder_2h_at = now() where id = $1", [r.id]);
+  // The patient moves it: not confirmed any more, and not checked, until the clinic agrees.
+  const mv = await t.pub("POST", `/api/c/${SLUG}/manage/reschedule`, { token: r.manageToken, startsAt: at("11:00") });
+  assert.equal(mv.status, 200); assert.equal(mv.json.status, "booked"); assert.equal(mv.json.shownStatus, "waiting");
+  a = await staff();
+  assert.equal(a.unchecked, true); assert.equal(a.checked_by, null);
+  assert.ok((await sec.get(`/api/appointments?from=${DAY}&to=${DAY}&unchecked=1`)).json.some((x) => x.id === r.id));
+  let rem = (await t.owner.query("select reminder_24h_at, reminder_2h_at from appointments where id = $1", [r.id])).rows[0];
+  assert.equal(rem.reminder_24h_at, null); assert.equal(rem.reminder_2h_at, null);
+  // Without staff check the move still drops "confirmed", but there is nothing to check.
+  a = (await sec.post(`/api/appointments/${r.id}/check`, { expectedVersion: a.row_version })).json;
+  a = (await sec.post(`/api/appointments/${r.id}/status`, { status: "confirmed", expectedVersion: a.row_version })).json;
+  await turnOn({ staffCheck: false });
+  const mv2 = (await t.pub("POST", `/api/c/${SLUG}/manage/reschedule`, { token: r.manageToken, startsAt: at("11:30") })).json;
+  assert.equal(mv2.status, "booked");
+  // A secretary moving it keeps its status, and the reminders start again for the new time.
+  a = await staff();
+  a = (await sec.post(`/api/appointments/${r.id}/status`, { status: "confirmed", expectedVersion: a.row_version })).json;
+  await t.owner.query("update appointments set reminder_24h_at = now() where id = $1", [r.id]);
+  a = await staff();
+  const moved = await sec.patch(`/api/appointments/${r.id}`, { expectedVersion: a.row_version, startsAt: at("12:00") });
+  assert.equal(moved.status, 200); assert.equal(moved.json.status, "confirmed");
+  rem = (await t.owner.query("select reminder_24h_at from appointments where id = $1", [r.id])).rows[0];
+  assert.equal(rem.reminder_24h_at, null);
+});
+
 test("limits per connection come from Settings; bots and other sites get nowhere", async () => {
   await turnOn({ bookingsPerIpPerDay: 1 });
   assert.equal((await book()).status, 201);
