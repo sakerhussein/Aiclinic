@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { ApiError, post } from "./api";
 import { useI18n } from "./i18n";
@@ -96,11 +96,21 @@ export function UserMenu({ name, email, items }: { name: string; email?: string;
     document.addEventListener("mousedown", away); document.addEventListener("keydown", esc);
     return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); };
   }, [open]);
+  // On a phone the button can sit at either edge, so the menu would open off the screen: measure it and move it back inside.
+  const list = useRef<HTMLDivElement>(null);
+  const [shift, setShift] = useState(0);
+  useLayoutEffect(() => {
+    if (!open) { setShift(0); return; }
+    const r = list.current?.getBoundingClientRect();
+    if (!r) return;
+    const vw = document.documentElement.clientWidth, gap = 8;
+    setShift(r.left < gap ? gap - r.left : r.right > vw - gap ? vw - gap - r.right : 0);
+  }, [open]);
   return (
     <div className="um" ref={ref}>
       <button type="button" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>{name} <span aria-hidden="true">▾</span></button>
       {open && (
-        <div className="um-list" role="menu">
+        <div className="um-list" role="menu" ref={list} style={shift ? { transform: `translateX(${shift}px)` } : undefined}>
           {email && <span className="who mono">{email}</span>}
           {items.map((i) => i.href
             ? <a key={i.label} role="menuitem" href={i.href}>{i.label}</a>

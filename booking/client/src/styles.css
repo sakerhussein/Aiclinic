@@ -148,7 +148,7 @@ td select{font:inherit;min-height:36px;border:1px solid var(--field);border-radi
 .um{position:relative}
 .um>button{display:inline-flex;align-items:center;gap:8px;color:var(--on-ink);background:var(--ink-3);border:0;border-radius:999px;padding:8px 14px;font:inherit;font-size:14px;cursor:pointer}
 .um>button:hover{background:var(--ink-line)}
-.um-list{position:absolute;inset-inline-end:0;top:calc(100% + 6px);min-width:210px;background:#fff;color:var(--text);border-radius:14px;border:1px solid var(--rule);box-shadow:0 12px 32px #0004;padding:6px;display:flex;flex-direction:column;z-index:40}
+.um-list{position:absolute;inset-inline-end:0;top:calc(100% + 6px);min-width:210px;max-width:calc(100vw - 16px);background:#fff;color:var(--text);border-radius:14px;border:1px solid var(--rule);box-shadow:0 12px 32px #0004;padding:6px;display:flex;flex-direction:column;z-index:40}
 .um-list a,.um-list button{display:block;text-align:start;font:inherit;font-size:14px;padding:10px 12px;border:0;background:none;border-radius:10px;cursor:pointer;color:var(--text);text-decoration:none}
 .um-list a:hover,.um-list button:hover{background:var(--paper)}
 .um-list .who{padding:8px 12px;color:var(--muted);font-size:12px;border-bottom:1px solid var(--rule-soft);margin-bottom:4px}
@@ -156,7 +156,7 @@ td select{font:inherit;min-height:36px;border:1px solid var(--field);border-radi
 /* settings */
 .setwrap{display:grid;grid-template-columns:210px minmax(0,1fr);gap:20px;align-items:start}
 .settabs{display:flex;flex-direction:column;gap:2px;background:#fff;border:1px solid var(--rule);border-radius:16px;padding:8px;position:sticky;top:12px}
-.settabs button{font:inherit;font-size:14px;text-align:start;padding:10px 12px;border:0;background:none;border-radius:10px;cursor:pointer;color:var(--text)}
+.settabs button{display:flex;align-items:center;gap:8px;font:inherit;font-size:14px;text-align:start;padding:10px 12px;border:0;background:none;border-radius:10px;cursor:pointer;color:var(--text)}
 .settabs button:hover{background:var(--paper)}
 .settabs button.on{background:var(--ink);color:#fff}
 .setbody{display:flex;flex-direction:column;gap:14px;min-width:0}
@@ -197,6 +197,6 @@ td select{font:inherit;min-height:36px;border:1px solid var(--field);border-radi
 .qrbox{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
 .qrbox canvas{border:1px solid var(--rule);border-radius:12px;background:#fff;padding:8px;width:132px;height:132px}
 .linkbox{font-family:var(--font-mono);direction:ltr;background:#fff;border:1px solid var(--rule);border-radius:10px;padding:8px 12px;font-size:14px;word-break:break-all}
-.newtag{font-size:10.5px;background:var(--accent);color:var(--ink);border-radius:999px;padding:1px 7px;margin-inline-start:6px}
+.newtag{flex:none;font-size:10.5px;line-height:1.6;background:var(--accent);color:var(--ink);border-radius:999px;padding:0 7px;margin-inline-start:auto}
 .field textarea{font:inherit;font-weight:400;padding:10px 14px;border:1px solid var(--field);border-radius:12px;background:#fff;color:var(--text);width:100%;resize:vertical;min-height:72px}
 html[lang="ar"] textarea{font-family:var(--font-ar)}
