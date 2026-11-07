@@ -31,6 +31,7 @@ const book = (over, opts) => t.pub("POST", `/api/c/${SLUG}/book`, body(over), op
 const freeOnline = async (day = DAY, doctor = ids.lina) => (await t.pub("GET", `/api/c/${SLUG}/slots?service=${svc().id}&doctor=${doctor}&date=${day}&days=1`)).json.map((s) => s.startsAt);
 
 test("the link is off until an administrator turns it on; a secretary cannot", async () => {
+  assert.equal((await t.pub("GET", "/api/health/db")).status, 200);   // the deploy check: public_app reaches the database
   assert.equal((await t.pub("GET", `/api/c/${SLUG}`)).status, 404);
   assert.equal((await t.pub("GET", "/api/c/no-such-clinic")).json.error, "clinic_not_found", "the same answer as a link switched off");
   assert.equal((await sec.patch("/api/settings/online", ONLINE)).status, 403);

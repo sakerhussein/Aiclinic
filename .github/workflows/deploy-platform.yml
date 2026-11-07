@@ -44,6 +44,8 @@ jobs:
             REPO=/root/Aiclinic
             BACKUP=/root/Aiclinic-platform-backup
             MARK=/root/Aiclinic-platform-deployed.txt
+            # Written by deploy/setup-online-booking.sh. Until then the online booking page is built but not run.
+            PUBLIC_MARK=/root/Aiclinic-public-deployed.txt
 
             # Before deploy/setup-platform.sh has run there is nothing to deploy to, and nothing is touched.
             if [ ! -f "$MARK" ]; then
@@ -73,7 +75,9 @@ jobs:
             fi
             echo "Deploying:$CHANGED ($LAST -> $NOW)"
 
-            port() { if [ "$1" = accounts ]; then echo 3003; else echo 3004; fi; }
+            # The online booking page is part of Booking: same code, its own build (dist-public) and process.
+            PUBLIC=0
+            case " $CHANGED " in *" booking "*) [ -f "$PUBLIC_MARK" ] && PUBLIC=1 ;; esac
 
             mkdir -p "$BACKUP"
             for s in $CHANGED; do
@@ -81,6 +85,9 @@ jobs:
               rm -rf "$BACKUP/$s-dist"
               cp -a "$s/client/dist" "$BACKUP/$s-dist"
             done
+            # Kept even before the page runs here, so a rollback never leaves a half-built page behind.
+            rm -rf "$BACKUP/booking-dist-public"
+            if [ -d booking/client/dist-public ]; then cp -a booking/client/dist-public "$BACKUP/booking-dist-public"; fi
 
             rollback() {
               echo "!!! $1. Restoring $LAST"
@@ -90,8 +97,13 @@ jobs:
                 (cd "$s" && npm ci --omit=dev --no-audit --no-fund) || true
                 rm -rf "$s/client/dist"
                 cp -a "$BACKUP/$s-dist" "$s/client/dist"
+                if [ "$s" = booking ]; then
+                  rm -rf booking/client/dist-public
+                  if [ -d "$BACKUP/booking-dist-public" ]; then cp -a "$BACKUP/booking-dist-public" booking/client/dist-public; fi
+                fi
                 pm2 restart "limitsiz-$s"
               done
+              if [ "$PUBLIC" = 1 ]; then pm2 restart limitsiz-public; fi
               exit 1
             }
 
@@ -102,11 +114,13 @@ jobs:
               npm ci --no-audit --no-fund || rollback "Installing the $s pages failed"
               npm run build || rollback "Building $s failed"
               [ -f dist/index.html ] || rollback "$s produced no index.html"
+              if [ "$s" = booking ]; then [ -f dist-public/book.html ] || rollback "booking produced no online booking page"; fi
             done
 
             for s in $CHANGED; do
               pm2 restart "limitsiz-$s"
             done
+            if [ "$PUBLIC" = 1 ]; then pm2 restart limitsiz-public; fi
 
             # Give each service up to 40 seconds, going through Nginx and to the database.
             for s in $CHANGED; do
@@ -117,6 +131,14 @@ jobs:
               done
               [ "$ok" = 1 ] || rollback "$s did not answer after restart"
             done
+            if [ "$PUBLIC" = 1 ]; then
+              ok=0
+              for i in $(seq 1 20); do
+                if curl -fsS "https://book.limitsiz.si/api/health/db" > /dev/null; then ok=1; break; fi
+                sleep 2
+              done
+              [ "$ok" = 1 ] || rollback "the online booking page did not answer after restart"
+            fi
 
             echo "$NOW" > "$MARK"
             pm2 save

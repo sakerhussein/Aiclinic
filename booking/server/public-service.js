@@ -213,5 +213,6 @@ export function createPublicService({ pool, now = () => new Date() }) {
     }
   }
 
-  return { info, slots, book, manage, cancel, manageSlots, reschedule, limits };
+  const ping = () => pool.query("select 1");
+  return { info, slots, book, manage, cancel, manageSlots, reschedule, limits, ping };
 }

@@ -75,6 +75,10 @@ export function createPublicApp({ svc, config, now = Date.now }) {
   });
 
   app.get("/api/health", (req, res) => res.json({ ok: true }));
+  // For the deploy and uptime checks: 200 when the database answers to the public_app login.
+  app.get("/api/health/db", wrap(async (req, res) => {
+    try { await svc.ping(); res.json({ ok: true }); } catch { res.status(503).json({ ok: false }); }
+  }));
 
   app.get("/api/c/:slug", limit("lookup"), wrap(async (req, res) => res.json(await svc.info(slugOf(req)))));
   app.get("/api/c/:slug/slots", limit("lookup"), wrap(async (req, res) => {

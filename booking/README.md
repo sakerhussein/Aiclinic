@@ -78,6 +78,10 @@ Patients book at `book.limitsiz.si/<clinic>` with no account (plan: `PLAN_public
 - **Send booking link** on Bookings and the patient page opens WhatsApp with the clinic's message; Limitsiz sends nothing itself.
 - Audit: the page's bookings, changes and cancellations are recorded with the actor type `patient` and the connection address.
 - Settings for the server (`.env`): `PUBLIC_SITE_URL` (also read by Booking for the link), `PUBLIC_PORT`, `PUBLIC_DATABASE_URL`.
+- **First setup on the VPS**, once, after the push has deployed and migration 0011 is applied: `bash deploy/setup-online-booking.sh`.
+  It sets the `public_app` password (made on the server, never shown), adds the settings above, starts `limitsiz-public`, adds the
+  Nginx site and certificate for `book.limitsiz.si`, and from then on `deploy-platform.yml` restarts and checks it with Booking.
+  Health: `GET /api/health/db` (200 when the database answers).
 
 ## Not built yet
 
