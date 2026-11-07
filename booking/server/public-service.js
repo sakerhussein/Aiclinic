@@ -40,7 +40,8 @@ export function createPublicService({ pool, now = () => new Date() }) {
   async function clinicById(c, id) { return one(c, `${ONLINE} where c.id = $1`, [id]); }
   // The limits the HTTP layer applies per connection, read from the clinic's settings.
   async function limits(slug) {
-    const k = await one(pool, `select o.lookups_per_ip_per_minute, o.bookings_per_ip_per_day, o.manage_per_ip_per_hour from clinics c join online_booking o on o.clinic_id = c.id where c.slug = $1`, [slug]);
+    const k = await one(pool, `select o.lookups_per_ip_per_minute, o.bookings_per_ip_per_day, o.manage_per_ip_per_hour, o.find_per_ip_per_hour
+      from clinics c join online_booking o on o.clinic_id = c.id where c.slug = $1`, [slug]);
     return k ?? null;
   }
 
@@ -60,8 +61,20 @@ export function createPublicService({ pool, now = () => new Date() }) {
       services, doctors,
       options: { allowAnyDoctor: k.allow_any_doctor, allowForOther: k.allow_for_other, offerReminders: k.offer_reminders, showPrices: k.show_prices,
                  daysPerPage: k.days_per_page, windowDays: k.window_days, countryCode: k.default_country_code,
-                 introEn: k.intro_en, introAr: k.intro_ar, doneNoteEn: k.done_note_en, doneNoteAr: k.done_note_ar, privacyUrl: k.privacy_url },
+                 introEn: k.intro_en, introAr: k.intro_ar, doneNoteEn: k.done_note_en, doneNoteAr: k.done_note_ar, privacyUrl: k.privacy_url,
+                 findEnabled: (await one(pool, "select public.online_find_available($1) as ok", [k.id])).ok },
     };
+  }
+
+  // ---------------------------------------------------------------- "Find my booking"
+  // Queues a new link for each upcoming online booking of the number; the WhatsApp assistant sends it. The answer is the same
+  // whether the number has bookings or not, so this cannot be used to learn about a number.
+  async function find(slug, ctx, phoneRaw) {
+    const k = await one(pool, `select c.id, o.default_country_code from clinics c join online_booking o on o.clinic_id = c.id where c.slug = $1`, [slug]);
+    if (!k || !(await one(pool, "select public.online_find_available($1) as ok", [k.id])).ok) throw notFound("find_not_available");
+    const phone = normalizePhone(phoneRaw, k.default_country_code);
+    await pool.query("select public.online_find($1, $2, $3)", [k.id, phone, ctx.ip ?? null]);
+    return { ok: true };
   }
 
   // ---------------------------------------------------------------- free times, under the clinic's patient rules
@@ -171,7 +184,11 @@ export function createPublicService({ pool, now = () => new Date() }) {
     const a = await one(c, `select a.id, a.clinic_id, a.doctor_id, a.service_id, a.patient_id, a.starts_at, a.status from appointments a
                              where a.manage_token_hash = $1 and a.source = 'web' and a.clinic_id = (select id from clinics where slug = $2)${lock ? " for update of a" : ""}`,
       [sha256hex(token), slug]);
-    if (!a) throw notFound("link_not_found");
+    if (!a) {
+      // A link replaced through "Find my booking" says so, and points to the newest one.
+      if ((await one(c, "select public.online_link_replaced($1, $2) as yes", [slug, sha256hex(token)])).yes) throw new HttpError(410, "link_replaced");
+      throw notFound("link_not_found");
+    }
     return a;
   }
   async function manage(slug, token) { const a = await byToken(pool, slug, token); return summary(pool, a.id); }
@@ -217,5 +234,5 @@ export function createPublicService({ pool, now = () => new Date() }) {
   }
 
   const ping = () => pool.query("select 1");
-  return { info, slots, book, manage, cancel, manageSlots, reschedule, limits, ping };
+  return { info, slots, book, find, manage, cancel, manageSlots, reschedule, limits, ping };
 }

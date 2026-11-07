@@ -76,6 +76,13 @@ Patients book at `book.limitsiz.si/<clinic>` with no account (plan: `PLAN_public
   differs. Every refusal tied to a number gets the same answer.
 - **Private link** `/<clinic>/manage#<token>`: only the token's SHA-256 is stored; it works only on its own clinic's page.
 - **Send booking link** on Bookings and the patient page opens WhatsApp with the clinic's message; Limitsiz sends nothing itself.
+- **Find my booking** (migration 0013, design `design/find-my-booking.html`): `/<clinic>/find`. The patient types a number;
+  `public.online_find()` queues each upcoming online booking of that number and returns nothing, so the page says the same for
+  every number. The WhatsApp assistant (`agent/limitsiz_agent/whatsapp/links.py`) makes the new link when it sends it (template
+  `booking_link`), and the old link answers "replaced". Off by default; can be switched on only once the clinic's WhatsApp number is
+  connected. Limits per number per day and per connection per hour, and the message text, are in Settings > Online booking.
+- **A patient's new time** (migration 0012): back to Booked and "Time changed by patient" until staff press Confirm; the check of the
+  person stays. Any move restarts the reminders.
 - Audit: the page's bookings, changes and cancellations are recorded with the actor type `patient` and the connection address.
 - Settings for the server (`.env`): `PUBLIC_SITE_URL` (also read by Booking for the link), `PUBLIC_PORT`, `PUBLIC_DATABASE_URL`.
 - **First setup on the VPS**, once, after the push has deployed and migration 0011 is applied: `bash deploy/setup-online-booking.sh`.

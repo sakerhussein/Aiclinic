@@ -23,7 +23,8 @@ type Outside = { id: string; starts_at: string; patient_name: string | null; pat
 type Online = { enabled: boolean; staff_check: boolean; show_prices: boolean; allow_any_doctor: boolean; allow_cancel: boolean; allow_reschedule: boolean; allow_for_other: boolean;
   offer_reminders: boolean; default_country_code: string; max_unchecked_per_phone: number; bookings_per_phone_per_day: number; bookings_per_ip_per_day: number;
   lookups_per_ip_per_minute: number; manage_per_ip_per_hour: number; days_per_page: number; intro_en: string | null; intro_ar: string | null;
-  done_note_en: string | null; done_note_ar: string | null; share_message_en: string; share_message_ar: string; privacy_url: string };
+  done_note_en: string | null; done_note_ar: string | null; share_message_en: string; share_message_ar: string; privacy_url: string;
+  find_enabled: boolean; find_per_phone_per_day: number; find_per_ip_per_hour: number; find_message_en: string; find_message_ar: string; whatsapp_connected: boolean };
 type OnlineLink = { enabled: boolean; url?: string; qrUrl?: string };
 type Data = { profile: Profile; hours: Period[]; closures: TimeOff[]; doctors: Doctor[]; services: Service[]; faqs: Faq[]; rules: Rule[]; general: General; outside: Outside[];
   online: Online; onlineLink: OnlineLink;
@@ -110,8 +111,8 @@ const Pick = ({ value, onChange, options }: { value: string | number; onChange: 
 );
 // A pick list, plus the current value when it is a custom one set earlier.
 const withCurrent = (list: number[], cur: number | null | undefined) => (cur == null || list.includes(cur) ? list : [...list, cur].sort((x, y) => x - y));
-const Check = ({ checked, onChange, children }: { checked: boolean; onChange: (v: boolean) => void; children: ReactNode }) => (
-  <label className="check"><input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} /> <span>{children}</span></label>
+const Check = ({ checked, onChange, disabled, children }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean; children: ReactNode }) => (
+  <label className="check"><input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} /> <span>{children}</span></label>
 );
 
 function ProfileTab({ data, reload }: P) {
@@ -482,7 +483,9 @@ function OnlineTab({ data, reload }: P) {
     maxUncheckedPerPhone: o.max_unchecked_per_phone, bookingsPerPhonePerDay: o.bookings_per_phone_per_day, bookingsPerIpPerDay: o.bookings_per_ip_per_day,
     lookupsPerIpPerMinute: o.lookups_per_ip_per_minute, managePerIpPerHour: o.manage_per_ip_per_hour, daysPerPage: o.days_per_page,
     introEn: o.intro_en || "", introAr: o.intro_ar || "", doneNoteEn: o.done_note_en || "", doneNoteAr: o.done_note_ar || "",
-    shareMessageEn: o.share_message_en, shareMessageAr: o.share_message_ar, privacyUrl: o.privacy_url });
+    shareMessageEn: o.share_message_en, shareMessageAr: o.share_message_ar, privacyUrl: o.privacy_url,
+    findEnabled: o.find_enabled, findPerPhonePerDay: o.find_per_phone_per_day, findPerIpPerHour: o.find_per_ip_per_hour,
+    findMessageEn: o.find_message_en, findMessageAr: o.find_message_ar });
   type K = keyof typeof f;
   const { a, ok, submit } = useSave(reload);
   const sw = (k: K, label: string, hint?: string) => (
@@ -531,6 +534,22 @@ function OnlineTab({ data, reload }: P) {
           {txt("shareMessageAr", s.shareAr, "rtl", true, s.shareHint)}{txt("shareMessageEn", s.shareEn, "ltr", true)}
         </div>
         <Field label={s.privacyUrl} hint={s.privacyUrlHint}><input type="url" dir="ltr" className="mono" pattern="https://.*" maxLength={300} required value={f.privacyUrl} onChange={(e) => setF({ ...f, privacyUrl: e.target.value })} /></Field>
+      </section>
+      <section className="panel stack">
+        <div className="row between"><h2>{s.findTitle}</h2>
+          <span className={`pill ${o.whatsapp_connected ? "ok" : "warn"}`}>{o.whatsapp_connected ? s.waConnected : s.waNotConnected}</span></div>
+        {/* It sends by WhatsApp, so it can be switched on only once the clinic's WhatsApp number is connected. */}
+        <Check checked={f.findEnabled} disabled={!o.whatsapp_connected && !f.findEnabled} onChange={(v) => setF({ ...f, findEnabled: v })}>
+          {s.findOn}<br /><small className="hint">{s.findOnHint}</small></Check>
+        {!o.whatsapp_connected && <p className="warntext">{s.findNeedsWa}</p>}
+        <div className="grid2">
+          {num("findPerPhonePerDay", s.findPerPhone, s.findPerPhoneHint, 1, 20)}
+          {num("findPerIpPerHour", s.findPerIp, s.findPerIpHint, 1, 200)}
+        </div>
+        <div className="grid2">
+          <Field label={s.findMsgAr} hint={s.findMsgHint}><textarea dir="rtl" rows={3} maxLength={600} required value={f.findMessageAr} onChange={(e) => setF({ ...f, findMessageAr: e.target.value })} /></Field>
+          <Field label={s.findMsgEn}><textarea dir="ltr" rows={3} maxLength={600} required value={f.findMessageEn} onChange={(e) => setF({ ...f, findMessageEn: e.target.value })} /></Field>
+        </div>
       </section>
       <Saver a={a} ok={ok} />
     </SForm>

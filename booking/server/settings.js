@@ -16,6 +16,8 @@ export const ONLINE_FIELDS = {
   maxUncheckedPerPhone: "max_unchecked_per_phone", bookingsPerPhonePerDay: "bookings_per_phone_per_day", bookingsPerIpPerDay: "bookings_per_ip_per_day",
   lookupsPerIpPerMinute: "lookups_per_ip_per_minute", managePerIpPerHour: "manage_per_ip_per_hour", daysPerPage: "days_per_page",
   introEn: "intro_en", introAr: "intro_ar", doneNoteEn: "done_note_en", doneNoteAr: "done_note_ar", shareMessageEn: "share_message_en", shareMessageAr: "share_message_ar", privacyUrl: "privacy_url",
+  findEnabled: "find_enabled", findPerPhonePerDay: "find_per_phone_per_day", findPerIpPerHour: "find_per_ip_per_hour",
+  findMessageEn: "find_message_en", findMessageAr: "find_message_ar",
 };
 const ONLINE_COLS = Object.values(ONLINE_FIELDS);
 
@@ -42,7 +44,9 @@ export function createSettings({ pool, tx, now = () => new Date() }) {
                 reminder_offsets_minutes, to_char(quiet_start, 'HH24:MI') as quiet_start, to_char(quiet_end, 'HH24:MI') as quiet_end,
                 assistant_enabled, after_hours_message_en, after_hours_message_ar, handoff_alert_emails
            from clinic_settings where clinic_id = $1`),
-      q(`select ${ONLINE_COLS.join(", ")} from online_booking where clinic_id = $1`),
+      // "Find my booking" sends by WhatsApp, so it can only be switched on once the clinic's WhatsApp number is connected.
+      q(`select ${ONLINE_COLS.map((x) => `o.${x}`).join(", ")}, (c.wa_phone_number_id is not null) as whatsapp_connected
+           from online_booking o join clinics c on c.id = o.clinic_id where o.clinic_id = $1`),
     ]);
     return { profile, hours, closures, doctors, services, faqs, rules, general, online, options: OPTIONS, outside: await outside(ctx) };
   }

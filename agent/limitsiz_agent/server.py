@@ -27,7 +27,7 @@ from psycopg.rows import dict_row
 from .agent import build_agent
 from .chat import load_env
 from .staff import alert_new_handoffs, create_router
-from .whatsapp import reminders
+from .whatsapp import links, reminders
 from .whatsapp.client import WhatsAppClient
 from .whatsapp.processor import Processor
 from .whatsapp.webhook import parse, signature_ok
@@ -105,6 +105,11 @@ def create_app(env: dict) -> FastAPI:
                                                      datetime.now(timezone.utc))
                     if n:
                         log.info("sent %d reminders", n)
+                    n = links.send_due_links(conn, wa, env.get("WA_LINK_TEMPLATE") or "booking_link", datetime.now(timezone.utc),
+                                             env.get("BOOK_SITE_URL") or "https://book.limitsiz.si")
+                    if n:
+                        log.info("sent %d booking links", n)
+                links.forget_old_requests(conn, datetime.now(timezone.utc))
                 alert_new_handoffs(conn, smtp, env.get("AGENT_BASE_URL") or "", env.get("STAFF_ALERT_EMAIL"))
             except Exception:  # noqa: BLE001
                 log.exception("scheduler round failed")

@@ -3,6 +3,7 @@ import test, { before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import pg from "pg";
 import { setup } from "./helpers.js";
+import { sha256hex as sha } from "../server/public-service.js";
 
 let t, ids, P, adm, sec;
 before(async () => { t = await setup(); });
@@ -24,6 +25,9 @@ const ONLINE = {
   lookupsPerIpPerMinute: 500, managePerIpPerHour: 100, daysPerPage: 7, introEn: null, introAr: null, doneNoteEn: null, doneNoteAr: null,
   shareMessageEn: "Book your appointment at {clinic} here: {link}", shareMessageAr: "احجز موعدك في {clinic} من هذا الرابط: {link}",
   privacyUrl: "https://limitsiz.si/privacy",
+  findEnabled: false, findPerPhonePerDay: 3, findPerIpPerHour: 10,
+  findMessageEn: "Your appointment at {clinic}: {when}, {doctor}. Your new private link to see the status, change or cancel: {link}",
+  findMessageAr: "موعدك في {clinic}: {when}، {doctor}. رابطك الخاص الجديد لمعرفة حالة الحجز أو تعديله أو إلغائه: {link}",
 };
 const turnOn = (over = {}) => adm.patch("/api/settings/online", { ...ONLINE, ...over });
 const body = (over = {}) => ({ serviceId: svc().id, doctorId: ids.lina, startsAt: at("10:00"), name: "Huda Online", phone: "0791234567", language: "ar", agree: true, ...over });
@@ -185,6 +189,41 @@ test("a new time chosen by the patient goes back to the clinic; any move restart
   const p2 = await sec.patch(`/api/appointments/${r2.id}`, { expectedVersion: b2.row_version, startsAt: at("11:30") });
   assert.equal(p2.status, 200, JSON.stringify(p2.json));
   assert.equal(p2.json.moved_by_patient, false);
+});
+
+test("Find my booking: off until WhatsApp is connected; the same answer for every number; a replaced link says so", async () => {
+  // Switched on, but WhatsApp is not connected: not offered, and refused.
+  await turnOn({ findEnabled: true });
+  const r = (await book()).json;
+  const find = (phone, opts) => t.pub("POST", `/api/c/${SLUG}/find`, { phone }, opts);
+  const queued = async () => (await t.owner.query("select appointment_id::text as id, phone_e164 from link_requests order by created_at")).rows;
+  assert.equal((await t.pub("GET", `/api/c/${SLUG}`)).json.options.findEnabled, false);
+  assert.equal((await find("0791234567")).json.error, "find_not_available");
+  let set = (await adm.get("/api/settings")).json.online;
+  assert.equal(set.whatsapp_connected, false); assert.equal(set.find_enabled, true);
+  // Connected.
+  await t.owner.query("update clinics set wa_phone_number_id = '1234567890' where slug = $1", [SLUG]);
+  t.forgetPublic?.();
+  assert.equal((await t.pub("GET", `/api/c/${SLUG}`)).json.options.findEnabled, true);
+  const known = await find("0791234567"), unknown = await find("0781112222");
+  assert.equal(known.status, 202); assert.equal(unknown.status, 202);
+  assert.deepEqual(known.json, unknown.json, "the page never says whether a number has a booking");
+  assert.deepEqual(await queued(), [{ id: r.id, phone_e164: "+962791234567" }]);
+  assert.equal((await find("12")).status, 400);
+  assert.equal((await t.pub("POST", `/api/c/${SLUG}/find`, { phone: "0791234567", website: "x" })).status, 202, "bots see success");
+  assert.equal((await queued()).length, 1, "and nothing more is queued");
+  // What the WhatsApp assistant does when it sends: a new link replaces the old one, and the old one says "replaced".
+  const old = sha(r.manageToken);
+  await t.owner.query("update appointments set manage_token_hash = $2 where id = $1", [r.id, sha("a-new-link")]);
+  await t.owner.query("update link_requests set status = 'sent', old_token_hash = $1", [old]);
+  const m = await t.pub("POST", `/api/c/${SLUG}/manage`, { token: r.manageToken });
+  assert.equal(m.status, 410); assert.equal(m.json.error, "link_replaced");
+  assert.equal((await t.pub("POST", `/api/c/${SLUG}/manage`, { token: "b".repeat(43) })).json.error, "link_not_found");
+  // Per connection per hour, from Settings.
+  t.forgetPublic?.();
+  await turnOn({ findEnabled: true, findPerIpPerHour: 1 });
+  assert.equal((await find("0781112222")).status, 202);
+  assert.equal((await find("0781112222")).status, 429);
 });
 
 test("limits per connection come from Settings; bots and other sites get nowhere", async () => {

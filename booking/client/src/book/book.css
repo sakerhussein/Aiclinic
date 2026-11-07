@@ -69,6 +69,8 @@ html[lang="ar"] .bk-title{font-family:var(--font-ar);font-weight:600}
 .bk-btn.ink{background:var(--ink);color:#fff}.bk-btn.accent{background:var(--accent);color:var(--ink)}
 .bk-btn.outline{border-color:var(--text);color:var(--text);background:#fff}.bk-btn.ghost{border-color:var(--rule);color:var(--text);background:#fff}
 .bk-btn.wa{background:#25D366;color:#06301a}
+.bk-find{margin:0;padding-top:12px;border-top:1px solid var(--rule-soft);font-size:14px}.bk-find span{color:var(--muted)}.bk-find a{font-weight:600}
+.bk-ok.wa{background:#E3F9EC;color:#128C4B}
 .bk-btn.danger{border-color:var(--error);color:var(--error);background:#fff}
 
 .bk-card{border:1px solid var(--rule);border-radius:18px;padding:10px 14px;background:#fff}

@@ -10,7 +10,7 @@ type Info = {
   clinic: { slug: string; nameEn: string; nameAr: string; phone: string | null; addressEn: string | null; addressAr: string | null; timezone: string; defaultLanguage: Lang };
   services: Service[]; doctors: Doctor[];
   options: { allowAnyDoctor: boolean; allowForOther: boolean; offerReminders: boolean; daysPerPage: number; windowDays: number; countryCode: string;
-             introEn: string | null; introAr: string | null; doneNoteEn: string | null; doneNoteAr: string | null; privacyUrl: string };
+             introEn: string | null; introAr: string | null; doneNoteEn: string | null; doneNoteAr: string | null; privacyUrl: string; findEnabled?: boolean };
 };
 type Summary = {
   id: string; startsAt: string; endsAt: string; status: string; shownStatus?: string; name: string | null; waitingForCheck: boolean;
@@ -35,7 +35,8 @@ async function call<T>(method: "GET" | "POST", url: string, body?: unknown): Pro
 function message(e: unknown, x: Tx) {
   const c = e instanceof Fail ? e.code : "server_error";
   return ({ slot_taken: x.slotTaken, too_many_requests: x.tooMany, invalid_phone: x.invalidPhone, invalid_input: x.invalidInput,
-            link_not_found: x.linkNotFound, clinic_not_found: x.clinicNotFound } as Record<string, string>)[c] ?? x.serverError;
+            link_not_found: x.linkNotFound, clinic_not_found: x.clinicNotFound, link_replaced: x.linkReplaced,
+            find_not_available: x.findNotAvailable } as Record<string, string>)[c] ?? x.serverError;
 }
 
 // ---------------------------------------------------------------- dates in the clinic's time zone
@@ -224,6 +225,7 @@ export function BookPage({ slug }: { slug: string }) {
       <span className="bk-ic"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /></svg></span>
       <span><b>{x.assistant}</b><small>{x.assistantSub}</small></span><span className="bk-end bk-pill">{x.soon}</span>
     </div>
+    {o.findEnabled && <p className="bk-find"><span>{x.alreadyBooked}</span> <a href={`/${slug}/find`}>{x.findLink}</a></p>}
     {callBox}
   </>);
 
@@ -348,7 +350,11 @@ export function ManagePage({ slug }: { slug: string }) {
     return () => document.removeEventListener("visibilitychange", back);
   }, [slug, token]);
   const loadSlots = useCallback((from: string) => call<Slot[]>("POST", `/api/c/${slug}/manage/slots`, { token, date: from }), [slug, token]);
-  if (!s) return <Shell name="Limitsiz" lang={lang} setLang={setLang} x={x}>{err ? <Banner kind="warn">{message(new Fail(404, err), x)}</Banner> : <p className="bk-hint">…</p>}</Shell>;
+  if (!s) return <Shell name="Limitsiz" lang={lang} setLang={setLang} x={x}>{err ? <>
+    <Banner kind="warn">{message(new Fail(404, err), x)}</Banner>
+    {/* A link replaced through "Find my booking": the way to the newest one. */}
+    {err === "link_replaced" && <a className="bk-btn wa" href={`/${slug}/find`}>{x.findLink}</a>}
+  </> : <p className="bk-hint">…</p>}</Shell>;
   const c = s.clinic;
   const act = async (fn: () => Promise<Summary>, done: "moved" | null) => {
     setBusy(true); setNote(null);
@@ -393,4 +399,52 @@ export function ManagePage({ slug }: { slug: string }) {
       {active && <ShareLink s={s} x={x} lang={lang} link={location.href} />}
     </Shell>
   );
+}
+
+// ---------------------------------------------------------------- "Find my booking": a new private link by WhatsApp
+// The answer is the same whether the number has a booking or not, so nobody can learn who books at the clinic.
+export function FindPage({ slug }: { slug: string }) {
+  const [info, setInfo] = useState<Info | null>(null);
+  const [missing, setMissing] = useState("");
+  const { lang, setLang, x } = useLang(info?.clinic.defaultLanguage);
+  useEffect(() => { call<Info>("GET", `/api/c/${slug}`).then(setInfo).catch((e) => setMissing(e instanceof Fail ? e.code : "server_error")); }, [slug]);
+  const [phone, setPhone] = useState("");
+  const [website, setWebsite] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<unknown>(null);
+  const [sent, setSent] = useState<string | null>(null);
+
+  if (!info) {
+    const msg = missing === "clinic_not_found" ? x.clinicNotFound : missing ? x.serverError : "";
+    return <Shell name="Limitsiz" lang={lang} setLang={setLang} x={x}>{msg ? <Banner kind="warn">{msg}</Banner> : <p className="bk-hint">…</p>}</Shell>;
+  }
+  const c = info.clinic, o = info.options;
+  const call_ = c.phone && <a className="bk-btn ink" href={`tel:${c.phone.replace(/[^\d+]/g, "")}`}>{x.callClinic}</a>;
+  const body = !o.findEnabled ? <>
+      <h1 className="bk-title sm">{x.findLink}</h1>
+      <Banner kind="warn">{x.findNotAvailable}</Banner>
+      {call_}
+    </> : sent ? <>
+      <div className="bk-done"><span className="bk-ok wa" aria-hidden="true">✓</span><h1 className="bk-title sm">{x.sentTitle}</h1></div>
+      <Banner kind="info">{x.sentText.replace("{phone}", "⁦" + sent + "⁩")}</Banner>
+      <p className="bk-hint">{x.nothingArrived}</p>
+      {call_}
+      <a className="bk-btn ghost" href={`/${slug}`}>{x.backToBooking}</a>
+    </> : <form className="bk-stack" onSubmit={(e) => {
+        e.preventDefault(); setBusy(true); setErr(null);
+        const shown = phone.trim().startsWith("0") ? `+${o.countryCode} ${phone.trim().slice(1)}` : phone.trim().startsWith("+") ? phone.trim() : `+${o.countryCode} ${phone.trim()}`;
+        call<{ ok: boolean }>("POST", `/api/c/${slug}/find`, { phone, website }).then(() => setSent(shown)).catch(setErr).finally(() => setBusy(false));
+      }}>
+      <h1 className="bk-title sm">{x.findLink}</h1>
+      <p className="bk-hint">{x.findHint}</p>
+      {err != null && <Banner kind="bad">{message(err, x)}</Banner>}
+      <label className="bk-field">{x.mobile}
+        <span className="bk-tel" dir="ltr"><span className="mono">+{o.countryCode}</span><input className="mono" type="tel" inputMode="tel" autoComplete="tel" required minLength={6} maxLength={30} value={phone} onChange={(e) => setPhone(e.target.value)} /></span>
+      </label>
+      <label className="hp" aria-hidden="true">Website<input tabIndex={-1} autoComplete="off" value={website} onChange={(e) => setWebsite(e.target.value)} /></label>
+      <button className="bk-btn wa" disabled={busy}>{busy ? x.sending : x.sendMyLink}</button>
+      <p className="bk-hint">{x.findNote}</p>
+      <a className="bk-btn ghost" href={`/${slug}`}>{x.back}</a>
+    </form>;
+  return <Shell name={lang === "ar" ? c.nameAr : c.nameEn} place={lang === "ar" ? c.addressAr : c.addressEn} lang={lang} setLang={setLang} x={x} privacyUrl={o.privacyUrl}>{body}</Shell>;
 }

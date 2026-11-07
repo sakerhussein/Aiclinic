@@ -50,6 +50,14 @@ const EN = {
   introAr: "Intro (Arabic)", introEn: "Intro (English)", doneAr: "Arrival note (Arabic)", doneEn: "Arrival note (English)",
   shareAr: "WhatsApp message with the link (Arabic)", shareEn: "WhatsApp message with the link (English)", shareHint: "{clinic} and {link} are filled in. {link} is required.",
   privacyUrl: "Privacy notice link", privacyUrlHint: "Patients agree to it before booking. Must start with https://.",
+  findTitle: "Find my booking", waConnected: "WhatsApp connected", waNotConnected: "WhatsApp not connected yet",
+  findOn: "Patients can get their link again",
+  findOnHint: "Adds “Find my booking” to the clinic’s page. The patient types their number and a new private link is sent to its WhatsApp; the old link stops working. Online bookings only.",
+  findNeedsWa: "Turns on once WhatsApp is connected (Settings › WhatsApp assistant) and Meta approves the “booking link” message. Until then patients don’t see it.",
+  findPerPhone: "Requests per number per day", findPerPhoneHint: "Messages sent to one number in 24 hours",
+  findPerIp: "Requests per connection per hour", findPerIpHint: "One internet connection (IP address)",
+  findMsgAr: "WhatsApp message (Arabic)", findMsgEn: "WhatsApp message (English)",
+  findMsgHint: "{clinic}, {when}, {doctor} and {link} are filled in. Must match the template Meta approved.",
 };
 
 const AR: typeof EN = {
@@ -101,6 +109,14 @@ const AR: typeof EN = {
   introAr: "التعريف (عربي)", introEn: "التعريف (إنجليزي)", doneAr: "ملاحظة الوصول (عربي)", doneEn: "ملاحظة الوصول (إنجليزي)",
   shareAr: "رسالة واتساب مع الرابط (عربي)", shareEn: "رسالة واتساب مع الرابط (إنجليزي)", shareHint: "يُستبدل {clinic} و{link} تلقائياً. {link} مطلوب.",
   privacyUrl: "رابط إشعار الخصوصية", privacyUrlHint: "يوافق عليه المريض قبل الحجز. يجب أن يبدأ بـ https://.",
+  findTitle: "ابحث عن حجزي", waConnected: "واتساب متصل", waNotConnected: "واتساب غير متصل بعد",
+  findOn: "يستطيع المريض استعادة رابطه",
+  findOnHint: "يضيف «ابحث عن حجزي» إلى صفحة العيادة. يكتب المريض رقمه فيُرسل رابط خاص جديد إلى واتساب هذا الرقم، ويتوقف الرابط القديم. للحجوزات الإلكترونية فقط.",
+  findNeedsWa: "يمكن تفعيله بعد ربط واتساب (الإعدادات › مساعد واتساب) وموافقة Meta على رسالة «رابط الحجز». حتى ذلك الحين لا يراه المرضى.",
+  findPerPhone: "طلبات لكل رقم في اليوم", findPerPhoneHint: "رسائل تُرسل لرقم واحد خلال ٢٤ ساعة",
+  findPerIp: "طلبات لكل اتصال في الساعة", findPerIpHint: "اتصال إنترنت واحد (عنوان IP)",
+  findMsgAr: "رسالة واتساب (عربي)", findMsgEn: "رسالة واتساب (إنجليزي)",
+  findMsgHint: "يُستبدل {clinic} و{when} و{doctor} و{link} تلقائياً. يجب أن يطابق القالب الذي وافقت عليه Meta.",
 };
 
 export const useS = () => (useI18n().lang === "ar" ? AR : EN);

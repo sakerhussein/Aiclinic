@@ -64,6 +64,7 @@ export function createPublicApp({ svc, config, now = Date.now }) {
     lookup: { field: "lookups_per_ip_per_minute", windowMs: 60_000 },
     book: { field: "bookings_per_ip_per_day", windowMs: 86_400_000 },
     manage: { field: "manage_per_ip_per_hour", windowMs: 3_600_000 },
+    find: { field: "find_per_ip_per_hour", windowMs: 3_600_000 },
   };
   const slugOf = (req) => { if (!slugRe.test(req.params.slug)) throw new HttpError(404, "clinic_not_found"); return req.params.slug; };
   const limit = (kind) => wrap(async (req, res, next) => {
@@ -96,6 +97,12 @@ export function createPublicApp({ svc, config, now = Date.now }) {
     if (b.website) return res.status(201).json({ ok: true });          // hidden field filled in: a bot. Looks like success, does nothing.
     res.status(201).json(await svc.book(slugOf(req), req.ctx, b));
   }));
+  // "Find my booking": always the same answer, whether or not the number has a booking.
+  app.post("/api/c/:slug/find", limit("find"), wrap(async (req, res) => {
+    const b = parse(z.object({ phone: z.string().trim().min(6).max(30), website: z.string().max(200).optional() }), req.body);
+    if (b.website) return res.status(202).json({ ok: true });
+    res.status(202).json(await svc.find(slugOf(req), req.ctx, b.phone));
+  }));
 
   // ---- the private change-or-cancel link. The token travels in the body, never in an address that could end up in a log.
   const tok = { token: z.string().max(60) };
@@ -116,7 +123,7 @@ export function createPublicApp({ svc, config, now = Date.now }) {
   // ---- the page (its own small build, not the staff app)
   if (existsSync(dist)) {
     app.use(express.static(dist, { index: false, maxAge: "1h", setHeaders: (res, p) => { if (p.endsWith(".html")) res.set("Cache-Control", "no-store"); } }));
-    app.get(/^\/[a-z0-9-]{1,60}(\/manage)?\/?$/, (req, res) => res.sendFile(path.join(dist, "book.html")));
+    app.get(/^\/[a-z0-9-]{1,60}(\/manage|\/find)?\/?$/, (req, res) => res.sendFile(path.join(dist, "book.html")));
   }
 
   app.use((req, res) => res.status(404).json({ error: "not_found" }));
