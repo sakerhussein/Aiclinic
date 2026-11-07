@@ -103,8 +103,10 @@ export function ChatPage({ slug }: { slug: string }) {
   const nm = (p: Proposal) => ({ svc: lang === "ar" ? p.serviceAr : p.serviceEn, doc: lang === "ar" ? p.doctorAr : p.doctorEn });
   const view = items.map((it, i): ReactNode => {
     switch (it.k) {
-      case "ai": return <div key={i} className="ch-b ai"><Rich text={it.text} /></div>;
-      case "me": return <div key={i} className="ch-b me">{it.text}</div>;
+      // The bubble keeps the page's side and corner; the text inside reads in its own direction (dir="auto"), so Arabic
+      // runs right to left even on the English page, and the other way round.
+      case "ai": return <div key={i} className="ch-b ai"><div dir="auto"><Rich text={it.text} /></div></div>;
+      case "me": return <div key={i} className="ch-b me"><div dir="auto">{it.text}</div></div>;
       case "buttons": return it.used ? null : <div key={i} className="ch-chips">{it.labels.map((l) =>
         <button key={l} type="button" className={/^\d{1,2}:\d{2}$/.test(l) ? "mono" : ""} disabled={busy} onClick={() => void send(l)}>{l}</button>)}</div>;
       case "details": return <DetailsCard key={i} x={x} cc={o.countryCode} privacyUrl={o.privacyUrl} onDone={(d) => {
@@ -136,7 +138,7 @@ export function ChatPage({ slug }: { slug: string }) {
       }
       case "callback": return it.sent ? null : <CallbackCard key={i} x={x} cc={o.countryCode} phone={c.phone} busy={busy} onSend={(d) => void callBack(i, d)} />;
       case "emergency": return <Fragment key={i}>
-        <Banner kind="bad"><Rich text={it.text} /></Banner>
+        <Banner kind="bad"><span dir="auto" style={{ display: "block" }}><Rich text={it.text} /></span></Banner>
         <a className="bk-btn danger solid" href="tel:911">{x.call911}</a>
       </Fragment>;
       case "unavailable": return <Fragment key={i}>
@@ -165,7 +167,7 @@ export function ChatPage({ slug }: { slug: string }) {
         <div ref={end} />
       </div>
       {o.chatEnabled && <form className="ch-in" onSubmit={(e: FormEvent) => { e.preventDefault(); void send(text); }}>
-        <input value={text} maxLength={1000} placeholder={x.typeMessage} aria-label={x.typeMessage} disabled={closed} onChange={(e) => setText(e.target.value)} />
+        <input value={text} maxLength={1000} dir="auto" placeholder={x.typeMessage} aria-label={x.typeMessage} disabled={closed} onChange={(e) => setText(e.target.value)} />
         <button className="ch-send" aria-label={x.send} disabled={busy || closed || !text.trim()}>
           <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" className="flip"><path d="M4 12l16-8-6 16-2.5-6.5z" fill="currentColor" /></svg>
         </button>
