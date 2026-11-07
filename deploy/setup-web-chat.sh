@@ -23,7 +23,8 @@ pm2 describe limitsiz-agent > /dev/null 2>&1 || die "the limitsiz-agent process 
 pm2 describe limitsiz-public > /dev/null 2>&1 || die "the limitsiz-public process is not running"
 
 say "The shared secret"
-current() { grep -h '^WEB_CHAT_SECRET=' "$1" 2>/dev/null | head -1 | cut -d= -f2- | tr -d "'\""; }
+# "|| true": no line yet is the normal first run, not an error (with pipefail a missing line would stop the script silently).
+current() { { grep -h '^WEB_CHAT_SECRET=' "$1" 2>/dev/null || true; } | head -1 | cut -d= -f2- | tr -d "'\""; }
 A=$(current "$REPO/agent/.env"); B=$(current "$REPO/booking/.env")
 if [ -n "$A" ] && [ "$A" = "$B" ]; then
   echo "Both files already have the same secret; kept."
