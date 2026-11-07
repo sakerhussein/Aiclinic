@@ -56,14 +56,40 @@ function spell(m: number, x: Tx) {
 }
 
 // "Add to calendar": a small .ics file made here, nothing sent anywhere.
-function icsHref(s: Summary, l: Lang) {
+// The calendar entry carries the private link, so a patient who saved the appointment always finds it again.
+function icsHref(s: Summary, l: Lang, x: Tx, link: string) {
   const z = (iso: string) => new Date(iso).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
   const esc = (v: string) => v.replace(/[\\,;]/g, (c) => "\\" + c).replace(/\n/g, "\\n");
+  // Lines longer than 75 bytes are folded (RFC 5545); 60 characters keeps Arabic under the limit too.
+  const fold = (line: string) => { const out = []; for (let i = 0; i < line.length; i += 60) out.push((i ? " " : "") + line.slice(i, i + 60)); return out.join("\r\n"); };
   const clinic = l === "ar" ? s.clinic.nameAr : s.clinic.nameEn, svc = l === "ar" ? s.service.nameAr : s.service.nameEn;
+  const doctor = l === "ar" ? s.doctor.nameAr : s.doctor.nameEn;
   const where = (l === "ar" ? s.clinic.addressAr : s.clinic.addressEn) || clinic;
+  const note = [doctor, x.calLink.replace("{link}", link), s.clinic.phone ? `${x.callClinic}: ${s.clinic.phone}` : ""].filter(Boolean).join("\n");
   const body = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Limitsiz//Online booking//EN", "BEGIN:VEVENT", `UID:${s.id}@limitsiz`, `DTSTAMP:${z(new Date().toISOString())}`,
-    `DTSTART:${z(s.startsAt)}`, `DTEND:${z(s.endsAt)}`, `SUMMARY:${esc(`${svc} · ${clinic}`)}`, `LOCATION:${esc(where)}`, "END:VEVENT", "END:VCALENDAR"].join("\r\n");
+    `DTSTART:${z(s.startsAt)}`, `DTEND:${z(s.endsAt)}`, `SUMMARY:${esc(`${svc} · ${clinic}`)}`, `LOCATION:${esc(where)}`,
+    `DESCRIPTION:${esc(note)}`, `URL:${link}`, "END:VEVENT", "END:VCALENDAR"].map(fold).join("\r\n");
   return "data:text/calendar;charset=utf-8," + encodeURIComponent(body);
+}
+
+// "Save the link": the phone's own share menu (WhatsApp, messages, notes, email); WhatsApp where there is none (computers).
+function ShareLink({ s, x, lang, link }: { s: Summary; x: Tx; lang: Lang; link: string }) {
+  const [copied, setCopied] = useState(false);
+  const clinic = lang === "ar" ? s.clinic.nameAr : s.clinic.nameEn;
+  const when = `${longDate(s.startsAt, s.clinic.timezone, lang)}${lang === "ar" ? "، " : ", "}${hm(s.startsAt, s.clinic.timezone)}`;
+  const text = x.shareText.replace("{clinic}", clinic).replace("{when}", when);
+  const share = async () => {
+    if (navigator.share) { try { await navigator.share({ title: clinic, text, url: link }); return; } catch (e) { if ((e as Error).name === "AbortError") return; } }
+    window.open(`https://wa.me/?text=${encodeURIComponent(`${text}\n${link}`)}`, "_blank", "noopener");
+  };
+  return (
+    <div className="bk-field">{x.privateLink}
+      <button type="button" className="bk-btn wa" onClick={() => void share()}>{x.saveLink}</button>
+      <div className="bk-link"><span className="mono">{link.replace(/^https?:\/\//, "")}</span>
+        <button type="button" onClick={() => void navigator.clipboard?.writeText(link).then(() => setCopied(true))}>{copied ? x.copied : x.copy}</button></div>
+      <small>{x.privateHint}</small>
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------- language
@@ -172,7 +198,6 @@ export function BookPage({ slug }: { slug: string }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<{ code: string; text: string } | null>(null);
   const [done, setDone] = useState<Summary | null>(null);
-  const [copied, setCopied] = useState(false);
   const loadSlots = useCallback((start: string, days: number) => call<Slot[]>("GET",
     `/api/c/${slug}/slots?service=${serviceId}${doctorId && doctorId !== "any" ? `&doctor=${doctorId}` : ""}&date=${start}&days=${days}`), [slug, serviceId, doctorId]);
 
@@ -294,12 +319,9 @@ export function BookPage({ slug }: { slug: string }) {
       {done.waitingForCheck && <Banner kind="warn">{x.waiting.replace("{phone}", "⁦" + shownPhone + "⁩")}</Banner>}
       <SummaryCard s={done} x={x} lang={lang} withName />
       {note && <p className="bk-note">{note}</p>}
-      <a className="bk-btn outline" href={icsHref(done, lang)} download="appointment.ics">{x.addCal}</a>
-      <div className="bk-field">{x.privateLink}
-        <div className="bk-link"><span className="mono">{link.replace(/^https?:\/\//, "")}</span>
-          <button type="button" onClick={() => void navigator.clipboard?.writeText(link).then(() => setCopied(true))}>{copied ? x.copied : x.copy}</button></div>
-        <small>{x.privateHint}</small>
-      </div>
+      <ShareLink s={done} x={x} lang={lang} link={link} />
+      <a className="bk-btn outline" href={icsHref(done, lang, x, link)} download="appointment.ics">{x.addCal}</a>
+      <p className="bk-hint">{x.calHint}</p>
     </>);
   }
   return shell(<button type="button" className="bk-btn ink" onClick={() => setStep("start")}>{x.back}</button>);
@@ -367,7 +389,8 @@ export function ManagePage({ slug }: { slug: string }) {
           <button type="button" className="bk-btn danger" disabled={busy} onClick={() => void act(() => call<Summary>("POST", `/api/c/${slug}/manage/cancel`, { token }), null)}>{x.yesCancel}</button>
         </div>
       </div>}
-      {active && <a className="bk-btn outline" href={icsHref(s, lang)} download="appointment.ics">{x.addCal}</a>}
+      {active && <a className="bk-btn outline" href={icsHref(s, lang, x, location.href)} download="appointment.ics">{x.addCal}</a>}
+      {active && <ShareLink s={s} x={x} lang={lang} link={location.href} />}
     </Shell>
   );
 }
