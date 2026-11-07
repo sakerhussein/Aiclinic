@@ -31,7 +31,7 @@ from zoneinfo import ZoneInfo
 from ..booking import BookingError, clinic_info, find_slots
 from .graph import CLINIC_INFO_TTL_SECONDS, FALLBACK_BETA, MAX_TOOL_ROUNDS, SORRY, _result, _say
 from .prompt import build_system_prompt
-from .safety import emergency_reply, guess_language, is_emergency
+from .safety import emergency_reply, is_emergency, message_language
 from .tools import TOOLS, WEEKDAYS_EN, ToolBox, ToolInputError, _parse_date, _validate
 
 _ID = {"type": "string", "description": "An ID exactly as given in the clinic details or a tool result."}
@@ -186,7 +186,7 @@ def build_web_agent(conn: psycopg.Connection, client: anthropic.Anthropic, *, mo
         clinic_id = config["configurable"]["clinic_id"]
         text = state["inbound"]
         # The page's language (it follows the conversation and the language button); without one, guess from the text.
-        language = state.get("page_language") or (guess_language(text) if text.strip() else state.get("language", "ar"))
+        language = state.get("page_language") or message_language(text, state.get("language"))
         fresh = {"proposal": None, "callback": None, "buttons": None, "emergency": False, "rounds": 0, "reply": None,
                  "said": [], "done": False, "language": language}
         user = {"role": "user", "content": [{"type": "text", "text": text}]}

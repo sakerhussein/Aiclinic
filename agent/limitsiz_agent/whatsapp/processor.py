@@ -14,7 +14,7 @@ from typing import Callable
 import psycopg
 
 from ..agent import run_turn
-from ..agent.safety import guess_language
+from ..agent.safety import message_language
 from ..booking import hand_off
 from .client import WhatsAppClient
 from .webhook import Inbound
@@ -72,7 +72,7 @@ class Processor:
 
         # Only text the patient typed tells the language; button payloads and media do not.
         if m.kind in ("text", "image") and m.text.strip():
-            lang = guess_language(m.text)
+            lang = message_language(m.text, language)      # a time or "ok" keeps the conversation's language
             if lang != language:
                 self.conn.execute("update conversations set language = %s where id = %s", (lang, conv_id))
         else:

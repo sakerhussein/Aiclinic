@@ -27,7 +27,7 @@ from zoneinfo import ZoneInfo
 
 from ..booking import BookingError, clinic_info, hand_off, normalize_phone
 from .prompt import build_system_prompt
-from .safety import confirmation_answer, emergency_reply, guess_language, is_emergency
+from .safety import confirmation_answer, emergency_reply, is_emergency, message_language
 from .tools import CHANGE_TOOLS, TOOLS, WEEKDAYS_EN, ToolBox, ToolInputError, to_json
 
 MAX_TOOL_ROUNDS = 6
@@ -85,7 +85,7 @@ def build_agent(
     def intake(state: State, config) -> dict:
         clinic_id, phone = ids(config)
         text = state["inbound"]
-        language = guess_language(text) if text.strip() else state.get("language", "ar")
+        language = message_language(text, state.get("language"))
         if _staff_handling(conn, clinic_id, phone):
             return {"reply": None, "done": True, "pending": None}
 
@@ -99,7 +99,10 @@ def build_agent(
         info, _ = clinic(clinic_id)
         tz = ZoneInfo(info["timezone"])
         local = now().astimezone(tz)
-        notes = [f"Current time at the clinic: {WEEKDAYS_EN[local.weekday()]} {local:%Y-%m-%d %H:%M} ({info['timezone']})."]
+        notes = [f"Current time at the clinic: {WEEKDAYS_EN[local.weekday()]} {local:%Y-%m-%d %H:%M} ({info['timezone']}).",
+                 # Decided here, not left to the model: an Arabic message with one English word once got an English reply.
+                 f"The patient is writing in {'Arabic' if language == 'ar' else 'English'}: reply in "
+                 f"{'Arabic' if language == 'ar' else 'English'}."]
         if not state.get("messages"):
             notes.append("This is the patient's first message.")
         pending = state.get("pending")

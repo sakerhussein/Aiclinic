@@ -109,6 +109,19 @@ def check_append_only(fake):
 
 # ---------------------------------------------------------------- booking with confirmation
 
+def test_reply_language_follows_the_owner_rule(conn, run):
+    from limitsiz_agent.agent.safety import message_language
+    assert message_language("عندكم تأمين Medgulf؟", "en") == "ar"          # Arabic letters win over an English word
+    assert message_language("Can I book laser?", "ar") == "en"
+    assert message_language("10:00", "ar") == "ar" and message_language("ok", "ar") == "ar"   # keeps the last language
+    assert message_language("10:00", None) == "ar" and message_language("hi", None) == "en"   # first message
+    fake = FakeClaude(msg(text("أهلاً")), msg(text("تمام")))
+    run(fake, "عندكم تأمين Medgulf؟")
+    run(fake, "ok")
+    notes = [m["content"] for m in fake.calls[1]["messages"] if m["role"] == "system"]
+    assert "The patient is writing in Arabic: reply in Arabic." in notes[0] and "reply in Arabic" in notes[-1]
+
+
 def test_booking_waits_for_yes_then_books(conn, run):
     fake = FakeClaude(
         msg(thinking("sig-1"), tool("find_available_times", service_id=CONSULT, date_from="2026-12-06", days=1), stop="tool_use"),

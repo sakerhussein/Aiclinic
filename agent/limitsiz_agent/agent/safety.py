@@ -82,3 +82,22 @@ def emergency_reply(language: str) -> str:
 def guess_language(text: str) -> str:
     """'ar' when the message has Arabic letters, otherwise 'en'."""
     return "ar" if re.search(r"[؀-ۿ]", text or "") else "en"
+
+
+# Short words often typed in Latin letters inside an Arabic chat: they do not make a message English.
+_NEUTRAL = {"ok", "okay", "k", "yes", "yeah", "no", "thanks", "thank", "thx", "hi", "hello", "bye", "sure", "done", "cool",
+            "please", "pls"}
+
+
+def message_language(text: str, last: str | None) -> str:
+    """The language to answer in (owner's rule): Arabic letters mean Arabic, even with an English word in the message
+    ("عندكم تأمين Medgulf؟"); English words other than neutral ones mean English; anything else (a time, a number,
+    "ok") keeps the language last used. With no language yet, Latin letters mean English ("hi"), otherwise Arabic."""
+    if re.search(r"[؀-ۿ]", text or ""):
+        return "ar"
+    letters = re.findall(r"[a-z]+", (text or "").lower())
+    if any(len(w) >= 2 for w in letters if w not in _NEUTRAL):
+        return "en"
+    if last:
+        return last
+    return "en" if letters else "ar"
