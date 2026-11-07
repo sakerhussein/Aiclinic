@@ -103,6 +103,18 @@ begin
   return v;
 end $$;
 revoke all on function public.online_patient(uuid, text, text, text, boolean) from public;
+revoke all on function public.online_booking_defaults() from public;
+-- Supabase gives its API roles (anon, authenticated) every new table and function in public by default. The online page never
+-- goes through Supabase's API, so take those away: otherwise the publishable key could call online_patient() directly.
+do $$ declare r text; begin
+  foreach r in array array['anon', 'authenticated'] loop
+    if exists (select from pg_roles where rolname = r) then
+      execute format('revoke all on function public.online_patient(uuid, text, text, text, boolean) from %I', r);
+      execute format('revoke all on function public.online_booking_defaults() from %I', r);
+      execute format('revoke all on table public.online_booking from %I', r);
+    end if;
+  end loop;
+end $$;
 
 -- ---------------------------------------------------------------- public_app (the online booking page)
 do $$ begin
