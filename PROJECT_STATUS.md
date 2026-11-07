@@ -40,7 +40,7 @@ Results before deploying:
 ## Next steps
 
 1. **Check the nightly audit email**: the owner confirmed on 2026-11-06 that a real email from Accounts arrived on nodemailer 10.3.1. The nightly audit email from Booking and the website's alert emails have not been seen on the new version yet.
-2. **Turn on WhatsApp**: the owner adds `WA_TOKEN`, `WA_APP_SECRET` and `WA_VERIFY_TOKEN` from Meta, and the `appointment_reminder` template must be approved. See `agent/META_SETUP.md`.
+2. **Turn on WhatsApp**: the owner adds `WA_TOKEN`, `WA_APP_SECRET` and `WA_VERIFY_TOKEN` from Meta, and the `appointment_reminder` template must be approved. See `agent/META_SETUP.md`. In the same round: the `booking_link` template, then switch on and test "Find my booking" (three steps in `agent/META_SETUP.md`, section "Find my booking" template).
 3. **Finish the agent evaluation**: run the full 51 cases in `agent/evals/booking_chats` and get the owner's grading sign-off. The harness changed, so the run needs `--approve-harness` from the owner first.
 4. **Build the hand-off inbox**: where staff take over from the agent. Not built yet.
 5. **Confirm the remaining live checks**: the owner still needs to check the audit page and the Arabic version.

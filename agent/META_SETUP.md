@@ -94,6 +94,32 @@ approved; nothing to change on the server.
 
 ---
 
+## "Find my booking" template (online booking page; do it with the reminder template)
+
+A patient who lost the private link to their online booking types their number on `book.limitsiz.si/<clinic>/find`, and
+the assistant sends a new link by WhatsApp (the old one stops working). Built and live since 2026-11-07, but **off**:
+it cannot be switched on until the clinic's WhatsApp number is connected (step 4 above).
+
+1. **Submit the template.** WhatsApp Manager → **Message templates** → **Create template**:
+   - Category **Utility**, name **`booking_link`**, language **Arabic**. No buttons.
+   - Body: the Arabic message in Booking → Settings → Online booking → Find my booking, with `{clinic}`, `{when}`, `{doctor}`
+     and `{link}` written as `{{1}}`, `{{2}}`, `{{3}}`, `{{4}}`. With the default text:
+     `موعدك في {{1}}: {{2}}، {{3}}. رابطك الخاص الجديد لمعرفة حالة الحجز أو تعديله أو إلغائه: {{4}}`
+     Sample values: `عيادة Limitsiz التجريبية للجلدية`, `الأحد 08/11 الساعة 12:00`, `د. لينا حداد`,
+     `https://book.limitsiz.si/demo-derma/manage#abc`.
+   - **Add language** → **English**, same name:
+     `Your appointment at {{1}}: {{2}}, {{3}}. Your new private link to see the status, change or cancel: {{4}}`
+   - If a clinic later edits the message in Settings, the template must be submitted again with the new wording.
+2. **Switch it on.** Once Meta approves it and the clinic's number is connected: Booking → Settings → Online booking →
+   Find my booking → tick **Patients can get their link again** → **Save**. (Template name and page address on the server:
+   `WA_LINK_TEMPLATE`, default `booking_link`, and `BOOK_SITE_URL`, default `https://book.limitsiz.si`, in `agent/.env`.)
+3. **Test with your own phone.** Book on `book.limitsiz.si/demo-derma` with your number, then open
+   `book.limitsiz.si/demo-derma/find` and type the same number. Within a minute a WhatsApp message arrives with a new link,
+   and the first link now says it was replaced. Requests that failed are in the `link_requests` table (`status = 'failed'`,
+   with the error).
+
+---
+
 ## Round 2: the clinic's real number
 
 1. **Business verification:** business.facebook.com → Settings → **Security center** → **Start verification**
