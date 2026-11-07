@@ -8,6 +8,7 @@
 - Conversations are saved in Postgres (LangGraph checkpoints), so they survive a restart.
 """
 
+import hmac
 import logging
 import os
 import queue
@@ -20,12 +21,14 @@ from pathlib import Path
 import anthropic
 import psycopg
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import PlainTextResponse
 from psycopg.rows import dict_row
 
 from .agent import build_agent
+from .agent.web import build_web_agent, run_web_turn
 from .chat import load_env
+from . import web_chat
 from .staff import alert_new_handoffs, create_router
 from .whatsapp import links, reminders
 from .whatsapp.client import WhatsAppClient
@@ -110,6 +113,8 @@ def create_app(env: dict) -> FastAPI:
                     if n:
                         log.info("sent %d booking links", n)
                 links.forget_old_requests(conn, datetime.now(timezone.utc))
+                web_chat.alert_web_callbacks(conn, smtp, env.get("STAFF_ALERT_EMAIL"))
+                web_chat.forget_old_chats(conn, datetime.now(timezone.utc))
                 alert_new_handoffs(conn, smtp, env.get("AGENT_BASE_URL") or "", env.get("STAFF_ALERT_EMAIL"))
             except Exception:  # noqa: BLE001
                 log.exception("scheduler round failed")
@@ -138,6 +143,41 @@ def create_app(env: dict) -> FastAPI:
         for m in parse(await request.json()):
             inbox.put(m)
         return {"ok": True}
+
+    # ---- the assistant on the online booking page. Only the page's server calls this, with the shared secret
+    # (WEB_CHAT_SECRET, the same in booking/.env): this address is public through Nginx. One web chat turn at a time.
+    web_secret = env.get("WEB_CHAT_SECRET") or ""
+    web = {"conn": None, "graph": None, "lock": threading.Lock()}
+
+    def web_graph():
+        if web["conn"] is None or web["conn"].closed:
+            web["conn"] = connect()
+            web["graph"] = build_web_agent(web["conn"], anthropic.Anthropic(),
+                                           model=env.get("AGENT_WEB_MODEL") or env.get("AGENT_MODEL") or "claude-opus-5-5",
+                                           effort=env.get("AGENT_EFFORT") or "medium", checkpointer=open_checkpointer(url))
+        return web["graph"]
+
+    @app.post("/web/turn")
+    def web_turn(body: dict, x_web_secret: str | None = Header(default=None)):
+        if len(web_secret) < 32:
+            raise HTTPException(503, "The web chat is not set up on this server")
+        if not hmac.compare_digest(x_web_secret or "", web_secret):
+            raise HTTPException(401)
+        clinic_id, chat_id, text = str(body.get("clinic_id", "")), str(body.get("chat_id", "")), str(body.get("text", ""))
+        events = [str(e)[:500] for e in (body.get("events") or [])][:10]
+        if not clinic_id or not chat_id or not text.strip() or len(text) > 1000:
+            raise HTTPException(400, "clinic_id, chat_id and text (up to 1000 characters) are needed")
+        with web["lock"]:
+            try:
+                out = run_web_turn(web_graph(), clinic_id, chat_id, text, events)
+            except Exception:
+                log.exception("web chat turn failed")
+                if web["conn"] is not None and web["conn"].closed:
+                    web["conn"] = None
+                raise HTTPException(503, "The assistant is not available")
+            if out["emergency"]:
+                web_chat.record_emergency(web["conn"], clinic_id, chat_id, text)
+        return out
 
     app.include_router(create_router(connect, wa, env["STAFF_PASSWORD"]))
     app.state.inbox = inbox

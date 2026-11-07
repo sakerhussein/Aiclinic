@@ -13,7 +13,9 @@ const ACTIVE = ["booked", "confirmed"];
 const DAY = 86400000;
 export const sha256hex = (s) => crypto.createHash("sha256").update(s).digest("hex");
 
-export function createPublicService({ pool, now = () => new Date() }) {
+// agent: async ({ clinic_id, chat_id, text, events }) => { reply, buttons, proposal, callback, emergency } — the WhatsApp
+// assistant's web mode (agent/limitsiz_agent/agent/web.py), or null when the web chat is not set up on this server.
+export function createPublicService({ pool, now = () => new Date(), agent = null }) {
   const one = async (c, sql, p) => (await c.query(sql, p)).rows[0];
 
   async function tx(ctx, clinicId, fn) {
@@ -62,8 +64,88 @@ export function createPublicService({ pool, now = () => new Date() }) {
       options: { allowAnyDoctor: k.allow_any_doctor, allowForOther: k.allow_for_other, offerReminders: k.offer_reminders, showPrices: k.show_prices,
                  daysPerPage: k.days_per_page, windowDays: k.window_days, countryCode: k.default_country_code,
                  introEn: k.intro_en, introAr: k.intro_ar, doneNoteEn: k.done_note_en, doneNoteAr: k.done_note_ar, privacyUrl: k.privacy_url,
-                 findEnabled: (await one(pool, "select public.online_find_available($1) as ok", [k.id])).ok },
+                 findEnabled: (await one(pool, "select public.online_find_available($1) as ok", [k.id])).ok,
+                 chatEnabled: !!(k.chat_enabled && agent) },
     };
+  }
+
+  // ---------------------------------------------------------------- "Talk to the assistant"
+  // The assistant only proposes a time. The booking is made here, by book(), when the patient presses Yes, with the name and
+  // number from the page's form: they never reach the AI. What happens here goes to the assistant as "events".
+  async function chatClinic(slug) {
+    const k = await clinicBySlug(pool, slug);
+    if (!k.chat_enabled || !agent) throw notFound("chat_not_available");
+    return k;
+  }
+  async function chatRow(c, k, chatId, lock = false) {
+    const r = await one(c, `select * from web_chats where id = $1 and clinic_id = $2${lock ? " for update" : ""}`, [chatId, k.id]);
+    if (!r) throw notFound("chat_not_found");
+    return r;
+  }
+  const event = (c, id, text) => c.query("update web_chats set events = events || to_jsonb($2::text), last_at = now() where id = $1", [id, text]);
+
+  async function chatStart(slug, ctx) {
+    const k = await chatClinic(slug);
+    const { n } = await one(pool, "select count(*)::int as n from web_chats where clinic_id = $1 and ip = $2 and created_at > now() - interval '1 day'", [k.id, ctx.ip ?? null]);
+    if (n >= k.chat_chats_per_ip_per_day) throw new HttpError(429, "too_many_chats");
+    return { chatId: (await one(pool, "insert into web_chats (clinic_id, ip) values ($1, $2) returning id", [k.id, ctx.ip ?? null])).id };
+  }
+
+  async function chatMessage(slug, chatId, text) {
+    const k = await chatClinic(slug);
+    const c = await pool.connect();
+    let events;
+    try {
+      await c.query("begin");
+      const chat = await chatRow(c, k, chatId, true);
+      if (chat.messages >= k.chat_messages_per_chat) throw new HttpError(429, "chat_limit");
+      const { used } = await one(c, "select coalesce(sum(messages), 0)::int as used from web_chats where clinic_id = $1 and created_at > now() - interval '1 day'", [k.id]);
+      if (used >= k.chat_messages_per_clinic_per_day) throw new HttpError(503, "assistant_busy");
+      events = chat.events ?? [];
+      await c.query("update web_chats set messages = messages + 1, events = '[]', last_at = now() where id = $1", [chatId]);
+      await c.query("commit");
+    } catch (e) { await c.query("rollback").catch(() => {}); throw e; } finally { c.release(); }
+    let out;
+    try { out = await agent({ clinic_id: k.id, chat_id: chatId, text, events }); }
+    catch { throw new HttpError(503, "assistant_unavailable"); }
+    // Kept for the Yes button and the call-back form: only what the assistant proposed or passed on, never typed details.
+    await pool.query("update web_chats set proposal = coalesce($2::jsonb, proposal), callback = coalesce($3::jsonb, callback) where id = $1",
+      [chatId, out.proposal ? JSON.stringify(out.proposal) : null, out.callback ? JSON.stringify(out.callback) : null]);
+    const p = out.proposal;
+    return { reply: out.reply ?? null, buttons: out.buttons ?? null, emergency: !!out.emergency, callback: !!out.callback,
+             proposal: p ? { serviceEn: p.serviceEn, serviceAr: p.serviceAr, doctorEn: p.doctorEn, doctorAr: p.doctorAr, startsAt: p.startsAt } : null };
+  }
+
+  async function chatBook(slug, chatId, ctx, b) {
+    const k = await chatClinic(slug);
+    const chat = await chatRow(pool, k, chatId);
+    const p = chat.proposal;
+    if (!p) throw new HttpError(409, "nothing_to_book");
+    try {
+      const r = await book(slug, ctx, { serviceId: p.serviceId, doctorId: p.doctorId, startsAt: p.startsAt, name: b.name, phone: b.phone,
+        language: b.language, from: "chat", reminders: false, forOther: false });
+      await pool.query("update web_chats set appointment_id = $2, proposal = null where id = $1", [chatId, r.id]);
+      await event(pool, chatId, `The booking was made: ${p.summary}. ${r.waitingForCheck ? "The clinic will check it and may call or message the patient." : ""} `
+        + "The patient got a private link to see the status, change or cancel it.");
+      return r;
+    } catch (e) {
+      await event(pool, chatId, `The booking could not be made (${e.code ?? "error"}). Nothing was booked.${e.code === "slot_taken" ? " The time was just taken; offer other times." : ""}`);
+      throw e;
+    }
+  }
+
+  async function chatCallback(slug, chatId, ctx, b) {
+    const k = await chatClinic(slug);
+    const chat = await chatRow(pool, k, chatId);
+    if ((chat.callback?.sent ?? 0) >= 2) throw new HttpError(429, "too_many_requests");      // at most two call-backs per chat
+    const phone = normalizePhone(b.phone, k.default_country_code);
+    const cb = chat.callback?.reason ? chat.callback : { reason: "patient_request", summary: "Asked to talk to a person." };
+    await pool.query(`insert into web_callbacks (clinic_id, chat_id, kind, reason, summary, full_name, phone_e164)
+                      values ($1, $2, 'call_back', $3, $4, $5, $6)`, [k.id, chatId, cb.reason, cb.summary, b.name.trim(), phone]);
+    await pool.query(`update web_chats set callback = coalesce(callback, '{}'::jsonb) || jsonb_build_object('sent', coalesce((callback->>'sent')::int, 0) + 1)
+                      where id = $1`, [chatId]);
+    await event(pool, chatId, "The patient left their name and number for a call-back; the clinic was told.");
+    return { ok: true };
   }
 
   // ---------------------------------------------------------------- "Find my booking"
@@ -234,5 +316,5 @@ export function createPublicService({ pool, now = () => new Date() }) {
   }
 
   const ping = () => pool.query("select 1");
-  return { info, slots, book, find, manage, cancel, manageSlots, reschedule, limits, ping };
+  return { info, slots, book, find, manage, cancel, manageSlots, reschedule, limits, ping, chatStart, chatMessage, chatBook, chatCallback };
 }

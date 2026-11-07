@@ -6,13 +6,13 @@ import { TEXT, type Lang, type Tx } from "./text";
 // ---------------------------------------------------------------- types and the server
 type Service = { id: string; name_en: string; name_ar: string; duration_minutes: number; price_jod: string | null; price_is_from: boolean };
 type Doctor = { id: string; name_en: string; name_ar: string; title_en: string | null; title_ar: string | null; service_ids: string[] };
-type Info = {
+export type Info = {
   clinic: { slug: string; nameEn: string; nameAr: string; phone: string | null; addressEn: string | null; addressAr: string | null; timezone: string; defaultLanguage: Lang };
   services: Service[]; doctors: Doctor[];
   options: { allowAnyDoctor: boolean; allowForOther: boolean; offerReminders: boolean; daysPerPage: number; windowDays: number; countryCode: string;
-             introEn: string | null; introAr: string | null; doneNoteEn: string | null; doneNoteAr: string | null; privacyUrl: string; findEnabled?: boolean };
+             introEn: string | null; introAr: string | null; doneNoteEn: string | null; doneNoteAr: string | null; privacyUrl: string; findEnabled?: boolean; chatEnabled?: boolean };
 };
-type Summary = {
+export type Summary = {
   id: string; startsAt: string; endsAt: string; status: string; shownStatus?: string; name: string | null; waitingForCheck: boolean;
   service: { id: string; nameEn: string; nameAr: string; durationMinutes: number };
   doctor: { id: string; nameEn: string; nameAr: string; titleEn: string | null; titleAr: string | null };
@@ -20,10 +20,10 @@ type Summary = {
             doneNoteEn: string | null; doneNoteAr: string | null; daysPerPage: number; windowDays: number };
   canCancel: boolean; canReschedule: boolean; tooLateToChange: boolean; changeNoticeMinutes?: number; manageToken?: string;
 };
-type Slot = { doctorId: string; startsAt: string };
-class Fail extends Error { constructor(public status: number, public code: string) { super(code); } }
+export type Slot = { doctorId: string; startsAt: string };
+export class Fail extends Error { constructor(public status: number, public code: string) { super(code); } }
 
-async function call<T>(method: "GET" | "POST", url: string, body?: unknown): Promise<T> {
+export async function call<T>(method: "GET" | "POST", url: string, body?: unknown): Promise<T> {
   let r: Response;
   try {
     r = await fetch(url, { method, headers: body ? { "content-type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined });
@@ -32,7 +32,7 @@ async function call<T>(method: "GET" | "POST", url: string, body?: unknown): Pro
   if (!r.ok) throw new Fail(r.status, j.error || "server_error");
   return j as T;
 }
-function message(e: unknown, x: Tx) {
+export function message(e: unknown, x: Tx) {
   const c = e instanceof Fail ? e.code : "server_error";
   return ({ slot_taken: x.slotTaken, too_many_requests: x.tooMany, invalid_phone: x.invalidPhone, invalid_input: x.invalidInput,
             link_not_found: x.linkNotFound, clinic_not_found: x.clinicNotFound, link_replaced: x.linkReplaced,
@@ -43,8 +43,8 @@ function message(e: unknown, x: Tx) {
 const loc = (l: Lang) => (l === "ar" ? "ar-JO-u-nu-latn" : "en-GB");
 const dayKey = (iso: string | Date, tz: string) => new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(iso));
 const addDays = (d: string, n: number) => new Date(Date.parse(d + "T00:00:00Z") + n * 86400000).toISOString().slice(0, 10);
-const hm = (iso: string, tz: string) => new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(iso));
-const longDate = (iso: string, tz: string, l: Lang) => new Intl.DateTimeFormat(loc(l), { timeZone: tz, weekday: "long", day: "numeric", month: "long" }).format(new Date(iso));
+export const hm = (iso: string, tz: string) => new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(iso));
+export const longDate = (iso: string, tz: string, l: Lang) => new Intl.DateTimeFormat(loc(l), { timeZone: tz, weekday: "long", day: "numeric", month: "long" }).format(new Date(iso));
 const dayParts = (d: string, l: Lang) => {
   const at = new Date(d + "T12:00:00Z");
   return { wd: new Intl.DateTimeFormat(loc(l), { timeZone: "UTC", weekday: "short" }).format(at), n: new Intl.DateTimeFormat(loc(l), { timeZone: "UTC", day: "numeric" }).format(at),
@@ -58,7 +58,7 @@ function spell(m: number, x: Tx) {
 
 // "Add to calendar": a small .ics file made here, nothing sent anywhere.
 // The calendar entry carries the private link, so a patient who saved the appointment always finds it again.
-function icsHref(s: Summary, l: Lang, x: Tx, link: string) {
+export function icsHref(s: Summary, l: Lang, x: Tx, link: string) {
   const z = (iso: string) => new Date(iso).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
   const esc = (v: string) => v.replace(/[\\,;]/g, (c) => "\\" + c).replace(/\n/g, "\\n");
   // Lines longer than 75 bytes are folded (RFC 5545); 60 characters keeps Arabic under the limit too.
@@ -74,7 +74,7 @@ function icsHref(s: Summary, l: Lang, x: Tx, link: string) {
 }
 
 // "Save the link": the phone's own share menu (WhatsApp, messages, notes, email); WhatsApp where there is none (computers).
-function ShareLink({ s, x, lang, link }: { s: Summary; x: Tx; lang: Lang; link: string }) {
+export function ShareLink({ s, x, lang, link }: { s: Summary; x: Tx; lang: Lang; link: string }) {
   const [copied, setCopied] = useState(false);
   const clinic = lang === "ar" ? s.clinic.nameAr : s.clinic.nameEn;
   const when = `${longDate(s.startsAt, s.clinic.timezone, lang)}${lang === "ar" ? "، " : ", "}${hm(s.startsAt, s.clinic.timezone)}`;
@@ -94,7 +94,7 @@ function ShareLink({ s, x, lang, link }: { s: Summary; x: Tx; lang: Lang; link: 
 }
 
 // ---------------------------------------------------------------- language
-function useLang(fallback?: Lang) {
+export function useLang(fallback?: Lang) {
   const stored = (() => { try { const v = localStorage.getItem("lc_book_lang"); return v === "ar" || v === "en" ? v : null; } catch { return null; } })();
   const [lang, setL] = useState<Lang>(stored ?? fallback ?? "ar");
   useEffect(() => { if (!stored && fallback) setL(fallback); }, [fallback]);            // eslint-disable-line react-hooks/exhaustive-deps
@@ -106,7 +106,7 @@ function useLang(fallback?: Lang) {
 const Mark = () => (
   <svg width="28" height="14" viewBox="0 0 40 20" aria-hidden="true"><path d="M20 10 C16.6 5.5 13.2 2 8.8 2 A8 8 0 0 0 8.8 18 C13.2 18 16.6 14.5 20 10 C23.4 5.5 26.8 2 31.2 2 A8 8 0 0 1 38.4 12.9" fill="none" stroke="#2EE6B5" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" /><circle cx="33.6" cy="17.2" r="1.8" fill="#2EE6B5" /></svg>
 );
-function Shell({ name, place, lang, setLang, x, privacyUrl, children }: { name: string; place?: string | null; lang: Lang; setLang: (l: Lang) => void; x: Tx; privacyUrl?: string; children: ReactNode }) {
+export function Shell({ name, place, lang, setLang, x, privacyUrl, children }: { name: string; place?: string | null; lang: Lang; setLang: (l: Lang) => void; x: Tx; privacyUrl?: string; children: ReactNode }) {
   return (
     <main className="bk">
       <header className="bk-head">
@@ -120,8 +120,8 @@ function Shell({ name, place, lang, setLang, x, privacyUrl, children }: { name: 
   );
 }
 const Steps = ({ n }: { n: number }) => <div className="bk-steps" aria-hidden="true">{[1, 2, 3, 4].map((i) => <i key={i} className={i <= n ? "on" : ""} />)}</div>;
-const Banner = ({ kind, children }: { kind: "warn" | "bad" | "ok" | "info"; children: ReactNode }) => <div className={`bk-banner ${kind}`} role={kind === "bad" ? "alert" : "status"}>{children}</div>;
-const Phone = ({ n }: { n: string }) => <a className="mono" href={`tel:${n.replace(/[^\d+]/g, "")}`} dir="ltr">{n}</a>;
+export const Banner = ({ kind, children }: { kind: "warn" | "bad" | "ok" | "info"; children: ReactNode }) => <div className={`bk-banner ${kind}`} role={kind === "bad" ? "alert" : "status"}>{children}</div>;
+export const Phone = ({ n }: { n: string }) => <a className="mono" href={`tel:${n.replace(/[^\d+]/g, "")}`} dir="ltr">{n}</a>;
 
 // ---------------------------------------------------------------- the day strip and free times (booking and changing)
 function DayTimes({ x, lang, tz, perPage, windowDays, load, chosen, onChoose }: {
@@ -221,10 +221,15 @@ export function BookPage({ slug }: { slug: string }) {
       <span className="bk-ic"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3" fill="none" stroke="currentColor" strokeWidth="2" /><path d="M3 10h18M8 3v4M16 3v4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg></span>
       <span><b>{x.chooseYourself}</b><small>{x.chooseYourselfSub}</small></span><span className="bk-end flip">›</span>
     </button>
-    <div className="bk-choice off" aria-disabled="true">
-      <span className="bk-ic"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /></svg></span>
-      <span><b>{x.assistant}</b><small>{x.assistantSub}</small></span><span className="bk-end bk-pill">{x.soon}</span>
-    </div>
+    {o.chatEnabled
+      ? <a className="bk-choice" href={`/${slug}/chat`}>
+          <span className="bk-ic"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /></svg></span>
+          <span><b>{x.assistant}</b><small>{x.chatSub}</small></span><span className="bk-end flip">›</span>
+        </a>
+      : <div className="bk-choice off" aria-disabled="true">
+          <span className="bk-ic"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /></svg></span>
+          <span><b>{x.assistant}</b><small>{x.assistantSub}</small></span><span className="bk-end bk-pill">{x.soon}</span>
+        </div>}
     {o.findEnabled && <p className="bk-find"><span>{x.alreadyBooked}</span> <a href={`/${slug}/find`}>{x.findLink}</a></p>}
     {callBox}
   </>);

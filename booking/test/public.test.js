@@ -28,6 +28,7 @@ const ONLINE = {
   findEnabled: false, findPerPhonePerDay: 3, findPerIpPerHour: 10,
   findMessageEn: "Your appointment at {clinic}: {when}, {doctor}. Your new private link to see the status, change or cancel: {link}",
   findMessageAr: "موعدك في {clinic}: {when}، {doctor}. رابطك الخاص الجديد لمعرفة حالة الحجز أو تعديله أو إلغائه: {link}",
+  chatEnabled: false, chatMessagesPerChat: 30, chatChatsPerIpPerDay: 5, chatMessagesPerClinicPerDay: 500, chatKeepDays: 30,
 };
 const turnOn = (over = {}) => adm.patch("/api/settings/online", { ...ONLINE, ...over });
 const body = (over = {}) => ({ serviceId: svc().id, doctorId: ids.lina, startsAt: at("10:00"), name: "Huda Online", phone: "0791234567", language: "ar", agree: true, ...over });
@@ -224,6 +225,59 @@ test("Find my booking: off until WhatsApp is connected; the same answer for ever
   await turnOn({ findEnabled: true, findPerIpPerHour: 1 });
   assert.equal((await find("0781112222")).status, 202);
   assert.equal((await find("0781112222")).status, 429);
+});
+
+test("Talk to the assistant: it proposes, the page books with the form's details, which never reach the AI", async () => {
+  const chat = (path, body) => t.pub("POST", `/api/c/${SLUG}/chat${path}`, body);
+  await turnOn();
+  assert.equal((await chat("", {})).json.error, "chat_not_available");
+  await turnOn({ chatEnabled: true });
+  assert.equal((await t.pub("GET", `/api/c/${SLUG}`)).json.options.chatEnabled, true);
+  const id = (await chat("", {})).json.chatId;
+  const say = (text) => chat(`/${id}/message`, { text });
+
+  t.agent.next.push({ reply: "Dr. Lina has 10:00 or 11:00.", buttons: ["10:00", "11:00"] });
+  let r = await say("A consultation on Wednesday please");
+  assert.equal(r.status, 200); assert.deepEqual(r.json.buttons, ["10:00", "11:00"]); assert.equal(r.json.proposal, null);
+  assert.deepEqual(t.agent.calls[0], { clinic_id: t.agent.calls[0].clinic_id, chat_id: id, text: "A consultation on Wednesday please", events: [] });
+  assert.equal((await chat(`/${id}/book`, { name: "Huda Chat", phone: "0791234567", language: "en", agree: true })).json.error, "nothing_to_book");
+
+  t.agent.next.push({ reply: "Please check the card and press Yes.", proposal: {
+    serviceId: svc().id, doctorId: ids.lina, startsAt: at("10:00"), serviceEn: "Consultation", serviceAr: "استشارة",
+    doctorEn: "Dr. Lina", doctorAr: "د. لينا", summary: "Consultation with Dr. Lina on Wednesday at 10:00" } });
+  r = await say("10:00");
+  assert.equal(r.json.proposal.startsAt, at("10:00")); assert.equal(r.json.proposal.serviceId, undefined, "ids stay on the server");
+  const b = await chat(`/${id}/book`, { name: "Huda Chat", phone: "0791234567", language: "en", agree: true });
+  assert.equal(b.status, 201); assert.match(b.json.manageToken, /^[A-Za-z0-9_-]{43}$/); assert.equal(b.json.waitingForCheck, true);
+  const a = (await t.owner.query("select source, online_from, needs_check from appointments where id = $1", [b.json.id])).rows[0];
+  assert.deepEqual(a, { source: "web", online_from: "chat", needs_check: true });
+  await say("Thanks!");
+  const last = t.agent.calls.at(-1);
+  assert.match(last.events[0], /^The booking was made: Consultation with Dr. Lina/);
+  assert.ok(!JSON.stringify(t.agent.calls).includes("0791234567") && !JSON.stringify(t.agent.calls).includes("Huda Chat"), "never sent to the AI");
+  assert.equal((await chat(`/${id}/book`, { name: "Huda Chat", phone: "0791234567", language: "en", agree: true })).json.error, "nothing_to_book", "one Yes, one booking");
+
+  // Call-back: the details go to the clinic only; at most two per chat.
+  t.agent.next.push({ reply: "Leave your number.", callback: { reason: "medical_question", summary: "Asks about a cream." } });
+  assert.equal((await say("Is this cream safe?")).json.callback, true);
+  assert.equal((await chat(`/${id}/callback`, { name: "Huda Chat", phone: "0791234567" })).status, 201);
+  const cb = (await t.owner.query("select kind, reason, summary, phone_e164 from web_callbacks")).rows;
+  assert.deepEqual(cb, [{ kind: "call_back", reason: "medical_question", summary: "Asks about a cream.", phone_e164: "+962791234567" }]);
+  assert.equal((await chat(`/${id}/callback`, { name: "Huda Chat", phone: "0791234567" })).status, 201);
+  assert.equal((await chat(`/${id}/callback`, { name: "Huda Chat", phone: "0791234567" })).status, 429);
+  assert.equal((await t.pub("POST", `/api/c/${SLUG}/chat/${id}/callback`, { name: "Bot Name", phone: "0791234567", website: "bot" })).status, 201);
+  assert.equal((await t.owner.query("select count(*)::int as n from web_callbacks")).rows[0].n, 2, "a bot's call-back is not saved");
+
+  // Limits from Settings, and the assistant being down.
+  t.agent.down = true;
+  assert.equal((await say("hello")).json.error, "assistant_unavailable");
+  t.agent.down = false;
+  await turnOn({ chatEnabled: true, chatMessagesPerChat: 5 });
+  for (let i = 0; i < 5; i++) await say(`m${i}`);
+  assert.equal((await say("one more")).json.error, "chat_limit");
+  await turnOn({ chatEnabled: true, chatChatsPerIpPerDay: 1 });
+  assert.equal((await chat("", {})).json.error, "too_many_chats");
+  assert.equal((await chat(`/00000000-0000-4000-8000-000000000000/message`, { text: "hi" })).status, 404);
 });
 
 test("limits per connection come from Settings; bots and other sites get nowhere", async () => {

@@ -206,6 +206,7 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
     shareMessageEn: z.string().trim().min(1).max(500).refine((m) => m.includes("{link}")), shareMessageAr: z.string().trim().min(1).max(500).refine((m) => m.includes("{link}")),
     privacyUrl: z.string().trim().url().max(300).refine((u) => u.startsWith("https://")),
     findEnabled: z.boolean(), findPerPhonePerDay: n(1, 20), findPerIpPerHour: n(1, 200),
+    chatEnabled: z.boolean(), chatMessagesPerChat: n(5, 200), chatChatsPerIpPerDay: n(1, 100), chatMessagesPerClinicPerDay: n(10, 100000), chatKeepDays: n(1, 365),
     findMessageEn: z.string().trim().min(1).max(600).refine((m) => m.includes("{link}")), findMessageAr: z.string().trim().min(1).max(600).refine((m) => m.includes("{link}")),
   }), req.body)))));
   app.patch("/api/settings/profile", EDIT, wrap(async (req, res) => res.json(await S.updateProfile(req.ctx, parse(z.object({

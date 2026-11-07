@@ -24,7 +24,8 @@ type Online = { enabled: boolean; staff_check: boolean; show_prices: boolean; al
   offer_reminders: boolean; default_country_code: string; max_unchecked_per_phone: number; bookings_per_phone_per_day: number; bookings_per_ip_per_day: number;
   lookups_per_ip_per_minute: number; manage_per_ip_per_hour: number; days_per_page: number; intro_en: string | null; intro_ar: string | null;
   done_note_en: string | null; done_note_ar: string | null; share_message_en: string; share_message_ar: string; privacy_url: string;
-  find_enabled: boolean; find_per_phone_per_day: number; find_per_ip_per_hour: number; find_message_en: string; find_message_ar: string; whatsapp_connected: boolean };
+  find_enabled: boolean; find_per_phone_per_day: number; find_per_ip_per_hour: number; find_message_en: string; find_message_ar: string; whatsapp_connected: boolean;
+  chat_enabled: boolean; chat_messages_per_chat: number; chat_chats_per_ip_per_day: number; chat_messages_per_clinic_per_day: number; chat_keep_days: number };
 type OnlineLink = { enabled: boolean; url?: string; qrUrl?: string };
 type Data = { profile: Profile; hours: Period[]; closures: TimeOff[]; doctors: Doctor[]; services: Service[]; faqs: Faq[]; rules: Rule[]; general: General; outside: Outside[];
   online: Online; onlineLink: OnlineLink;
@@ -485,7 +486,9 @@ function OnlineTab({ data, reload }: P) {
     introEn: o.intro_en || "", introAr: o.intro_ar || "", doneNoteEn: o.done_note_en || "", doneNoteAr: o.done_note_ar || "",
     shareMessageEn: o.share_message_en, shareMessageAr: o.share_message_ar, privacyUrl: o.privacy_url,
     findEnabled: o.find_enabled, findPerPhonePerDay: o.find_per_phone_per_day, findPerIpPerHour: o.find_per_ip_per_hour,
-    findMessageEn: o.find_message_en, findMessageAr: o.find_message_ar });
+    findMessageEn: o.find_message_en, findMessageAr: o.find_message_ar,
+    chatEnabled: o.chat_enabled, chatMessagesPerChat: o.chat_messages_per_chat, chatChatsPerIpPerDay: o.chat_chats_per_ip_per_day,
+    chatMessagesPerClinicPerDay: o.chat_messages_per_clinic_per_day, chatKeepDays: o.chat_keep_days });
   type K = keyof typeof f;
   const { a, ok, submit } = useSave(reload);
   const sw = (k: K, label: string, hint?: string) => (
@@ -550,6 +553,18 @@ function OnlineTab({ data, reload }: P) {
           <Field label={s.findMsgAr} hint={s.findMsgHint}><textarea dir="rtl" rows={3} maxLength={600} required value={f.findMessageAr} onChange={(e) => setF({ ...f, findMessageAr: e.target.value })} /></Field>
           <Field label={s.findMsgEn}><textarea dir="ltr" rows={3} maxLength={600} required value={f.findMessageEn} onChange={(e) => setF({ ...f, findMessageEn: e.target.value })} /></Field>
         </div>
+      </section>
+      <section className="panel stack">
+        <div className="row between"><h2>{s.chatTitle}</h2><span className={`pill ${o.chat_enabled ? "ok" : ""}`}>{o.chat_enabled ? s.onlineOn : s.onlineOff}</span></div>
+        {sw("chatEnabled", s.chatOn, s.chatOnHint)}
+        <div className="grid2">
+          {num("chatMessagesPerChat", s.chatPerChat, s.chatPerChatHint, 5, 200)}
+          {num("chatChatsPerIpPerDay", s.chatPerIp, s.chatPerIpHint, 1, 100)}
+          {num("chatMessagesPerClinicPerDay", s.chatPerClinic, s.chatPerClinicHint, 10, 100000)}
+          {num("chatKeepDays", s.chatKeep, s.chatKeepHint, 1, 365)}
+        </div>
+        <p className="hint">{s.chatCallbacks}</p>
+        <Check checked={false} disabled onChange={() => {}}>{s.chatVoice}<br /><small className="hint">{s.chatVoiceHint}</small></Check>
       </section>
       <Saver a={a} ok={ok} />
     </SForm>

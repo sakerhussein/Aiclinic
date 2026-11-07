@@ -104,6 +104,27 @@ export function createPublicApp({ svc, config, now = Date.now }) {
     res.status(202).json(await svc.find(slugOf(req), req.ctx, b.phone));
   }));
 
+  // ---- "Talk to the assistant". The name and number go only to /book and /callback, never with a chat message.
+  const chatIdOf = (req) => parse(uuid, req.params.chatId);
+  app.post("/api/c/:slug/chat", limit("lookup"), wrap(async (req, res) => res.status(201).json(await svc.chatStart(slugOf(req), req.ctx))));
+  app.post("/api/c/:slug/chat/:chatId/message", limit("lookup"), wrap(async (req, res) => {
+    const b = parse(z.object({ text: z.string().trim().min(1).max(1000) }), req.body);
+    res.json(await svc.chatMessage(slugOf(req), chatIdOf(req), b.text));
+  }));
+  app.post("/api/c/:slug/chat/:chatId/book", limit("book"), wrap(async (req, res) => {
+    const b = parse(z.object({
+      name: z.string().trim().min(2).max(120), phone: z.string().trim().min(6).max(30), language: z.enum(["ar", "en"]),
+      agree: z.literal(true), website: z.string().max(200).optional(),
+    }), req.body);
+    if (b.website) return res.status(201).json({ ok: true });
+    res.status(201).json(await svc.chatBook(slugOf(req), chatIdOf(req), req.ctx, b));
+  }));
+  app.post("/api/c/:slug/chat/:chatId/callback", limit("book"), wrap(async (req, res) => {
+    const b = parse(z.object({ name: z.string().trim().min(2).max(120), phone: z.string().trim().min(6).max(30), website: z.string().max(200).optional() }), req.body);
+    if (b.website) return res.status(201).json({ ok: true });
+    res.status(201).json(await svc.chatCallback(slugOf(req), chatIdOf(req), req.ctx, b));
+  }));
+
   // ---- the private change-or-cancel link. The token travels in the body, never in an address that could end up in a log.
   const tok = { token: z.string().max(60) };
   app.post("/api/c/:slug/manage", limit("manage"), wrap(async (req, res) => res.json(await svc.manage(slugOf(req), parse(z.object(tok), req.body).token))));
@@ -123,7 +144,7 @@ export function createPublicApp({ svc, config, now = Date.now }) {
   // ---- the page (its own small build, not the staff app)
   if (existsSync(dist)) {
     app.use(express.static(dist, { index: false, maxAge: "1h", setHeaders: (res, p) => { if (p.endsWith(".html")) res.set("Cache-Control", "no-store"); } }));
-    app.get(/^\/[a-z0-9-]{1,60}(\/manage|\/find)?\/?$/, (req, res) => res.sendFile(path.join(dist, "book.html")));
+    app.get(/^\/[a-z0-9-]{1,60}(\/manage|\/find|\/chat)?\/?$/, (req, res) => res.sendFile(path.join(dist, "book.html")));
   }
 
   app.use((req, res) => res.status(404).json({ error: "not_found" }));

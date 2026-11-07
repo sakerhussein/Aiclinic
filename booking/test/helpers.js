@@ -29,7 +29,10 @@ export async function setup() {
   config.siteUrl = base; config.origin = base;
   // The online booking page, its own app on its own login, on the same clock.
   const publicConfig = { siteUrl: "", origin: "", secure: false, trustProxy: "false" };
-  const publicApp = createPublicApp({ svc: createPublicService({ pool: publicPool, now: () => new Date(a.clock.t) }), config: publicConfig, now: () => a.clock.t });
+  // The assistant is scripted here (its own tests are in agent/tests/test_web_chat.py): agent.next holds the answers.
+  const agent = { next: [], calls: [], down: false };
+  const callAgent = async (p) => { agent.calls.push(p); if (agent.down) throw new Error("down"); return agent.next.shift() ?? { reply: "OK" }; };
+  const publicApp = createPublicApp({ svc: createPublicService({ pool: publicPool, now: () => new Date(a.clock.t), agent: callAgent }), config: publicConfig, now: () => a.clock.t });
   const publicServer = await new Promise((r) => { const s = publicApp.listen(0, "127.0.0.1", () => r(s)); });
   const publicBase = `http://127.0.0.1:${publicServer.address().port}`;
   publicConfig.siteUrl = publicBase; publicConfig.origin = publicBase; config.publicBookingUrl = publicBase;
@@ -88,7 +91,8 @@ export async function setup() {
     return { services, docs, lina: docs[0].id, omar: docs[1].id };
   }
 
-  async function reset() { await a.owner.query(`delete from appointments; delete from patients; delete from time_off; delete from clinic_hours;
+  async function reset() { agent.next = []; agent.calls = []; agent.down = false;
+    await a.owner.query(`delete from web_callbacks; delete from web_chats; delete from appointments; delete from patients; delete from time_off; delete from clinic_hours;
       update doctors set slot_minutes = null, buffer_minutes = 0, active = true;
       update booking_rules set min_notice_minutes = 0, window_days = 365, change_notice_minutes = 0, max_upcoming = null, outside_hours = 'warn', walkin_back_minutes = 120, require_cancel_reason = true where audience = 'staff';
       update booking_rules set min_notice_minutes = 60, window_days = 30, change_notice_minutes = 120, max_upcoming = 3 where audience = 'patient';
@@ -96,5 +100,5 @@ export async function setup() {
       delete from doctors where name_en like 'Test %'; delete from services where name_en like 'Test %';
       delete from online_booking; insert into online_booking (clinic_id) select id from clinics;
       update clinics set wa_phone_number_id = null;`); publicApp.locals.forget(); await a.reset(); }
-  return { ...a, accountsBase: a.base, reset, base, publicBase, pub, forgetPublic: () => publicApp.locals.forget(), bookingJar: jar, login, people, seedIds, pool, async close() { server.close(); publicServer.close(); await publicPool.end(); await pool.end(); await auditPool.end(); await a.close(); } };
+  return { ...a, accountsBase: a.base, reset, base, publicBase, pub, agent, forgetPublic: () => publicApp.locals.forget(), bookingJar: jar, login, people, seedIds, pool, async close() { server.close(); publicServer.close(); await publicPool.end(); await pool.end(); await auditPool.end(); await a.close(); } };
 }

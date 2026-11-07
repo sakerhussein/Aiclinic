@@ -18,6 +18,8 @@ export const ONLINE_FIELDS = {
   introEn: "intro_en", introAr: "intro_ar", doneNoteEn: "done_note_en", doneNoteAr: "done_note_ar", shareMessageEn: "share_message_en", shareMessageAr: "share_message_ar", privacyUrl: "privacy_url",
   findEnabled: "find_enabled", findPerPhonePerDay: "find_per_phone_per_day", findPerIpPerHour: "find_per_ip_per_hour",
   findMessageEn: "find_message_en", findMessageAr: "find_message_ar",
+  chatEnabled: "chat_enabled", chatMessagesPerChat: "chat_messages_per_chat", chatChatsPerIpPerDay: "chat_chats_per_ip_per_day",
+  chatMessagesPerClinicPerDay: "chat_messages_per_clinic_per_day", chatKeepDays: "chat_keep_days",
 };
 const ONLINE_COLS = Object.values(ONLINE_FIELDS);
 

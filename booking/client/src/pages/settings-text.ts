@@ -58,6 +58,14 @@ const EN = {
   findPerIp: "Requests per connection per hour", findPerIpHint: "One internet connection (IP address)",
   findMsgAr: "WhatsApp message (Arabic)", findMsgEn: "WhatsApp message (English)",
   findMsgHint: "{clinic}, {when}, {doctor} and {link} are filled in. Must match the template Meta approved.",
+  chatTitle: "Assistant on the page", chatOn: "Patients can book by chatting with the assistant",
+  chatOnHint: "Turns on “Talk to the assistant” on the clinic’s page. The same assistant and rules as WhatsApp; on the page it can only book. It uses the answers in Clinic profile.",
+  chatPerChat: "Messages per chat", chatPerChatHint: "Then the chat suggests booking yourself or calling",
+  chatPerIp: "Chats per connection per day", chatPerIpHint: "One internet connection (IP address)",
+  chatPerClinic: "Messages per clinic per day", chatPerClinicHint: "The daily cap on what the assistant costs",
+  chatKeep: "Keep chats for (days)", chatKeepHint: "Then the chat and its call-back requests are deleted",
+  chatCallbacks: "Call-back requests and possible emergencies are emailed to the hand-off addresses in Settings › WhatsApp assistant.",
+  chatVoice: "Voice notes and spoken replies", chatVoiceHint: "Available after the speech test.",
 };
 
 const AR: typeof EN = {
@@ -117,6 +125,14 @@ const AR: typeof EN = {
   findPerIp: "طلبات لكل اتصال في الساعة", findPerIpHint: "اتصال إنترنت واحد (عنوان IP)",
   findMsgAr: "رسالة واتساب (عربي)", findMsgEn: "رسالة واتساب (إنجليزي)",
   findMsgHint: "يُستبدل {clinic} و{when} و{doctor} و{link} تلقائياً. يجب أن يطابق القالب الذي وافقت عليه Meta.",
+  chatTitle: "المساعد على الصفحة", chatOn: "يستطيع المريض الحجز بالمحادثة مع المساعد",
+  chatOnHint: "يفعّل «تحدّث مع المساعد» في صفحة العيادة. نفس المساعد والقواعد كما في واتساب؛ وعلى الصفحة يحجز فقط. يستخدم الإجابات في ملف العيادة.",
+  chatPerChat: "رسائل لكل محادثة", chatPerChatHint: "بعدها تقترح المحادثة الحجز بنفسك أو الاتصال",
+  chatPerIp: "محادثات لكل اتصال في اليوم", chatPerIpHint: "اتصال إنترنت واحد (عنوان IP)",
+  chatPerClinic: "رسائل للعيادة في اليوم", chatPerClinicHint: "السقف اليومي لتكلفة المساعد",
+  chatKeep: "الاحتفاظ بالمحادثات (أيام)", chatKeepHint: "بعدها تُحذف المحادثة وطلبات الاتصال",
+  chatCallbacks: "تُرسل طلبات الاتصال والحالات الطارئة المحتملة بالبريد إلى عناوين التحويل في الإعدادات › مساعد واتساب.",
+  chatVoice: "الرسائل الصوتية والردّ المسموع", chatVoiceHint: "متاح بعد اختبار خدمات الكلام.",
 };
 
 export const useS = () => (useI18n().lang === "ar" ? AR : EN);

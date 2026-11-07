@@ -81,6 +81,13 @@ Patients book at `book.limitsiz.si/<clinic>` with no account (plan: `PLAN_public
   every number. The WhatsApp assistant (`agent/limitsiz_agent/whatsapp/links.py`) makes the new link when it sends it (template
   `booking_link`), and the old link answers "replaced". Off by default; can be switched on only once the clinic's WhatsApp number is
   connected. Limits per number per day and per connection per hour, and the message text, are in Settings > Online booking.
+- **Talk to the assistant** (migration 0014, design `design/assistant-chat.html`): `/<clinic>/chat`. The WhatsApp assistant's
+  web mode (`agent/limitsiz_agent/agent/web.py`), reached by `public-index.js` at `AGENT_INTERNAL_URL` with `WEB_CHAT_SECRET`
+  (made on the VPS by `deploy/setup-web-chat.sh`). It can only book: it proposes a free time, the page asks for the name and number in
+  a small form, and `book()` makes the booking when the patient presses Yes, so the details never reach the AI and every online
+  rule applies. No access to existing bookings. Call-back requests and emergencies go to `web_callbacks` and are emailed like
+  hand-offs. Limits per chat, per connection, per clinic per day, and how long chats are kept, are in Settings > Online booking.
+  `test/dev-server.mjs` uses a scripted stand-in for the assistant.
 - **A patient's new time** (migration 0012): back to Booked and "Time changed by patient" until staff press Confirm; the check of the
   person stays. Any move restarts the reminders.
 - Audit: the page's bookings, changes and cancellations are recorded with the actor type `patient` and the connection address.

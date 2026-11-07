@@ -59,7 +59,8 @@ test("filters: type, person, dates, search", async () => {
   assert.equal((await events("?q=100%25")).length, 0, "a percent sign is searched for, not a wildcard");
   const facets = (await adm.get("/api/audit/facets")).json;
   assert.ok(facets.actors.some((a) => a.label === "Sara Secretary"));
-  const real = new Date().toISOString().slice(0, 10);
+  // Today at the clinic (Amman), as the page filters by: between 00:00 and 03:00 there it is still yesterday in UTC.
+  const real = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Amman" }).format(new Date());
   assert.ok((await events(`?from=${real}&to=${real}`)).length >= 1, "entries are stamped by the database clock");
   assert.equal((await events("?to=2000-01-01")).length, 0);
   assert.equal((await adm.get("/api/audit?from=not-a-date")).status, 400);

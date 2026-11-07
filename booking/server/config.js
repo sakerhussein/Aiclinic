@@ -33,6 +33,23 @@ export function loadPublicConfig(env = process.env) {
     siteUrl, origin: new URL(siteUrl).origin, secure: siteUrl.startsWith("https://"),
     databaseUrl: env.PUBLIC_DATABASE_URL,     // the public_app login
     trustProxy: env.TRUST_PROXY ?? "1",
+    // "Talk to the assistant": the WhatsApp assistant's web mode on this server, and the secret it shares with this page
+    // (WEB_CHAT_SECRET, the same in agent/.env). Without a secret the chat is not offered.
+    agentUrl: (env.AGENT_INTERNAL_URL || "http://127.0.0.1:3002").replace(/\/+$/, ""),
+    chatSecret: env.WEB_CHAT_SECRET && env.WEB_CHAT_SECRET.length >= 32 ? env.WEB_CHAT_SECRET : null,
+  };
+}
+
+// The call to the assistant for one chat message. Its answers can take a while (it may look up free times).
+export function agentCaller({ agentUrl, chatSecret }, timeoutMs = 90_000) {
+  if (!chatSecret) return null;
+  return async (payload) => {
+    const r = await fetch(`${agentUrl}/web/turn`, {
+      method: "POST", headers: { "content-type": "application/json", "x-web-secret": chatSecret },
+      body: JSON.stringify(payload), signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!r.ok) throw new Error(`assistant answered ${r.status}`);
+    return r.json();
   };
 }
 
