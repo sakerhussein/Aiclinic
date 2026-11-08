@@ -66,6 +66,17 @@ const EN = {
   chatKeep: "Keep chats for (days)", chatKeepHint: "Then the chat and its call-back requests are deleted",
   chatCallbacks: "Call-back requests and possible emergencies are emailed to the hand-off addresses in Settings › WhatsApp assistant.",
   chatVoice: "Voice notes and spoken replies", chatVoiceHint: "Available after the speech test.",
+  brochures: "Brochures",
+  brochuresHint: "Print anywhere. Made from the clinic’s details with its own QR code. Booking information only: no prices, offers or claims about results. Ask your lawyer whether a brochure counts as advertising.",
+  brochureNames: { flyer: "Reception flyer", stand: "Table stand", card: "Take-away card", next: "Next-visit card" } as Record<string, string>,
+  brochureSizes: { flyer: "A5", stand: "A6 folded", card: "85 × 55 mm", next: "85 × 55 mm" } as Record<string, string>,
+  brochureOpen: "Print or save as PDF",
+  brochureColour: "Colour", brochureColourHint: "The band and the step numbers.",
+  swatchNames: { "#2EE6B5": "Mint", "#0B7A64": "Teal", "#3B6FD8": "Blue", "#C2417A": "Rose", "#0A0F14": "Black" } as Record<string, string>,
+  brochureLangs: "Languages on the cards", brochureLangsHint: "The flyer and the stand always carry both, Arabic first.",
+  langsArEn: "Arabic and English", langsAr: "Arabic only", langsEn: "English only",
+  brochureAi: "Show the AI assistant line", brochureAiHint: "Only printed while “Assistant on the page” is on.",
+  brochureSaveFirst: "Save after changing the colour or languages, then open the brochure.",
 };
 
 const AR: typeof EN = {
@@ -133,6 +144,17 @@ const AR: typeof EN = {
   chatKeep: "الاحتفاظ بالمحادثات (أيام)", chatKeepHint: "بعدها تُحذف المحادثة وطلبات الاتصال",
   chatCallbacks: "تُرسل طلبات الاتصال والحالات الطارئة المحتملة بالبريد إلى عناوين التحويل في الإعدادات › مساعد واتساب.",
   chatVoice: "الرسائل الصوتية والردّ المسموع", chatVoiceHint: "متاح بعد اختبار خدمات الكلام.",
+  brochures: "المطبوعات",
+  brochuresHint: "اطبعها في أي مكان. تُصنع من بيانات العيادة مع رمز QR الخاص بها. معلومات الحجز فقط: بلا أسعار أو عروض أو وعود بالنتائج. اسأل محاميك إن كانت المطبوعات تُعدّ إعلاناً.",
+  brochureNames: { flyer: "منشور الاستقبال", stand: "حامل الطاولة", card: "بطاقة للأخذ", next: "بطاقة الموعد القادم" },
+  brochureSizes: { flyer: "A5", stand: "A6 مطوي", card: "٨٥ × ٥٥ ملم", next: "٨٥ × ٥٥ ملم" },
+  brochureOpen: "طباعة أو حفظ PDF",
+  brochureColour: "اللون", brochureColourHint: "الشريط وأرقام الخطوات.",
+  swatchNames: { "#2EE6B5": "نعناعي", "#0B7A64": "فيروزي داكن", "#3B6FD8": "أزرق", "#C2417A": "وردي", "#0A0F14": "أسود" },
+  brochureLangs: "لغات البطاقات", brochureLangsHint: "المنشور والحامل يحملان اللغتين دائماً، العربية أولاً.",
+  langsArEn: "العربية والإنجليزية", langsAr: "العربية فقط", langsEn: "الإنجليزية فقط",
+  brochureAi: "إظهار سطر المساعد الذكي", brochureAiHint: "يُطبع فقط عندما يكون «المساعد على الصفحة» مفعّلاً.",
+  brochureSaveFirst: "احفظ بعد تغيير اللون أو اللغات، ثم افتح المطبوعة.",
 };
 
 export const useS = () => (useI18n().lang === "ar" ? AR : EN);

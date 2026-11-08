@@ -29,6 +29,7 @@ const ONLINE = {
   findMessageEn: "Your appointment at {clinic}: {when}, {doctor}. Your new private link to see the status, change or cancel: {link}",
   findMessageAr: "موعدك في {clinic}: {when}، {doctor}. رابطك الخاص الجديد لمعرفة حالة الحجز أو تعديله أو إلغائه: {link}",
   chatEnabled: false, chatMessagesPerChat: 30, chatChatsPerIpPerDay: 5, chatMessagesPerClinicPerDay: 500, chatKeepDays: 30,
+  brochureColour: "#2EE6B5", brochureCardLanguages: "ar_en", brochureShowAi: true,
 };
 const turnOn = (over = {}) => adm.patch("/api/settings/online", { ...ONLINE, ...over });
 const body = (over = {}) => ({ serviceId: svc().id, doctorId: ids.lina, startsAt: at("10:00"), name: "Huda Online", phone: "0791234567", language: "ar", agree: true, ...over });
@@ -281,6 +282,17 @@ test("Talk to the assistant: it proposes, the page books with the form's details
   await turnOn({ chatEnabled: true, chatChatsPerIpPerDay: 1 });
   assert.equal((await chat("", {})).json.error, "too_many_chats");
   assert.equal((await chat(`/00000000-0000-4000-8000-000000000000/message`, { text: "hi" })).status, 404);
+});
+
+test("Brochures: the clinic's colour, card languages and assistant line are saved and checked", async () => {
+  assert.equal((await turnOn({ brochureColour: "red" })).status, 400);
+  assert.equal((await turnOn({ brochureColour: "#12345" })).status, 400);
+  assert.equal((await turnOn({ brochureCardLanguages: "fr" })).status, 400);
+  assert.equal((await turnOn({ brochureColour: "#3B6FD8", brochureCardLanguages: "ar", brochureShowAi: false })).status, 200);
+  const o = (await adm.get("/api/settings")).json.online;
+  assert.deepEqual([o.brochure_colour, o.brochure_card_languages, o.brochure_show_ai], ["#3B6FD8", "ar", false]);
+  // The print pages are served by the staff app like any of its pages.
+  assert.equal((await adm.get("/print/flyer")).status, 200);
 });
 
 test("limits per connection come from Settings; bots and other sites get nowhere", async () => {

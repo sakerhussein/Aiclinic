@@ -20,6 +20,7 @@ export const ONLINE_FIELDS = {
   findMessageEn: "find_message_en", findMessageAr: "find_message_ar",
   chatEnabled: "chat_enabled", chatMessagesPerChat: "chat_messages_per_chat", chatChatsPerIpPerDay: "chat_chats_per_ip_per_day",
   chatMessagesPerClinicPerDay: "chat_messages_per_clinic_per_day", chatKeepDays: "chat_keep_days",
+  brochureColour: "brochure_colour", brochureCardLanguages: "brochure_card_languages", brochureShowAi: "brochure_show_ai",
 };
 const ONLINE_COLS = Object.values(ONLINE_FIELDS);
 

@@ -6,7 +6,11 @@ import { addDays, fmtDateTime, fmtShortDate, dayOf, localToIso, todayIn } from "
 import { useI18n } from "../i18n";
 import { useApp } from "../session";
 import { Banner, Field, useAction } from "../ui";
+import { DESIGNS } from "./print";
 import { useS, duration } from "./settings-text";
+
+// The brochure colours on offer: the brand mint first (the band and step numbers); the clinic picks one. Names in settings-text.
+const SWATCHES = ["#2EE6B5", "#0B7A64", "#3B6FD8", "#C2417A", "#0A0F14"];
 
 type Period = { weekday: number; start: string; end: string };
 type Doctor = { id: string; name_en: string; name_ar: string; title_en: string | null; title_ar: string | null; gender: "f" | "m" | null; active: boolean;
@@ -25,7 +29,8 @@ type Online = { enabled: boolean; staff_check: boolean; show_prices: boolean; al
   lookups_per_ip_per_minute: number; manage_per_ip_per_hour: number; days_per_page: number; intro_en: string | null; intro_ar: string | null;
   done_note_en: string | null; done_note_ar: string | null; share_message_en: string; share_message_ar: string; privacy_url: string;
   find_enabled: boolean; find_per_phone_per_day: number; find_per_ip_per_hour: number; find_message_en: string; find_message_ar: string; whatsapp_connected: boolean;
-  chat_enabled: boolean; chat_messages_per_chat: number; chat_chats_per_ip_per_day: number; chat_messages_per_clinic_per_day: number; chat_keep_days: number };
+  chat_enabled: boolean; chat_messages_per_chat: number; chat_chats_per_ip_per_day: number; chat_messages_per_clinic_per_day: number; chat_keep_days: number;
+  brochure_colour: string; brochure_card_languages: "ar_en" | "ar" | "en"; brochure_show_ai: boolean };
 type OnlineLink = { enabled: boolean; url?: string; qrUrl?: string };
 type Data = { profile: Profile; hours: Period[]; closures: TimeOff[]; doctors: Doctor[]; services: Service[]; faqs: Faq[]; rules: Rule[]; general: General; outside: Outside[];
   online: Online; onlineLink: OnlineLink;
@@ -488,7 +493,8 @@ function OnlineTab({ data, reload }: P) {
     findEnabled: o.find_enabled, findPerPhonePerDay: o.find_per_phone_per_day, findPerIpPerHour: o.find_per_ip_per_hour,
     findMessageEn: o.find_message_en, findMessageAr: o.find_message_ar,
     chatEnabled: o.chat_enabled, chatMessagesPerChat: o.chat_messages_per_chat, chatChatsPerIpPerDay: o.chat_chats_per_ip_per_day,
-    chatMessagesPerClinicPerDay: o.chat_messages_per_clinic_per_day, chatKeepDays: o.chat_keep_days });
+    chatMessagesPerClinicPerDay: o.chat_messages_per_clinic_per_day, chatKeepDays: o.chat_keep_days,
+    brochureColour: o.brochure_colour, brochureCardLanguages: o.brochure_card_languages, brochureShowAi: o.brochure_show_ai });
   type K = keyof typeof f;
   const { a, ok, submit } = useSave(reload);
   const sw = (k: K, label: string, hint?: string) => (
@@ -503,6 +509,36 @@ function OnlineTab({ data, reload }: P) {
         <div className="row between"><h2>{s.tabs.online}</h2><span className={`pill ${o.enabled ? "ok" : ""}`}>{o.enabled ? s.onlineOn : s.onlineOff}</span></div>
         <LinkBox link={link} />
         {sw("enabled", s.onlineEnabled, s.onlineEnabledHint)}
+      </section>
+      <section className="panel stack">
+        <h2>{s.brochures}</h2>
+        <p className="hint">{s.brochuresHint}</p>
+        {/* Each opens at its real size, with the clinic's QR tagged ?from=<design>; the browser's own "Save as PDF" makes the file. */}
+        <div className="brochures">
+          {DESIGNS.map((d) => (
+            <div key={d} className="brochure">
+              <span className="size mono">{s.brochureSizes[d]}</span>
+              <b>{s.brochureNames[d]}</b>
+              <span className="hint mono">?from={d}</span>
+              {link.url
+                ? <a className="btn btn-ink btn-sm" href={`/print/${d}`} target="_blank" rel="noopener">{s.brochureOpen}</a>
+                : <span className="hint">{s.linkNotSet}</span>}
+            </div>
+          ))}
+        </div>
+        <Field label={s.brochureColour} hint={s.brochureColourHint}>
+          <div className="swatches" role="radiogroup" aria-label={s.brochureColour}>
+            {SWATCHES.map((c) => <button key={c} type="button" role="radio" aria-checked={f.brochureColour.toLowerCase() === c.toLowerCase()} aria-label={s.swatchNames[c] ?? c} title={s.swatchNames[c] ?? c}
+              className={`swatch${f.brochureColour.toLowerCase() === c.toLowerCase() ? " on" : ""}`} style={{ background: c }} onClick={() => setF({ ...f, brochureColour: c })} />)}
+          </div>
+        </Field>
+        <Field label={s.brochureLangs} hint={s.brochureLangsHint}>
+          <select value={f.brochureCardLanguages} onChange={(e) => setF({ ...f, brochureCardLanguages: e.target.value as typeof f.brochureCardLanguages })}>
+            <option value="ar_en">{s.langsArEn}</option><option value="ar">{s.langsAr}</option><option value="en">{s.langsEn}</option>
+          </select>
+        </Field>
+        {sw("brochureShowAi", s.brochureAi, s.brochureAiHint)}
+        <p className="hint">{s.brochureSaveFirst}</p>
       </section>
       <section className="panel stack">
         <h2>{s.whatPatients}</h2>

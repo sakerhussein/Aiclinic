@@ -10,6 +10,7 @@ import { BookingDetail, BookingList } from "./pages/bookings";
 import { PatientList, PatientPage } from "./pages/patients";
 import { Settings } from "./pages/settings";
 import { AuditLog } from "./pages/audit";
+import { PrintPage } from "./pages/print";
 
 // A page someone may not open sends them home; the server refuses the data either way.
 function Allowed({ perm, children }: { perm: string; children: ReactNode }) {
@@ -23,6 +24,8 @@ export default function App() {
       <AppProvider>
         <BrowserRouter>
           <Routes>
+            {/* Brochures print without the app's header, at their real size. */}
+            <Route path="/print/:design" element={<Allowed perm="booking.settings.view"><PrintPage /></Allowed>} />
             <Route element={<Layout />}>
               <Route path="/" element={<Calendar />} />
               <Route path="/new" element={<BookingForm />} />
