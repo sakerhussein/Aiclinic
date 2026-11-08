@@ -1,6 +1,6 @@
 # Plan: online booking link, voice assistant and brochures
 
-Status, 2026-11-08: approved by the owner on 2026-11-07. Built: the link (step 1), the brochures (step 2), the Haiku 5.5 test and switch (step 3) and the assistant chat by typing (step 5, first part). Next: the Jordanian recordings for the speech test (step 4). Written 2026-11-07, version 2 (voice is now a conversation with the clinic's assistant, and brochures are added). Background: `reports/Clinic booking competitive analysis.md`.
+Status, 2026-11-08: approved by the owner on 2026-11-07. Built: the link (step 1), the brochures (step 2), the Haiku 5.5 test and switch (step 3) and the assistant chat by typing (step 5, first part). Next: the Jordanian recordings for the speech test (step 4); the kit for them is `voice/test-recordings/kit.html` (40 short booking messages, an agreement, a speakers sheet and a sheet for choosing the voice) with `tracking.csv`. Written 2026-11-07, version 2 (voice is now a conversation with the clinic's assistant, and brochures are added). Background: `reports/Clinic booking competitive analysis.md`.
 
 ## Where this puts us against competitors
 

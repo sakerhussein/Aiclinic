@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voice booking recording kit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap">
+<style>
+:root{
+  --ink:#0A0F14;--paper:#F2F4F3;--white:#fff;--text:#0A0F14;--muted:#4B5863;--rule:#C9D6D2;--rule-soft:#E1E6E4;
+  --accent:#2EE6B5;--accent-ink:#0B7A64;--accent-tint:#DDF7EE;--amber-tint:#FFF0D6;--amber-line:#F1D3A0;
+  --font-display:"Unbounded","Geist",system-ui,sans-serif;--font-body:"Geist",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"Geist Mono",ui-monospace,Menlo,monospace;--font-ar:"IBM Plex Sans Arabic","Segoe UI",Tahoma,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{overflow-x:clip}
+body{margin:0;background:var(--paper);color:var(--text);font:14px/1.5 var(--font-body);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+[lang="ar"]{font-family:var(--font-ar)}
+h1,h2,h3,p,ul,ol,dl{margin:0}
+bdi{unicode-bidi:isolate}
+
+/* screen bar */
+.bar{position:sticky;top:0;z-index:5;background:var(--ink);color:#E8EEF0}
+.bar .in{max-width:210mm;margin-inline:auto;padding-inline:16px;min-height:52px;display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap;padding-block:6px}
+.bar b{font-weight:600}
+.bar nav{display:flex;gap:4px 14px;flex-wrap:wrap;flex:1}
+.bar a{color:#93A3AD;text-decoration:none;font-size:13px}
+.bar a:hover{color:#fff}
+.bar button{min-height:38px;padding:0 18px;border-radius:999px;border:0;background:var(--accent);color:var(--ink);font:600 14px var(--font-body);cursor:pointer}
+
+/* pages */
+.page{background:var(--white);max-width:210mm;margin:20px auto;padding:13mm 14mm;border-radius:4px;box-shadow:0 1px 2px rgba(10,15,20,.06),0 8px 24px rgba(10,15,20,.06)}
+.eyebrow{font:500 11px/1.4 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent-ink)}
+h1{font:500 25px/1.2 var(--font-display);letter-spacing:-.01em;margin-top:6px}
+.ar-sub{font-size:16px;color:var(--muted);margin-top:4px}
+.lead{font-size:15px;margin-top:12px;max-width:68ch}
+.ph{font:600 18px/1.3 var(--font-body);margin-top:4px}
+.muted{color:var(--muted)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:0 8mm;margin-top:6mm}
+.cols h2,.agree h3{font:600 14px/1.3 var(--font-body);margin:14px 0 6px;padding-top:7px;border-top:2px solid var(--ink)}
+.cols > div > h2:first-child{margin-top:0}
+ul,ol{padding-inline-start:18px;display:grid;gap:4px}
+code{font:12px var(--font-mono);background:var(--rule-soft);padding:1px 5px;border-radius:4px}
+
+/* case list */
+table{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px}
+th{text-align:start;font:500 11px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:6px 8px;border-bottom:2px solid var(--ink)}
+td{padding:6px 8px;border-bottom:1px solid var(--rule-soft);vertical-align:top}
+td:first-child{font-family:var(--font-mono);color:var(--accent-ink)}
+td.blank{min-width:90px;border-bottom:1px solid var(--rule)}
+.legend{margin-top:10px;font-size:12.5px}
+
+/* case card */
+.ch{display:flex;gap:14px;align-items:flex-start;border-bottom:2px solid var(--ink);padding-bottom:10px}
+.num{font:500 30px/1 var(--font-display);color:var(--accent-ink);min-width:58px}
+.ch h2{font:600 19px/1.25 var(--font-body)}
+.setup{color:var(--muted);font-size:13px;margin-top:3px}
+.box{margin-top:11px;border:1px solid var(--rule);border-radius:10px;padding:10px 14px}
+.box h3{font:500 11px/1.4 var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+.box[lang="ar"] h3,.box h3 [lang="ar"]{font:600 13px/1.5 var(--font-ar);letter-spacing:0;text-transform:none}
+.pt{background:var(--paper)}
+.tp{background:var(--amber-tint);border-color:var(--amber-line)}
+dl{display:grid;grid-template-columns:max-content 1fr;gap:5px 14px}
+dt{font-weight:600}
+dd{margin:0}
+.box[lang="ar"]{font-size:14.5px;line-height:1.75}
+.change{margin-top:12px;font-size:12.5px;color:var(--muted);border-top:1px dashed var(--rule);padding-top:8px}
+.change span{display:inline-block;min-width:60%;border-bottom:1px solid var(--rule);margin-inline-start:6px}
+
+/* agreement */
+.agree .ar-block{margin-top:8mm;padding-top:6mm;border-top:1px dashed var(--rule)}
+.agree p{margin-top:8px}
+.agree ul{margin-top:8px}
+.sign{display:grid;grid-template-columns:1fr 1fr;gap:10mm 8mm;margin-top:10mm}
+.sign div{border-top:1px solid var(--ink);padding-top:5px;font-size:12.5px;color:var(--muted)}
+.sign .wide{grid-column:1 / -1}
+.box-tick{display:inline-block;width:11px;height:11px;border:1px solid var(--ink);vertical-align:-1px;margin-inline:10px 4px}
+
+/* note template */
+.meta{display:grid;grid-template-columns:repeat(4,1fr);gap:6mm;margin-top:6mm}
+.meta div{border-top:1px solid var(--ink);padding-top:4px;font-size:12px;color:var(--muted)}
+.sec{margin-top:4.5mm}
+.sec b{display:block;font-weight:600}
+.sec i{font-style:normal;color:var(--muted);font-size:12.5px}
+.lines{display:block;margin-top:2px;background:repeating-linear-gradient(to bottom,transparent 0,transparent 24px,var(--rule) 24px,var(--rule) 25px)}
+.l1{height:25px}.l2{height:50px}.l3{height:75px}.l4{height:100px}.l5{height:125px}
+
+@media (max-width:640px){
+  .bar nav{display:none}
+  .bar .in{justify-content:space-between}
+  .page{margin:12px 0;padding:20px 16px;border-radius:0}
+  .cols{grid-template-columns:1fr}
+  .cols > div + div > h2:first-child{margin-top:14px}
+  dl{grid-template-columns:1fr;gap:2px}
+  dd{margin-bottom:6px}
+  .meta,.sign{grid-template-columns:1fr 1fr}
+  table{font-size:12px}
+  th,td{padding:5px 4px}
+}
+@media print{
+  @page{size:A4;margin:11mm 12mm}
+  html,body{background:#fff}
+  body{font-size:10pt}
+  .bar{display:none}
+  .page{max-width:none;margin:0;padding:0;border-radius:0;box-shadow:none;break-after:page}
+  .page:last-of-type{break-after:auto}
+  .box,.sec,tr,.sign{break-inside:avoid}
+  .box[lang="ar"]{font-size:10.5pt}
+}
+
+/* voice kit additions */
+.lines-t td.ar{font-family:var(--font-ar);font-size:14.5px;line-height:1.7;direction:rtl;text-align:right}
+.lines-t td.en{font-size:13.5px}
+.lines-t td.kind,.lines-t td.set{font-size:12px;color:var(--muted);width:17%}
+.lines-t td.set{width:11%}
+.lines-t td.who{min-width:70px;border-bottom:1px solid var(--rule)}
+.tag{display:inline-block;font:500 10.5px var(--font-mono);letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:1px 7px;background:var(--rule-soft);color:var(--muted)}
+.tag.key{background:var(--amber-tint);color:#8a5200}
+.situ{font-size:13.5px}
+.situ b{display:block;font-family:var(--font-ar);font-weight:500;font-size:14px;direction:rtl;text-align:right;margin-top:3px}
+.rate td{height:34px;border-bottom:1px solid var(--rule)}
+.rate td:first-child{font:500 15px var(--font-display);color:var(--accent-ink)}
+.who-t td{height:30px;border-bottom:1px solid var(--rule)}
+@media print{.lines-t td.ar{font-size:11pt}}
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <div class="in">
+    <b>Voice assistant · recording kit</b>
+    <nav>
+      <a href="#guide">Guide</a>
+      <a href="#agreement">Agreement</a>
+      <a href="#speakers">Speakers</a>
+      <a href="#read">Lines to read</a>
+      <a href="#free">Say it your way</a>
+      <a href="#voices">Choosing the voice</a>
+    </nav>
+    <button type="button" onclick="window.print()">Print</button>
+  </div>
+</div>
+
+<!-- ============ GUIDE ============ -->
+<section class="page" id="guide">
+  <p class="eyebrow">Limitsiz Clinic · voice assistant · step 4, the speech test</p>
+  <h1>Booking by voice: recordings for the speech test</h1>
+  <p class="ar-sub" lang="ar" dir="rtl">الحجز بالصوت · تسجيلات اختبار خدمات الكلام</p>
+  <p class="lead">40 short voice messages, the kind a patient sends on WhatsApp or the clinic's web chat to book, change or ask about an appointment. They decide which speech-to-text service understands Jordanian patients best. No real patients: everyone uses the made-up names and numbers on the cards.</p>
+
+  <div class="cols">
+    <div>
+      <h2>Who</h2>
+      <ul>
+        <li>8 to 10 people: clinic staff, family, friends. Not patients.</li>
+        <li>Mix men and women, young and older, and accents: Amman, the north, the south, rural or Bedouin, and someone who mixes in English.</li>
+        <li>Each person records 4 or 5 lines, so 40 to 50 recordings in all. Write who records what in the last column of the lists.</li>
+        <li>Each person gets a code, <code>s01</code>, <code>s02</code>…, on the speakers sheet. Codes, not names, go on the files.</li>
+      </ul>
+
+      <h2>Before recording</h2>
+      <ol>
+        <li>Everyone signs the agreement, one copy each.</li>
+        <li>Choose a private folder for the recordings that only your team can open. Not this project folder, and not a WhatsApp group.</li>
+      </ol>
+
+      <h2>Two kinds of line</h2>
+      <ul>
+        <li><b>Lines to read</b> (R01 to R25): say the Arabic line in your own accent, as if sending a voice note. Small slips are fine; note them on the tracking sheet.</li>
+        <li><b>Say it your way</b> (F01 to F15): read the situation, then say it in your own words, like a real patient. Afterwards, write down exactly what you said, or ask the checker to.</li>
+        <li>Lines marked <span class="tag key">key</span> carry the details that matter most: day, time, doctor, service, name and phone digits.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>Each recording</h2>
+      <ul>
+        <li>Use the phone's voice recorder app. Hold the phone the way you hold it for a WhatsApp voice note.</li>
+        <li>Each line names a place. Most are a quiet room; some are on purpose in a car, the street, a waiting room with the TV on, or a café.</li>
+        <li>Speak at your normal speed. Don't stop for mistakes.</li>
+        <li>Use only the names and phone numbers on the card.</li>
+      </ul>
+
+      <h2>After each recording</h2>
+      <ul>
+        <li>Name the file with the line and your code, for example <code>R07-s03</code>. A second take is <code>R07-s03b</code>.</li>
+        <li>Fill in its row in the tracking sheet, <code>tracking.csv</code>.</li>
+        <li>Copy the file to the private folder. On WhatsApp, send it as a document, not as a voice note.</li>
+      </ul>
+
+      <h2>What happens next</h2>
+      <ul>
+        <li>Each recording goes to three or four speech services, to compare them.</li>
+        <li>Someone who speaks Jordanian Arabic checks one transcript per recording against what was said: a few minutes each.</li>
+        <li>Two scores: overall word accuracy, and, separately, how often the key details come out right. A wrong time or digit matters far more than a wrong "و".</li>
+        <li>Then the voice for spoken replies: staff listen to samples and choose (last page).</li>
+        <li>Voice notes in the web chat, the staff form and WhatsApp are built only after this test.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ AGREEMENT ============ -->
+<section class="page agree" id="agreement">
+  <p class="eyebrow">Sign before recording · one copy per person</p>
+  <h2 class="ph">Agreement to take part in test recordings</h2>
+  <p>I agree to record short test voice messages for Limitsiz Clinic's voice assistant. I understand that:</p>
+  <ul>
+    <li>The messages are made up. I will use the names and numbers on the cards, and nothing about my own health or anyone else's.</li>
+    <li>My voice will be sent to three or four speech-to-text services, only to test them. These are companies outside Jordan, and each handles what it receives under its own terms.</li>
+    <li>The recordings and their text are used only for this test. Limitsiz deletes its copies when testing ends, or sooner if I ask.</li>
+    <li>I can withdraw at any time, and my recordings will then be deleted.</li>
+  </ul>
+
+  <div class="ar-block" lang="ar" dir="rtl">
+    <h2 class="ph">موافقة على المشاركة في تسجيلات الاختبار</h2>
+    <p>أوافق على تسجيل رسائل صوتية قصيرة لاختبار المساعد الصوتي من <bdi>Limitsiz Clinic</bdi>، وأفهم أن:</p>
+    <ul>
+      <li>الرسائل تمثيلية، وسأستخدم الأسماء والأرقام المكتوبة على البطاقات فقط، ولن أذكر أي شيء عن صحتي أو صحة أي شخص آخر.</li>
+      <li>صوتي سيُرسَل إلى ثلاث أو أربع خدمات لتحويل الكلام إلى نص، لغرض اختبارها فقط. هذه شركات خارج الأردن، وكلٌّ منها يتعامل مع ما يصله وفق شروطه الخاصة.</li>
+      <li>التسجيلات ونصوصها تُستخدم لهذا الاختبار فقط، وتحذف <bdi>Limitsiz</bdi> نسخها عند انتهاء الاختبار، أو قبل ذلك إذا طلبت.</li>
+      <li>يمكنني الانسحاب في أي وقت، وعندها تُحذف تسجيلاتي.</li>
+    </ul>
+  </div>
+
+  <div class="sign">
+    <div class="wide">Name · الاسم</div>
+    <div>Speaker code · رمز المتحدث</div>
+    <div>Date · التاريخ</div>
+    <div class="wide">Signature · التوقيع</div>
+  </div>
+</section>
+
+<!-- ============ SPEAKERS ============ -->
+<section class="page" id="speakers">
+  <p class="eyebrow">Plan the speakers</p>
+  <h2 class="ph">Speakers sheet</h2>
+  <p class="muted">One row per person. The code goes on their files; this sheet stays with the signed agreements, not with the recordings.</p>
+  <table class="who-t">
+    <thead><tr><th>Code</th><th>Name</th><th>Man / woman</th><th>Age</th><th>Accent (city, region)</th><th>Phone model</th><th>Lines</th></tr></thead>
+    <tbody>
+      <tr><td>s01</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>s02</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>s03</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>s04</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>s05</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>s06</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>s07</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>s08</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>s09</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>s10</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    </tbody>
+  </table>
+  <p class="legend muted">Aim for a spread: at least 3 women and 3 men, at least 2 people over 50, at least 2 accents from outside Amman, and 1 or 2 who mix English into their Arabic.</p>
+</section>
+
+<!-- ============ LINES TO READ ============ -->
+<section class="page" id="read">
+  <p class="eyebrow">Read in your own accent · 5 to 20 seconds each</p>
+  <h2 class="ph">Lines to read (R01 to R25)</h2>
+  <p class="muted">The clinic is the demo dermatology clinic, with Dr Lina Haddad and Dr Omar Khalil. Write the speaker's code in the last column.</p>
+  <table class="lines-t">
+    <thead><tr><th>#</th><th>What it tests</th><th>Place</th><th>Line</th><th>Who</th></tr></thead>
+    <tbody>
+      <tr><td>R01</td><td class="kind">Book: doctor, day, time <span class="tag key">key</span></td><td class="set">Quiet</td><td class="ar">مرحبا، بدي أحجز موعد عند الدكتورة لينا يوم الثلاثاء الساعة أربعة العصر.</td><td class="who"></td></tr>
+      <tr><td>R02</td><td class="kind">Book: tomorrow, any time</td><td class="set">Quiet</td><td class="ar">في عندكم موعد بكرة الصبح؟ أي ساعة بتزبط معي.</td><td class="who"></td></tr>
+      <tr><td>R03</td><td class="kind">Service name</td><td class="set">Quiet</td><td class="ar">بدي جلسة ليزر إزالة شعر، شو أقرب موعد عندكم؟</td><td class="who"></td></tr>
+      <tr><td>R04</td><td class="kind">Change the day <span class="tag key">key</span></td><td class="set">Quiet</td><td class="ar">لو سمحت، بدي أغيّر موعدي من يوم الخميس ليوم الأحد، نفس الساعة.</td><td class="who"></td></tr>
+      <tr><td>R05</td><td class="kind">Cancel, with a time <span class="tag key">key</span></td><td class="set">Street</td><td class="ar">بدي ألغي موعد بكرة الساعة عشرة ونص، ما رح أقدر أجي.</td><td class="who"></td></tr>
+      <tr><td>R06</td><td class="kind">Ask about own booking</td><td class="set">Quiet</td><td class="ar">أنا حاجز عند الدكتور عمر يوم السبت، بس نسيت الساعة، كم كانت؟</td><td class="who"></td></tr>
+      <tr><td>R07</td><td class="kind">Price</td><td class="set">Quiet</td><td class="ar">قديش سعر الكشفية عند الدكتورة لينا؟</td><td class="who"></td></tr>
+      <tr><td>R08</td><td class="kind">Booking for a child</td><td class="set">Waiting room, TV on</td><td class="ar">بدي أحجز لابني، عمره تسع سنين، طالعله حبوب على وجهه.</td><td class="who"></td></tr>
+      <tr><td>R09</td><td class="kind">Name and phone digits <span class="tag key">key</span></td><td class="set">Quiet</td><td class="ar">اسمي محمود المصري، ورقمي صفر سبعة تسعة، صفر صفر صفر، واحد اثنين ثلاثة أربعة.</td><td class="who"></td></tr>
+      <tr><td>R10</td><td class="kind">Picking a time <span class="tag key">key</span></td><td class="set">Quiet</td><td class="ar">الساعة خمسة وربع بتزبط معي، احجزلي إياها.</td><td class="who"></td></tr>
+      <tr><td>R11</td><td class="kind">After work hours</td><td class="set">Car, engine on</td><td class="ar">بدي موعد بعد الدوام، الساعة ستة أو سبعة المسا.</td><td class="who"></td></tr>
+      <tr><td>R12</td><td class="kind">In English <span class="tag key">key</span></td><td class="set">Quiet</td><td class="en">Hi, I'd like to book a consultation with Dr Omar next Monday, preferably after five.</td><td class="who"></td></tr>
+      <tr><td>R13</td><td class="kind">English treatment names</td><td class="set">Quiet</td><td class="ar">بدي أعمل botox و filler، بقدر أحجزهم يوم الاثنين بنفس اليوم؟</td><td class="who"></td></tr>
+      <tr><td>R14</td><td class="kind">Medicine name, follow-up</td><td class="set">Quiet</td><td class="ar">الدكتورة كتبتلي roaccutane، وبدي موعد متابعة بعد شهر.</td><td class="who"></td></tr>
+      <tr><td>R15</td><td class="kind">Opening hours</td><td class="set">Café</td><td class="ar">شو مواعيد الدوام يوم الجمعة؟ إنتو فاتحين؟</td><td class="who"></td></tr>
+      <tr><td>R16</td><td class="kind">Same day</td><td class="set">Quiet</td><td class="ar">عندي حكة قوية من يومين، بدي أشوف دكتور اليوم إذا بصير.</td><td class="who"></td></tr>
+      <tr><td>R17</td><td class="kind">Short yes</td><td class="set">Quiet</td><td class="ar">آه تمام، أكّد الحجز.</td><td class="who"></td></tr>
+      <tr><td>R18</td><td class="kind">Short no</td><td class="set">Street</td><td class="ar">لأ، مش هذا الوقت، في إشي أبكر؟</td><td class="who"></td></tr>
+      <tr><td>R19</td><td class="kind">Time with "إلا ربع" <span class="tag key">key</span></td><td class="set">Quiet</td><td class="ar">بدي الموعد اللي الساعة ثلاثة إلا ربع.</td><td class="who"></td></tr>
+      <tr><td>R20</td><td class="kind">Next week, two days</td><td class="set">Quiet</td><td class="ar">الأسبوع الجاي، يوم الأربعاء أو الخميس، الصبح أحسن.</td><td class="who"></td></tr>
+      <tr><td>R21</td><td class="kind">For a parent</td><td class="set">Quiet</td><td class="ar">بدي أحجز لأمي، هي كبيرة بالعمر وما بتقدر تيجي بدري.</td><td class="who"></td></tr>
+      <tr><td>R22</td><td class="kind">Insurance name</td><td class="set">Quiet</td><td class="ar">عندي تأمين ميدغلف، بتقبلوه عندكم؟</td><td class="who"></td></tr>
+      <tr><td>R23</td><td class="kind">Emergency words: must be caught</td><td class="set">Quiet</td><td class="ar">صدري بوجعني كثير ومش قادر أتنفس منيح.</td><td class="who"></td></tr>
+      <tr><td>R24</td><td class="kind">Location</td><td class="set">Car, engine on</td><td class="ar">ممكن تبعتولي العنوان على الواتساب؟ وين بالزبط؟</td><td class="who"></td></tr>
+      <tr><td>R25</td><td class="kind">Date in the month <span class="tag key">key</span></td><td class="set">Quiet</td><td class="ar">بدي أحجز تنظيف بشرة يوم اثنين وعشرين الشهر، الساعة اثنعش الظهر.</td><td class="who"></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ SAY IT YOUR WAY ============ -->
+<section class="page" id="free">
+  <p class="eyebrow">Read the situation, then say it your own way · 10 to 60 seconds</p>
+  <h2 class="ph">Say it your way (F01 to F15)</h2>
+  <p class="muted">Use the name and number given. Afterwards, write exactly what you said on the back of this page, or ask the checker to.</p>
+  <table class="lines-t">
+    <thead><tr><th>#</th><th>Place</th><th>Situation</th><th>Who</th></tr></thead>
+    <tbody>
+      <tr><td>F01</td><td class="set">Quiet</td><td class="situ">You want laser hair removal for the underarms. You work until 4 every day. Any day this week.<b>بدك ليزر للإبط، ودوامك لحد الساعة أربعة، أي يوم هالأسبوع.</b></td><td class="who"></td></tr>
+      <tr><td>F02</td><td class="set">Quiet</td><td class="situ">Your daughter Lina, 6, has had a rash since yesterday. Ask for the earliest appointment. Give your name, Rana Saleh, and 079 000 4455.<b>بنتك لينا (٦ سنين) طالعلها طفح من مبارح. اطلب أقرب موعد، واعطِ اسمك رنا صالح والرقم ٠٧٩٠٠٠٤٤٥٥.</b></td><td class="who"></td></tr>
+      <tr><td>F03</td><td class="set">Street</td><td class="situ">Move your appointment from tomorrow at 11 to next week, and say briefly why.<b>انقل موعدك من بكرة الساعة ١١ للأسبوع الجاي، وقول السبب باختصار.</b></td><td class="who"></td></tr>
+      <tr><td>F04</td><td class="set">Quiet</td><td class="situ">Ask whether Dr Lina or Dr Omar is free on Saturday, and how much a consultation costs.<b>اسأل إذا الدكتورة لينا أو الدكتور عمر فاضيين يوم السبت، وقديش الكشفية.</b></td><td class="who"></td></tr>
+      <tr><td>F05</td><td class="set">Quiet</td><td class="situ">You booked online yesterday but got no message. Ask whether the booking went through.<b>حجزت أونلاين مبارح وما وصلك إشي. اسأل إذا الحجز تم.</b></td><td class="who"></td></tr>
+      <tr><td>F06</td><td class="set">Quiet</td><td class="situ">Book for yourself and your sister, one after the other, on the same day.<b>احجز إلك ولأختك، ورا بعض، بنفس اليوم.</b></td><td class="who"></td></tr>
+      <tr><td>F07</td><td class="set">Car, driving</td><td class="situ">You are driving. Ask to book for tomorrow evening, any doctor.<b>إنت سايق. اطلب موعد بكرة المسا، عند أي دكتور.</b></td><td class="who"></td></tr>
+      <tr><td>F08</td><td class="set">Café</td><td class="situ">Ask where the clinic is exactly and whether there is parking.<b>اسأل وين العيادة بالزبط وإذا في مكان للسيارة.</b></td><td class="who"></td></tr>
+      <tr><td>F09</td><td class="set">Quiet</td><td class="situ">An older speaker, at their own pace: a mole on the back has changed colour. Ask for a morning appointment.<b>(متحدث كبير بالعمر، على راحته) شامة على الظهر تغيّر لونها. اطلب موعد الصبح.</b></td><td class="who"></td></tr>
+      <tr><td>F10</td><td class="set">Quiet</td><td class="situ">A long message, about 45 seconds: tell the story of a skin problem first, then ask for an appointment with Dr Lina.<b>رسالة طويلة (حوالي ٤٥ ثانية): احكي قصة المشكلة بالجلد أول، بعدين اطلب موعد عند الدكتورة لينا.</b></td><td class="who"></td></tr>
+      <tr><td>F11</td><td class="set">Quiet</td><td class="situ">Mixing English: you are on acne treatment and need a follow-up next month.<b>بلغة مخلوطة إنجليزي: إنت على علاج للحبوب وبدك متابعة الشهر الجاي.</b></td><td class="who"></td></tr>
+      <tr><td>F12</td><td class="set">Quiet</td><td class="situ">Change your mind mid-sentence: "Tuesday… no, Wednesday, at four… no, five".<b>غيّر رأيك بنص الحكي: «الثلاثاء… لأ، الأربعاء، الساعة أربعة… لأ، خمسة».</b></td><td class="who"></td></tr>
+      <tr><td>F13</td><td class="set">Quiet</td><td class="situ">Give the number 079 000 6789 digit by digit in Arabic, then again in English.<b>اعطِ الرقم ٠٧٩٠٠٠٦٧٨٩ رقم رقم بالعربي، وبعدين بالإنجليزي.</b></td><td class="who"></td></tr>
+      <tr><td>F14</td><td class="set">Waiting room, TV on</td><td class="situ">A parent with a child (optional): the child says what itches, the parent asks for an appointment.<b>(اختياري) ولد مع أهله: الولد بقول شو بحكّه، والأهل بطلبوا موعد.</b></td><td class="who"></td></tr>
+      <tr><td>F15</td><td class="set">Quiet</td><td class="situ">In a northern, southern, rural or Bedouin accent: book any consultation this week.<b>بلهجة شمالية أو جنوبية أو ريفية أو بدوية: احجز أي استشارة هالأسبوع.</b></td><td class="who"></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ CHOOSING THE VOICE ============ -->
+<section class="page" id="voices">
+  <p class="eyebrow">Later · when the voice samples are ready</p>
+  <h2 class="ph">Choosing the assistant's voice</h2>
+  <p>For spoken replies, Limitsiz will send six short samples (A to F): the same reply read by different voices. Three to five staff listen on a phone and fill in one sheet each. A flat foreign accent would hurt trust, so if no voice sounds right, the assistant starts with written replies only.</p>
+  <p class="ar-sub" lang="ar" dir="rtl" style="margin-top:8px">للردّ المسموع ترسل Limitsiz ست عيّنات قصيرة (A إلى F)، نفس الرد بأصوات مختلفة. يسمعها ثلاثة إلى خمسة من الموظفين على الهاتف ويعبّي كل واحد ورقة.</p>
+  <p class="muted" style="margin-top:10px">Listener · المستمع: ______________________ &nbsp; Date · التاريخ: ____________</p>
+  <table class="rate">
+    <thead><tr><th>Sample</th><th>Clear? (1–5)</th><th>Sounds Jordanian? (1–5)</th><th>Polite and warm? (1–5)</th><th>Speed right?</th><th>Would a patient trust it? (1–5)</th><th>Comment</th></tr></thead>
+    <tbody>
+      <tr><td>A</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>B</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>C</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>D</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>E</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>F</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    </tbody>
+  </table>
+  <p class="legend muted">Best overall · الأفضل: ______ &nbsp;&nbsp; Would not use · لا أنصح به: ______</p>
+</section>
+
+</body>
+</html>
