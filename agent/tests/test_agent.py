@@ -119,7 +119,8 @@ def test_reply_language_follows_the_owner_rule(conn, run):
     run(fake, "عندكم تأمين Medgulf؟")
     run(fake, "ok")
     notes = [m["content"] for m in fake.calls[1]["messages"] if m["role"] == "system"]
-    assert "The patient is writing in Arabic: reply in Arabic." in notes[0] and "reply in Arabic" in notes[-1]
+    assert "The patient is writing in Arabic: reply in Arabic (Jordanian dialect)." in notes[0] and "reply in Arabic" in notes[-1]
+    assert "عامية أردنية" in fake.calls[0]["system"], "Jordanian Arabic by default"
 
 
 def test_booking_waits_for_yes_then_books(conn, run):

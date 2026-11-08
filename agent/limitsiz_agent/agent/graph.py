@@ -102,7 +102,7 @@ def build_agent(
         notes = [f"Current time at the clinic: {WEEKDAYS_EN[local.weekday()]} {local:%Y-%m-%d %H:%M} ({info['timezone']}).",
                  # Decided here, not left to the model: an Arabic message with one English word once got an English reply.
                  f"The patient is writing in {'Arabic' if language == 'ar' else 'English'}: reply in "
-                 f"{'Arabic' if language == 'ar' else 'English'}."]
+                 f"{'Arabic (Jordanian dialect)' if language == 'ar' else 'English'}."]
         if not state.get("messages"):
             notes.append("This is the patient's first message.")
         pending = state.get("pending")

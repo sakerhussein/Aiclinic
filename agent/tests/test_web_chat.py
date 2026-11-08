@@ -28,6 +28,7 @@ def test_only_booking_tools_and_web_rules(conn):
     assert not names & {"list_my_appointments", "cancel_appointment", "reschedule_appointment", "book_appointment"}
     p = build_web_prompt(clinic_info(conn, CLINIC))
     assert "cannot see, move or cancel existing appointments" in p and "Never ask for the patient's name or phone" in p
+    assert "cannot receive photos or files" in p and "bring it to the visit" in p
     assert "Clinic details" in p and "WhatsApp booking assistant" not in p
 
 
@@ -67,7 +68,8 @@ def test_the_page_language_decides_the_reply_language(conn, web):
     run_web_turn(graph, CLINIC, CHAT, "10:30", language="en")
     assert "The page is in English: reply in English." in fake.calls[0]["messages"][-1]["content"]
     run_web_turn(graph, CLINIC, CHAT, "ok", language="ar")              # the patient pressed the button to Arabic
-    assert "The page is in Arabic: reply in Arabic." in fake.calls[1]["messages"][-1]["content"]
+    assert "The page is in Arabic: reply in Arabic (Jordanian dialect)." in fake.calls[1]["messages"][-1]["content"]
+    assert "عامية أردنية" in fake.calls[1]["system"]
     assert "Reply in that language" in fake.calls[0]["system"]
     # Without the AI too: the emergency message follows the page's language, not the letters typed.
     out = run_web_turn(graph, CLINIC, CHAT, "chest pain", language="ar")
