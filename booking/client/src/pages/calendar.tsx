@@ -4,6 +4,7 @@ import { get, type Appt, type Block } from "../api";
 import { addDays, dayOf, fmtDay, hm, localToIso, minutesOfDay, todayIn, weekdayOf } from "../lib";
 import { useI18n } from "../i18n";
 import { useApp } from "../session";
+import { useN } from "./notes-text";
 
 const PX = 1.3;            // pixels per minute
 const SNAP = 15;
@@ -12,6 +13,7 @@ const SNAP = 15;
 export function Calendar() {
   const { t, lang, d } = useI18n();
   const { look, me, can } = useApp();
+  const nt = useN();
   const tz = look.clinic.timezone;
   const nav = useNavigate();
   const [q, setQ] = useSearchParams();
@@ -86,7 +88,7 @@ export function Calendar() {
                     <Link key={a.id} to={`/bookings/${a.id}`} className={`cal-card st-${a.status} src-${a.source}${a.unchecked || a.moved_by_patient ? " unchecked" : ""} ${h * PX >= 58 ? "tall" : "short"}`} style={{ top: (s - from) * PX, height: h * PX - 2 }}>
                       <b>{hm(a.starts_at, tz)} {a.patient_name || a.patient_phone || "?"}</b>
                       <span>{lang === "ar" ? a.service_name_ar : a.service_name_en}</span>
-                      <em>{d.sources[a.source] ?? a.source}</em>
+                      <em>{d.sources[a.source] ?? a.source}{a.note_status && <span className={`cal-note n-${a.note_status}`} title={`${nt.noteLine}: ${nt.states[a.note_status] ?? a.note_status}`}> · {nt.states[a.note_status] ?? a.note_status}</span>}</em>
                     </Link>
                   );
                 })}

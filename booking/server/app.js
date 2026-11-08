@@ -171,6 +171,33 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
     const b = parse(newPatient.partial(), req.body);
     res.json(await svc.updatePatient(req.ctx, parse(uuid, req.params.id), b));
   }));
+  // The patient's visit notes: date, doctor and state only. Secretaries see this list too; the content opens on the note screen.
+  app.get("/api/patients/:id/notes", auth("booking.patients.view"), wrap(async (req, res) => res.json(await svc.notes.forPatient(req.ctx, parse(uuid, req.params.id)))));
+
+  // ---------------------------------------------------------------- visit notes (AI Scribe)
+  // Reading needs booking.notes.read, recording and editing booking.notes.write, signing booking.notes.sign: doctors by default.
+  // notes.js adds the rest: a doctor reaches only their own patients' notes, and only the treating doctor writes or signs.
+  const NOTES = svc.notes;
+  const READ_NOTES = auth("booking.notes.read"), WRITE_NOTES = auth("booking.notes.write"), SIGN_NOTES = auth("booking.notes.sign");
+  const noteId = (req) => parse(uuid, req.params.id);
+  app.get("/api/appointments/:id/note", READ_NOTES, wrap(async (req, res) => res.json(await NOTES.forVisit(req.ctx, noteId(req)))));
+  app.post("/api/appointments/:id/note", WRITE_NOTES, wrap(async (req, res) => res.status(201).json(await NOTES.start(req.ctx, noteId(req),
+    parse(z.object({ mode: z.enum(["scribe", "manual"]), consent: z.boolean().optional() }), req.body)))));
+  // A few seconds of the recording at a time, so a long visit never meets an upload limit.
+  app.put("/api/notes/:id/audio/:seq", WRITE_NOTES, express.raw({ type: () => true, limit: "2mb" }), wrap(async (req, res) =>
+    res.json(await NOTES.saveChunk(req.ctx, noteId(req), parse(z.coerce.number().int().min(0).max(9999), req.params.seq), req.get("content-type"), req.body))));
+  app.post("/api/notes/:id/alive", WRITE_NOTES, wrap(async (req, res) => res.json(await NOTES.alive(req.ctx, noteId(req)))));
+  app.post("/api/notes/:id/stop", WRITE_NOTES, wrap(async (req, res) => res.json(await NOTES.stop(req.ctx, noteId(req),
+    parse(z.object({ seconds: z.number().int().min(0).max(7200).optional() }), req.body)))));
+  app.patch("/api/notes/:id", WRITE_NOTES, wrap(async (req, res) => res.json(await NOTES.save(req.ctx, noteId(req),
+    parse(z.object({ content: z.record(z.string().max(40), z.string().max(4000)), expectedVersion: z.number().int() }), req.body)))));
+  app.post("/api/notes/:id/sign", SIGN_NOTES, wrap(async (req, res) => res.json(await NOTES.sign(req.ctx, noteId(req),
+    parse(z.object({ expectedVersion: z.number().int(), confirmRead: z.literal(true) }), req.body)))));
+  app.post("/api/notes/:id/additions", WRITE_NOTES, wrap(async (req, res) => res.status(201).json(await NOTES.addition(req.ctx, noteId(req),
+    parse(z.object({ text: z.string().trim().min(1).max(4000) }), req.body)))));
+  app.post("/api/notes/:id/retry", WRITE_NOTES, wrap(async (req, res) => res.json(await NOTES.retry(req.ctx, noteId(req)))));
+  app.post("/api/notes/:id/by-hand", WRITE_NOTES, wrap(async (req, res) => res.json(await NOTES.byHand(req.ctx, noteId(req)))));
+  app.post("/api/notes/:id/discard", WRITE_NOTES, wrap(async (req, res) => res.json(await NOTES.discard(req.ctx, noteId(req)))));
 
   // ---------------------------------------------------------------- Excel files (administrators)
   const sendXlsx = (res, f) => {
@@ -209,6 +236,17 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
     chatEnabled: z.boolean(), chatMessagesPerChat: n(5, 200), chatChatsPerIpPerDay: n(1, 100), chatMessagesPerClinicPerDay: n(10, 100000), chatKeepDays: n(1, 365),
     brochureColour: z.string().regex(/^#[0-9A-Fa-f]{6}$/), brochureCardLanguages: z.enum(["ar_en", "ar", "en"]), brochureShowAi: z.boolean(),
     findMessageEn: z.string().trim().min(1).max(600).refine((m) => m.includes("{link}")), findMessageAr: z.string().trim().min(1).max(600).refine((m) => m.includes("{link}")),
+  }), req.body)))));
+  // Settings > AI Scribe. The models and speech services on offer are the ones the plan names; the tests (plan steps 2 and 3) add more.
+  const section = z.object({ key: z.string().regex(/^[a-z][a-z0-9_]{0,30}$/), en: z.string().trim().min(1).max(80), ar: z.string().trim().min(1).max(80),
+    hint: z.string().trim().max(200).optional() });
+  app.patch("/api/settings/scribe", EDIT, wrap(async (req, res) => res.json(await S.updateScribe(req.ctx, parse(z.object({
+    enabled: z.boolean(), noteLanguage: z.enum(["en", "ar"]),
+    consentEn: z.string().trim().min(1).max(1000), consentAr: z.string().trim().min(1).max(1000),
+    sections: z.array(section).min(1).max(12),
+    maxRecordingMinutes: n(5, 120), transcriptKeepDays: n(1, 365), notesPerDoctorPerDay: n(1, 500),
+    speechService: z.enum(["stand_in"]), draftModel: z.enum(["claude-opus-5-5", "claude-sonnet-5-5"]),
+    doctors: z.array(z.object({ id: uuid, scribeEnabled: z.boolean() })).max(200),
   }), req.body)))));
   app.patch("/api/settings/profile", EDIT, wrap(async (req, res) => res.json(await S.updateProfile(req.ctx, parse(z.object({
     nameEn: name, nameAr: name, phone: z.string().trim().max(30).nullish(), addressEn: optText, addressAr: optText, mapsUrl: z.string().trim().url().max(500).nullish().or(z.literal("")),

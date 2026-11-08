@@ -47,6 +47,14 @@ const EN = {
     hours_overlap: "Two periods overlap on the same day.", end_before_start: "The end must be after the start.", invalid_timezone: "That time zone is not valid.",
     doctor_hours_outside_clinic: "A doctor's hours must fit inside the clinic's opening hours.", invalid_value: "One of the values is not allowed.",
     nothing_to_check: "This booking is already checked.",
+    scribe_off: "Visit notes are off at this clinic.", scribe_not_for_doctor: "Recording is not switched on for you. Write the note by hand.",
+    consent_required: "Tick the patient's agreement first.", note_exists: "This visit already has a note. Reload to open it.",
+    scribe_daily_limit: "You have reached today's number of recorded notes. Write this one by hand.", visit_not_open: "This booking is cancelled or voided.",
+    own_patients_only: "Only the treating doctor can do this.", note_not_found: "This note is not available.", not_recording: "The recording has already stopped.",
+    recording_too_long: "The recording reached its longest length.", not_a_draft: "This note is no longer a draft. Reload to see it.",
+    note_empty: "The note is empty. Write at least one section before signing.", not_signed: "Additions go under a signed note.",
+    not_failed: "The draft is still being made.", nothing_to_retry: "Nothing is left to try again with. Write the note by hand.",
+    note_signed: "A signed note cannot be thrown away.", duplicate_section: "Two sections have the same key.", empty_audio: "Nothing was recorded.", not_audio: "That is not a recording.",
   } as Record<string, string>,
 };
 
@@ -94,6 +102,14 @@ const AR: typeof EN = {
     hours_overlap: "فترتان متداخلتان في اليوم نفسه.", end_before_start: "يجب أن تكون النهاية بعد البداية.", invalid_timezone: "المنطقة الزمنية غير صالحة.",
     doctor_hours_outside_clinic: "يجب أن تكون ساعات الطبيب ضمن ساعات دوام العيادة.", invalid_value: "إحدى القيم غير مسموحة.",
     nothing_to_check: "هذا الحجز مراجَع بالفعل.",
+    scribe_off: "ملاحظات الزيارة مطفأة في هذه العيادة.", scribe_not_for_doctor: "التسجيل غير مفعّل لك. اكتب الملاحظة يدوياً.",
+    consent_required: "أشّر على موافقة المريض أولاً.", note_exists: "لهذه الزيارة ملاحظة بالفعل. أعد التحميل لفتحها.",
+    scribe_daily_limit: "وصلت إلى عدد الملاحظات المسجّلة لليوم. اكتب هذه الملاحظة يدوياً.", visit_not_open: "هذا الحجز ملغى أو محذوف.",
+    own_patients_only: "الطبيب المعالج وحده يستطيع ذلك.", note_not_found: "هذه الملاحظة غير متاحة.", not_recording: "توقف التسجيل بالفعل.",
+    recording_too_long: "وصل التسجيل إلى أطول مدة له.", not_a_draft: "لم تعد هذه الملاحظة مسودة. أعد التحميل لرؤيتها.",
+    note_empty: "الملاحظة فارغة. اكتب قسماً واحداً على الأقل قبل التوقيع.", not_signed: "الإضافات تكون تحت ملاحظة موقّعة.",
+    not_failed: "ما زالت المسودة قيد الكتابة.", nothing_to_retry: "لم يبقَ ما يُعاد به. اكتب الملاحظة يدوياً.",
+    note_signed: "لا يمكن التخلص من ملاحظة موقّعة.", duplicate_section: "لقسمين المفتاح نفسه.", empty_audio: "لم يُسجَّل شيء.", not_audio: "هذا ليس تسجيلاً.",
   },
 };
 

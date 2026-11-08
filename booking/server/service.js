@@ -8,6 +8,7 @@ import { createSettings } from "./settings.js";
 import { createAudit } from "./audit.js";
 import { bookingsFile, patientsFile, todayIn, MAX_EXPORT_ROWS } from "./export.js";
 import { freeStarts, MIN } from "./slots.js";
+import { createNotes } from "./notes.js";
 
 const ACTIVE = ["booked", "confirmed"];
 
@@ -22,7 +23,7 @@ export function normalizePhone(raw, country = "962") {
   return "+" + n;
 }
 
-export function createService({ pool, auditPool, now = () => new Date() }) {
+export function createService({ pool, auditPool, now = () => new Date(), audioDir }) {
   // ---------------------------------------------------------------- transactions with an audit actor
   async function tx(ctx, fn) {
     const c = await pool.connect();
@@ -50,7 +51,9 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
       `select id, name_en, name_ar, duration_minutes, price_jod, price_is_from from services where clinic_id = $1 and active order by sort, name_en`, [ctx.clinicId])).rows;
     const openingHours = (await pool.query(
       `select weekday, to_char(start_time, 'HH24:MI') as start, to_char(end_time, 'HH24:MI') as "end" from clinic_hours where clinic_id = $1 order by weekday, start_time`, [ctx.clinicId])).rows;
-    return { clinic, doctors, services, openingHours, rules: await staffRules(pool, ctx) };
+    // Visit notes (Settings > AI Scribe): whether the booking page offers "Start visit note" at all.
+    const notesEnabled = !!(await one(pool, "select enabled from scribe_settings where clinic_id = $1", [ctx.clinicId]))?.enabled;
+    return { clinic, doctors, services, openingHours, rules: await staffRules(pool, ctx), notesEnabled };
   }
 
   // Closures and leave touching one local day, for the calendar.
@@ -111,7 +114,8 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
       a.online_from, a.booked_name, a.booked_for_other, a.needs_check, a.checked_at, a.checked_by,
       (a.needs_check and a.checked_at is null) as unchecked,
       a.moved_online_at, (a.moved_online_at is not null and a.status = 'booked') as moved_by_patient,
-      (a.booked_name is not null and lower(trim(a.booked_name)) is distinct from lower(trim(p.full_name))) as name_differs
+      (a.booked_name is not null and lower(trim(a.booked_name)) is distinct from lower(trim(p.full_name))) as name_differs,
+      (select n.status from visit_notes n where n.appointment_id = a.id and n.status <> 'discarded') as note_status
     from appointments a
     join patients p on p.clinic_id = a.clinic_id and p.id = a.patient_id
     join doctors d on d.clinic_id = a.clinic_id and d.id = a.doctor_id
@@ -393,6 +397,7 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
 
   const settings = createSettings({ pool, tx, now });
   const audit = createAudit({ pool, auditPool, now });
+  const notes = createNotes({ pool, tx, now, audioDir, getAppointment });
 
   // ---------------------------------------------------------------- Excel files. Recorded before the file exists: no record, no file.
   async function exportFile(ctx, what, fetchRows, build, filters, lang) {
@@ -405,6 +410,6 @@ export function createService({ pool, auditPool, now = () => new Date() }) {
   }
   const exportBookings = (ctx, q, lang) => exportFile(ctx, "bookings", (n) => listAppointments(ctx, q, n), bookingsFile, q, lang);
   const exportPatients = (ctx, q, lang) => exportFile(ctx, "patients", (n) => searchPatients(ctx, q, n), patientsFile, q ? { q } : {}, lang);
-  return { settings, audit, lookups, timeOffOn, slots, listAppointments, getAppointment, history, createAppointment, updateAppointment, setStatus, restore, markChecked, onlineLink,
+  return { settings, audit, notes, lookups, timeOffOn, slots, listAppointments, getAppointment, history, createAppointment, updateAppointment, setStatus, restore, markChecked, onlineLink,
            searchPatients, exportBookings, exportPatients, getPatient, createPatient: (ctx, b) => createPatient(ctx, b), updatePatient, tx };
 }

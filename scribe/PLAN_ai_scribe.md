@@ -97,13 +97,26 @@ This is the hard part. A consultation in Amman mixes Jordanian Arabic with Engli
 | Step | What | Rough size | Needs |
 |---|---|---|---|
 | 1 | Role-played test recordings and the "right" notes | 1 to 2 weeks | Your doctors' time |
-| 2 | Speech test: choose the service | Under 1 week | The recordings |
+| 2 | Speech test: choose the service | Under 1 week | The recordings, and someone who speaks Jordanian Arabic to correct the transcripts (roughly half an hour each) |
 | 3 | Draft test: choose the model, set the format rules | 1 week | API cost, a doctor's grading |
-| 4 | Visit note screen: consent, recording, draft, edit, sign | 2 to 3 weeks | Steps 2 and 3 |
+| 4 | Visit note screen: consent, recording, draft, edit, sign | 2 to 3 weeks | Built now on the assumptions below; steps 2 and 3 confirm them |
 | 5 | Notes on the patient page, additions, Settings › AI Scribe, audit | 1 week | |
 | 6 | Pilot with one doctor at the demo clinic, then one real clinic. The first real consultations, with the patient's agreement | 2 to 4 weeks | Legal review and the providers' terms done |
 
 Each step is tested in English and Arabic before it goes live, and goes live only with your go-ahead.
+
+**Step 1 started 2026-11-08.** The kit for the recording day is in `scribe/test-recordings/`: `kit.html` (guide, agreement, 24 cases and the note template, printing on A4) and `tracking.csv`.
+
+**Steps 4 and 5 start now too** (your decision, 2026-11-08), in a separate session, before steps 2 and 3 finish. They rest on assumptions that steps 2 and 3 then confirm or change:
+
+- **Speech to text:** a switch in Settings, not one fixed service, so the speech test's choice drops in later.
+- **The draft:** Claude, with the model as a setting.
+- **The note:** the dermatology format and the safety rules in this plan. Step 3 tunes them.
+- **Everything else:** the approved design and your decisions below.
+
+If the tests go badly, only the speech switch and the note rules change. The screens stay.
+
+**Steps 4 and 5 built 2026-11-08, on this computer only (not live).** Migration `db/migrations/0016_ai_scribe.sql`; server `booking/server/notes.js` (the doctor's actions) and `booking/server/scribe.js` with `scribe-index.js` (the Scribe's own process); screens `booking/client/src/pages/note.tsx`, the patient page, the booking page and Settings › AI Scribe; tests `booking/test/notes.test.js`. One real draft by Claude Opus 5.5 of the sample consultation took 5 to 8 seconds and about 3 US cents. Going live needs, in order: migration 0016 applied, the code pushed, then the Scribe's own process set up on the server (PM2 `limitsiz-scribe`, `node server/scribe-index.js`, with the Anthropic key in `booking/.env`). It stays off until a clinic administrator switches it on.
 
 ## Others doing this in the region
 

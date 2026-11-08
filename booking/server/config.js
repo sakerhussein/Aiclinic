@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { DEFAULT_AUDIO_DIR } from "./scribe.js";
 
 export function loadConfig(env = process.env) {
   const siteUrl = (env.SITE_URL || "http://localhost:3004").replace(/\/+$/, "");
@@ -21,6 +22,8 @@ export function loadConfig(env = process.env) {
     // The nightly audit job: when it runs, and who gets the daily email with the newest hashes.
     nightlyHour: Number(env.NIGHTLY_HOUR ?? 2), nightlyTz: env.NIGHTLY_TZ || "Asia/Amman", anchorEmail: env.AUDIT_ANCHOR_EMAIL,
     smtp: env.SMTP_HOST ? { host: env.SMTP_HOST, port: Number(env.SMTP_PORT || 587), user: env.SMTP_USER, pass: env.SMTP_PASS, from: env.MAIL_FROM || env.SMTP_USER } : null,
+    // AI Scribe: where recordings wait (on this server only) until they become text. The same folder for Booking and the Scribe.
+    scribeAudioDir: env.SCRIBE_AUDIO_DIR || DEFAULT_AUDIO_DIR,
   };
 }
 

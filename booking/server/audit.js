@@ -6,7 +6,8 @@ import { HttpError } from "./http.js";
 export const TYPES = {
   bookings: ["appointment"],
   patients: ["patient"],
-  settings: ["clinic", "doctor", "service", "clinic_hours", "doctor_hours", "time_off", "doctor_service", "booking_rules", "clinic_settings", "clinic_faq"],
+  notes: ["visit_note"],
+  settings: ["clinic", "doctor", "service", "clinic_hours", "doctor_hours", "time_off", "doctor_service", "booking_rules", "clinic_settings", "clinic_faq", "online_booking", "scribe_settings"],
   security: ["session", "user", "membership", "invite"],
   audit: ["audit"],
 };

@@ -5,6 +5,7 @@ import { fmtDateTime, hm, todayIn, dayOf } from "../lib";
 import { useI18n } from "../i18n";
 import { useApp } from "../session";
 import { Banner, ExportButton, SendLinkButton, StatusPill, useAction } from "../ui";
+import { useN } from "./notes-text";
 
 export function BookingList() {
   const { t, lang, d } = useI18n();
@@ -58,7 +59,8 @@ type Ev = { at: string; actor_type: string; actor_label: string; action: string;
 
 export function BookingDetail() {
   const { t, lang, d } = useI18n();
-  const { look, can } = useApp();
+  const { look, can, me } = useApp();
+  const nt = useN();
   const tz = look.clinic.timezone;
   const { id } = useParams();
   const [a, setA] = useState<Appt | null>(null);
@@ -83,6 +85,11 @@ export function BookingDetail() {
   });
   const conflict = act.err?.code === "version_conflict" || act.err?.code === "slot_taken";
   const actorName = (e: Ev) => (e.actor_type === "user" ? e.actor_label : d.actors[e.actor_type] ?? e.actor_label);
+  // Visit note (AI Scribe): everyone sees whether there is one; the treating doctor opens or starts it. Secretaries never see the content.
+  const ownVisit = me.doctorId === a.doctor_id && can("booking.notes.write");
+  const noteButton = can("booking.notes.read") && (a.note_status
+    ? <Link className="btn btn-outline btn-sm" to={`/bookings/${a.id}/note`}>{nt.open}</Link>
+    : ownVisit && look.notesEnabled && (active || a.status === "completed") && <Link className="btn btn-accent btn-sm" to={`/bookings/${a.id}/note`}>{nt.start}</Link>);
 
   return (
     <main className="wrap page">
@@ -104,7 +111,9 @@ export function BookingDetail() {
         {act.err && (conflict
           ? <Banner><b>{t("conflictTitle")}</b> {act.message} <button className="link" onClick={() => { act.clear(); load(); }}>{t("reload")}</button></Banner>
           : <Banner>{act.message}</Banner>)}
+        {(look.notesEnabled || a.note_status) && <p className="hint">{nt.noteLine}: {a.note_status ? nt.states[a.note_status] ?? a.note_status : nt.none}</p>}
         <div className="row">
+          {noteButton}
           {a.unchecked && active && can("booking.appointments.edit") && <button className="btn btn-accent btn-sm" disabled={act.busy}
             onClick={() => void act.run(async () => { setA(await post<Appt>(`/api/appointments/${a.id}/check`, { expectedVersion: a.row_version })); load(); })}>{t("markChecked")}</button>}
           {active && can("booking.appointments.edit") && <Link className="btn btn-ink btn-sm" to={`/bookings/${a.id}/edit`}>{t("edit")}</Link>}

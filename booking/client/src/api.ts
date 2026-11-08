@@ -46,7 +46,8 @@ export type Me = {
 export type Doctor = { id: string; name_en: string; name_ar: string; service_ids: string[]; hours: { weekday: number; start: string; end: string }[] };
 export type Service = { id: string; name_en: string; name_ar: string; duration_minutes: number; price_jod: string | null; price_is_from: boolean };
 export type Period = { weekday: number; start: string; end: string };
-export type Lookups = { clinic: { id: string; timezone: string; slot_step_minutes: number; week_start: number }; doctors: Doctor[]; services: Service[]; openingHours: Period[]; rules: { outsideHours: string; requireCancelReason: boolean } };
+export type Lookups = { clinic: { id: string; timezone: string; slot_step_minutes: number; week_start: number }; doctors: Doctor[]; services: Service[]; openingHours: Period[]; rules: { outsideHours: string; requireCancelReason: boolean };
+  notesEnabled: boolean };
 export type Block = { id: string; doctor_id: string | null; starts_at: string; ends_at: string; reason: string | null };
 export type Appt = {
   id: string; doctor_id: string; service_id: string; patient_id: string; starts_at: string; ends_at: string; status: string; source: string;
@@ -55,5 +56,6 @@ export type Appt = {
   doctor_name_en: string; doctor_name_ar: string; service_name_en: string; service_name_ar: string; duration_minutes: number; price_jod: string | null;
   outside_hours?: boolean;
   online_from?: string | null; booked_name?: string | null; booked_for_other?: boolean; unchecked?: boolean; name_differs?: boolean; moved_by_patient?: boolean;
+  note_status?: string | null;   // the visit note's state only, for everyone; the content is on the visit note screen
 };
 export type Patient = { id: string; full_name: string | null; phone_e164: string | null; preferred_language: "ar" | "en" | null; whatsapp_reminders: boolean; last_visit?: string | null };

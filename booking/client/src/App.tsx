@@ -11,6 +11,7 @@ import { PatientList, PatientPage } from "./pages/patients";
 import { Settings } from "./pages/settings";
 import { AuditLog } from "./pages/audit";
 import { PrintPage } from "./pages/print";
+import { VisitNote } from "./pages/note";
 
 // A page someone may not open sends them home; the server refuses the data either way.
 function Allowed({ perm, children }: { perm: string; children: ReactNode }) {
@@ -32,6 +33,7 @@ export default function App() {
               <Route path="/bookings" element={<BookingList />} />
               <Route path="/bookings/:id" element={<BookingDetail />} />
               <Route path="/bookings/:id/edit" element={<BookingForm />} />
+              <Route path="/bookings/:id/note" element={<Allowed perm="booking.notes.read"><VisitNote /></Allowed>} />
               <Route path="/patients" element={<PatientList />} />
               <Route path="/patients/:id" element={<PatientPage />} />
               <Route path="/settings" element={<Allowed perm="booking.settings.view"><Settings /></Allowed>} />

@@ -3,7 +3,7 @@ import { useI18n } from "../i18n";
 // The Settings pages' text, English and Arabic. The Arabic is a working draft for a native reader to review.
 const EN = {
   title: "Settings", readOnly: "You can read these settings. Only a clinic administrator can change them.",
-  tabs: { profile: "Clinic profile", hours: "Working hours", doctors: "Doctors", services: "Services", rules: "Booking rules", online: "Online booking", reminders: "Reminders", assistant: "WhatsApp assistant", security: "Security", audit: "Audit" },
+  tabs: { profile: "Clinic profile", hours: "Working hours", doctors: "Doctors", services: "Services", rules: "Booking rules", online: "Online booking", scribe: "AI Scribe", reminders: "Reminders", assistant: "WhatsApp assistant", security: "Security", audit: "Audit" },
   days: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
   outsideTitle: "{n} upcoming booking(s) no longer fit.", outsideBody: "Nothing was moved or cancelled. Please contact these patients.",
   nameEn: "Name (English)", nameAr: "Name (Arabic)", addressEn: "Address (English)", addressAr: "Address (Arabic)", maps: "Map link", timezone: "Time zone",
@@ -77,11 +77,27 @@ const EN = {
   langsArEn: "Arabic and English", langsAr: "Arabic only", langsEn: "English only",
   brochureAi: "Show the AI assistant line", brochureAiHint: "Only printed while “Assistant on the page” is on.",
   brochureSaveFirst: "Save after changing the colour or languages, then open the brochure.",
+  scribe: {
+    on: "On", off: "Off",
+    enabled: "Doctors can record visits for a draft note", enabledHint: "Also turns on the visit note screen, where any doctor can write a note by hand. The doctor always reviews and signs. Choose who can record below.",
+    doctorsTitle: "Doctors who can record", noDoctors: "No active doctors.",
+    language: "Language of the note", languageHint: "The transcript keeps what was spoken.", english: "English", arabic: "Arabic",
+    consentTitle: "Consent", consentAr: "What the doctor reads (Arabic)", consentEn: "What the doctor reads (English)", consentHint: "To be checked by the clinic’s lawyer before real patients.",
+    sectionsTitle: "Note sections", sectionsHint: "Reorder, rename or add. The draft follows them; notes already begun keep theirs.",
+    nameEn: "Name (English)", nameAr: "Name (Arabic)", hint: "What goes here (in English, guides the draft)", up: "Move up", down: "Move down", remove: "Remove",
+    addSection: "Add a section", newEn: "New section", newAr: "قسم جديد",
+    limitsTitle: "Limits and keeping", maxMinutes: "Longest recording (minutes)", maxMinutesHint: "Then it stops and makes the note",
+    keepDays: "Keep transcripts (days)", keepDaysHint: "To check notes against; then deleted", perDay: "Notes per doctor per day", perDayHint: "The daily cap on what the Scribe costs",
+    audioAlways: "The audio is always deleted as soon as it becomes text; that is not a setting.",
+    servicesTitle: "Speech and draft", speech: "Speech to text", speechHint: "The speech test chooses the real service. Until then no audio leaves the clinic.",
+    standIn: "Stand-in (a sample transcript, for testing)", model: "Model for the draft", modelHint: "The draft test confirms the choice.",
+    opus: "Claude Opus 5.5 (best drafts)", sonnet: "Claude Sonnet 5.5 (faster, lower cost)",
+  },
 };
 
 const AR: typeof EN = {
   title: "الإعدادات", readOnly: "يمكنك قراءة هذه الإعدادات. مدير العيادة فقط يمكنه تغييرها.",
-  tabs: { profile: "ملف العيادة", hours: "ساعات العمل", doctors: "الأطباء", services: "الخدمات", rules: "قواعد الحجز", online: "الحجز الإلكتروني", reminders: "التذكيرات", assistant: "مساعد واتساب", security: "الأمان", audit: "سجل التدقيق" },
+  tabs: { profile: "ملف العيادة", hours: "ساعات العمل", doctors: "الأطباء", services: "الخدمات", rules: "قواعد الحجز", online: "الحجز الإلكتروني", scribe: "الكاتب الذكي", reminders: "التذكيرات", assistant: "مساعد واتساب", security: "الأمان", audit: "سجل التدقيق" },
   days: ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"],
   outsideTitle: "{n} حجز قادم لم يعد مناسباً.", outsideBody: "لم يُنقل أو يُلغَ أي حجز. تواصل مع هؤلاء المرضى من فضلك.",
   nameEn: "الاسم (إنجليزي)", nameAr: "الاسم (عربي)", addressEn: "العنوان (إنجليزي)", addressAr: "العنوان (عربي)", maps: "رابط الخريطة", timezone: "المنطقة الزمنية",
@@ -155,6 +171,22 @@ const AR: typeof EN = {
   langsArEn: "العربية والإنجليزية", langsAr: "العربية فقط", langsEn: "الإنجليزية فقط",
   brochureAi: "إظهار سطر المساعد الذكي", brochureAiHint: "يُطبع فقط عندما يكون «المساعد على الصفحة» مفعّلاً.",
   brochureSaveFirst: "احفظ بعد تغيير اللون أو اللغات، ثم افتح المطبوعة.",
+  scribe: {
+    on: "مفعّل", off: "مُطفأ",
+    enabled: "يستطيع الأطباء تسجيل الزيارات لمسودة ملاحظة", enabledHint: "يفعّل أيضاً شاشة ملاحظة الزيارة، حيث يستطيع أي طبيب كتابة الملاحظة يدوياً. الطبيب يراجع ويوقّع دائماً. اختر من يستطيع التسجيل في الأسفل.",
+    doctorsTitle: "الأطباء الذين يستطيعون التسجيل", noDoctors: "لا يوجد أطباء مفعّلون.",
+    language: "لغة الملاحظة", languageHint: "النص يحفظ ما قيل كما هو.", english: "الإنجليزية", arabic: "العربية",
+    consentTitle: "الموافقة", consentAr: "ما يقرأه الطبيب (عربي)", consentEn: "ما يقرأه الطبيب (إنجليزي)", consentHint: "يراجعه محامي العيادة قبل المرضى الحقيقيين.",
+    sectionsTitle: "أقسام الملاحظة", sectionsHint: "أعد الترتيب أو التسمية أو أضف. المسودة تتبعها؛ والملاحظات التي بدأت تحتفظ بأقسامها.",
+    nameEn: "الاسم (إنجليزي)", nameAr: "الاسم (عربي)", hint: "ما يُكتب هنا (بالإنجليزية، لتوجيه المسودة)", up: "إلى الأعلى", down: "إلى الأسفل", remove: "إزالة",
+    addSection: "أضف قسماً", newEn: "New section", newAr: "قسم جديد",
+    limitsTitle: "الحدود والاحتفاظ", maxMinutes: "أطول تسجيل (دقائق)", maxMinutesHint: "بعدها يتوقف ويكتب الملاحظة",
+    keepDays: "الاحتفاظ بالنص (أيام)", keepDaysHint: "للتحقق من الملاحظات؛ ثم يُحذف", perDay: "ملاحظات لكل طبيب يومياً", perDayHint: "السقف اليومي لتكلفة الكاتب",
+    audioAlways: "الصوت يُحذف دائماً فور تحويله إلى نص؛ هذا ليس خياراً.",
+    servicesTitle: "الكلام والمسودة", speech: "تحويل الكلام إلى نص", speechHint: "اختبار الكلام يختار الخدمة الحقيقية. حتى ذلك الحين لا يخرج أي صوت من العيادة.",
+    standIn: "بديل (نص نموذجي، للاختبار)", model: "نموذج المسودة", modelHint: "اختبار المسودة يؤكد الاختيار.",
+    opus: "Claude Opus 5.5 (أفضل مسودات)", sonnet: "Claude Sonnet 5.5 (أسرع وأقل تكلفة)",
+  },
 };
 
 export const useS = () => (useI18n().lang === "ar" ? AR : EN);

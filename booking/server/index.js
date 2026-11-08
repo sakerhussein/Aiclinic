@@ -13,6 +13,6 @@ const pool = new pg.Pool({ connectionString: config.databaseUrl, max: 10, ssl: s
 const auditPool = config.auditDatabaseUrl ? new pg.Pool({ connectionString: config.auditDatabaseUrl, max: 3, ssl: ssl(config.auditDatabaseUrl) }) : null;
 pool.on("error", (e) => console.error("database pool error", e.message));
 
-const app = createApp({ svc: createService({ pool, auditPool }), config });
+const app = createApp({ svc: createService({ pool, auditPool, audioDir: config.scribeAudioDir }), config });
 startNightly({ pool, send: createMailer(config), tz: config.nightlyTz, hour: config.nightlyHour });
 app.listen(config.port, "127.0.0.1", () => console.log(`Limitsiz Clinic Booking on 127.0.0.1:${config.port} (${config.siteUrl})`));

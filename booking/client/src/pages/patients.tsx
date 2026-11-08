@@ -5,6 +5,40 @@ import { fmtDateTime } from "../lib";
 import { useI18n } from "../i18n";
 import { useApp } from "../session";
 import { Banner, ExportButton, Field, SendLinkButton, StatusPill, useAction } from "../ui";
+import { fill, useN } from "./notes-text";
+
+type NoteRow = { id: string; appointment_id: string; kind: string; status: string; ai_drafted: boolean; starts_at: string; additions: number;
+  doctor_name_en: string; doctor_name_ar: string; service_name_en: string; service_name_ar: string };
+
+// Visit notes on the patient's page (design screen 6): date, doctor, visit and the note's state. Secretaries see this list
+// and never the content; the treating doctor opens each note from here.
+function PatientNotes({ id }: { id: string }) {
+  const n = useN();
+  const { lang } = useI18n();
+  const { look, can } = useApp();
+  const [rows, setRows] = useState<NoteRow[] | null>(null);
+  useEffect(() => { get<NoteRow[]>(`/api/patients/${id}/notes`).then(setRows).catch(() => setRows([])); }, [id]);
+  if (!rows || (!rows.length && !look.notesEnabled)) return null;
+  const state = (r: NoteRow) => (r.status === "signed" && !r.ai_drafted ? n.patientStates.manual : n.patientStates[r.status] ?? r.status);
+  return (
+    <section className="panel">
+      <h2>{n.notesTitle}</h2>
+      {rows.length ? (
+        <div className="tablewrap"><table>
+          <thead><tr><th>{n.date}</th><th>{n.doctor}</th><th>{n.visit}</th><th>{n.note}</th></tr></thead>
+          <tbody>{rows.map((r) => (
+            <tr key={r.id}>
+              <td className="mono">{can("booking.notes.read") ? <Link to={`/bookings/${r.appointment_id}/note`}>{fmtDateTime(r.starts_at, look.clinic.timezone, lang)}</Link> : fmtDateTime(r.starts_at, look.clinic.timezone, lang)}</td>
+              <td>{lang === "ar" ? r.doctor_name_ar : r.doctor_name_en}</td>
+              <td>{lang === "ar" ? r.service_name_ar : r.service_name_en}</td>
+              <td><span className={`pill ${r.status === "signed" ? (r.ai_drafted ? "ok" : "") : r.status === "failed" ? "bad" : "warn"}`}>{state(r)}</span>
+                {r.additions > 0 && <span className="hint"> {fill(n.patientStates.additions, { n: r.additions })}</span>}</td>
+            </tr>))}</tbody>
+        </table></div>
+      ) : <p className="hint">{n.notesNone}</p>}
+    </section>
+  );
+}
 
 export function PatientList() {
   const { t, lang } = useI18n();
@@ -72,6 +106,7 @@ export function PatientPage() {
               <td>{d.sources[x.source] ?? x.source}</td><td><StatusPill status={x.status} /></td></tr>))}</tbody></table></div>
         </section>
       )}
+      {!isNew && id && <PatientNotes id={id} />}
     </main>
   );
 }

@@ -14,7 +14,10 @@ const SWATCHES = ["#2EE6B5", "#0B7A64", "#3B6FD8", "#C2417A", "#0A0F14"];
 
 type Period = { weekday: number; start: string; end: string };
 type Doctor = { id: string; name_en: string; name_ar: string; title_en: string | null; title_ar: string | null; gender: "f" | "m" | null; active: boolean;
-  slot_minutes: number | null; buffer_minutes: number; service_ids: string[]; hours: Period[] };
+  slot_minutes: number | null; buffer_minutes: number; service_ids: string[]; hours: Period[]; scribe_enabled: boolean };
+type ScribeSection = { key: string; en: string; ar: string; hint?: string };
+type Scribe = { enabled: boolean; note_language: "en" | "ar"; consent_en: string; consent_ar: string; sections: ScribeSection[]; max_recording_minutes: number;
+  transcript_keep_days: number; notes_per_doctor_per_day: number; speech_service: string; draft_model: string };
 type Service = { id: string; name_en: string; name_ar: string; description_en: string | null; description_ar: string | null; duration_minutes: number; price_jod: string | null; price_is_from: boolean; active: boolean };
 type TimeOff = { id: string; doctor_id: string | null; starts_at: string; ends_at: string; reason: string | null };
 type Faq = { id: string; topic: string; question_en: string; question_ar: string; answer_en: string; answer_ar: string };
@@ -33,10 +36,10 @@ type Online = { enabled: boolean; staff_check: boolean; show_prices: boolean; al
   brochure_colour: string; brochure_card_languages: "ar_en" | "ar" | "en"; brochure_show_ai: boolean };
 type OnlineLink = { enabled: boolean; url?: string; qrUrl?: string };
 type Data = { profile: Profile; hours: Period[]; closures: TimeOff[]; doctors: Doctor[]; services: Service[]; faqs: Faq[]; rules: Rule[]; general: General; outside: Outside[];
-  online: Online; onlineLink: OnlineLink;
+  online: Online; onlineLink: OnlineLink; scribe: Scribe;
   options: { slotMinutes: number[]; bufferMinutes: number[]; idleMinutes: number[]; lockMinutes: number[]; reminderMinutes: number[] } };
 
-const TABS = ["profile", "hours", "doctors", "services", "rules", "online", "reminders", "assistant", "security", "audit"] as const;
+const TABS = ["profile", "hours", "doctors", "services", "rules", "online", "scribe", "reminders", "assistant", "security", "audit"] as const;
 type Tab = (typeof TABS)[number];
 
 export function Settings() {
@@ -56,7 +59,7 @@ export function Settings() {
       {!canEdit && <Banner kind="warn">{s.readOnly}</Banner>}
       <div className="setwrap">
         <nav className="settabs" aria-label={s.title}>
-          {TABS.map((k) => <button key={k} type="button" className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{s.tabs[k]}{k === "online" && <span className="newtag">{s.newTag}</span>}</button>)}
+          {TABS.map((k) => <button key={k} type="button" className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{s.tabs[k]}{k === "scribe" && <span className="newtag">{s.newTag}</span>}</button>)}
         </nav>
         <div className="setbody">
           <OutsideList rows={data.outside} />
@@ -66,6 +69,7 @@ export function Settings() {
           {tab === "services" && <ServicesTab {...P} />}
           {tab === "rules" && <RulesTab {...P} />}
           {tab === "online" && <OnlineTab {...P} />}
+          {tab === "scribe" && <ScribeTab {...P} />}
           {tab === "reminders" && <RemindersTab {...P} />}
           {tab === "assistant" && <AssistantTab {...P} />}
           {tab === "security" && <SecurityTab {...P} />}
@@ -475,6 +479,88 @@ function SecurityTab(p: P) {
       </div>
       <Check checked={f.require2faAll} onChange={(v) => setF({ ...f, require2faAll: v })}>{s.twoStepAll}</Check>
       <p className="hint">{s.twoStepHint}</p>
+      <Saver a={a} ok={ok} />
+    </SForm>
+  );
+}
+
+// Settings > AI Scribe (design: booking/design/ai-scribe.html screen 7). Off by default. Every text, limit and section is here.
+function ScribeTab({ data, reload }: P) {
+  const s = useS();
+  const x = s.scribe;
+  const { lang } = useI18n();
+  const o = data.scribe;
+  const active = data.doctors.filter((d) => d.active);
+  const [f, setF] = useState({
+    enabled: o.enabled, noteLanguage: o.note_language, consentEn: o.consent_en, consentAr: o.consent_ar,
+    sections: o.sections.map((z) => ({ ...z, hint: z.hint ?? "" })),
+    maxRecordingMinutes: o.max_recording_minutes, transcriptKeepDays: o.transcript_keep_days, notesPerDoctorPerDay: o.notes_per_doctor_per_day,
+    speechService: o.speech_service, draftModel: o.draft_model,
+    doctors: active.map((d) => ({ id: d.id, scribeEnabled: d.scribe_enabled })),
+  });
+  const { a, ok, submit } = useSave(reload);
+  const setSec = (i: number, p: Partial<ScribeSection>) => setF({ ...f, sections: f.sections.map((z, j) => (j === i ? { ...z, ...p } : z)) });
+  const move = (i: number, by: number) => { const l = [...f.sections]; const [it] = l.splice(i, 1); l.splice(i + by, 0, it); setF({ ...f, sections: l }); };
+  const num = (k: "maxRecordingMinutes" | "transcriptKeepDays" | "notesPerDoctorPerDay", label: string, hint: string, min: number, max: number) => (
+    <Field label={label} hint={hint}><input type="number" min={min} max={max} value={f[k]} onChange={(e) => setF({ ...f, [k]: Number(e.target.value) })} required /></Field>);
+  return (
+    <SForm className="stack" onSubmit={submit(() => patch("/api/settings/scribe", f))}>
+      <section className="panel stack">
+        <div className="row between"><h2>{s.tabs.scribe}</h2><span className={`pill ${o.enabled ? "ok" : ""}`}>{o.enabled ? x.on : x.off}</span></div>
+        <Check checked={f.enabled} onChange={(v) => setF({ ...f, enabled: v })}>{x.enabled}<br /><small className="hint">{x.enabledHint}</small></Check>
+        <h3>{x.doctorsTitle}</h3>
+        {active.length ? f.doctors.map((d) => {
+          const doc = active.find((z) => z.id === d.id)!;
+          return <Check key={d.id} checked={d.scribeEnabled} onChange={(v) => setF({ ...f, doctors: f.doctors.map((z) => (z.id === d.id ? { ...z, scribeEnabled: v } : z)) })}>{lang === "ar" ? doc.name_ar : doc.name_en}</Check>;
+        }) : <p className="hint">{x.noDoctors}</p>}
+        <Field label={x.language} hint={x.languageHint}>
+          <select value={f.noteLanguage} onChange={(e) => setF({ ...f, noteLanguage: e.target.value as "en" | "ar" })}><option value="en">{x.english}</option><option value="ar">{x.arabic}</option></select>
+        </Field>
+      </section>
+      <section className="panel stack">
+        <h2>{x.consentTitle}</h2>
+        <Field label={x.consentAr}><textarea dir="rtl" lang="ar" rows={3} maxLength={1000} required value={f.consentAr} onChange={(e) => setF({ ...f, consentAr: e.target.value })} /></Field>
+        <Field label={x.consentEn}><textarea dir="ltr" lang="en" rows={3} maxLength={1000} required value={f.consentEn} onChange={(e) => setF({ ...f, consentEn: e.target.value })} /></Field>
+        <p className="hint">{x.consentHint}</p>
+      </section>
+      <section className="panel stack">
+        <h2>{x.sectionsTitle}</h2>
+        <p className="hint">{x.sectionsHint}</p>
+        <ol className="sec-list">
+          {f.sections.map((z, i) => (
+            <li key={z.key} className="sec-item">
+              <div className="grid2">
+                <Field label={x.nameEn}><input dir="ltr" lang="en" maxLength={80} required value={z.en} onChange={(e) => setSec(i, { en: e.target.value })} /></Field>
+                <Field label={x.nameAr}><input dir="rtl" lang="ar" maxLength={80} required value={z.ar} onChange={(e) => setSec(i, { ar: e.target.value })} /></Field>
+              </div>
+              <Field label={x.hint}><input dir="ltr" lang="en" maxLength={200} value={z.hint} onChange={(e) => setSec(i, { hint: e.target.value })} /></Field>
+              <div className="row">
+                <button type="button" className="btn btn-ghost btn-xs" disabled={i === 0} onClick={() => move(i, -1)} aria-label={`${x.up}: ${lang === "ar" ? z.ar : z.en}`}>↑</button>
+                <button type="button" className="btn btn-ghost btn-xs" disabled={i === f.sections.length - 1} onClick={() => move(i, 1)} aria-label={`${x.down}: ${lang === "ar" ? z.ar : z.en}`}>↓</button>
+                <button type="button" className="btn btn-outline btn-xs" disabled={f.sections.length <= 1} onClick={() => setF({ ...f, sections: f.sections.filter((_, j) => j !== i) })}>{x.remove}</button>
+              </div>
+            </li>
+          ))}
+        </ol>
+        <div><button type="button" className="btn btn-ghost btn-xs" disabled={f.sections.length >= 12}
+          onClick={() => setF({ ...f, sections: [...f.sections, { key: `s_${Date.now().toString(36)}`, en: x.newEn, ar: x.newAr, hint: "" }] })}>{x.addSection}</button></div>
+      </section>
+      <section className="panel stack">
+        <h2>{x.limitsTitle}</h2>
+        <div className="grid2">
+          {num("maxRecordingMinutes", x.maxMinutes, x.maxMinutesHint, 5, 120)}
+          {num("transcriptKeepDays", x.keepDays, x.keepDaysHint, 1, 365)}
+          {num("notesPerDoctorPerDay", x.perDay, x.perDayHint, 1, 500)}
+        </div>
+        <p className="hint">{x.audioAlways}</p>
+      </section>
+      <section className="panel stack">
+        <h2>{x.servicesTitle}</h2>
+        <Field label={x.speech} hint={x.speechHint}><select value={f.speechService} onChange={(e) => setF({ ...f, speechService: e.target.value })}><option value="stand_in">{x.standIn}</option></select></Field>
+        <Field label={x.model} hint={x.modelHint}>
+          <select value={f.draftModel} onChange={(e) => setF({ ...f, draftModel: e.target.value })}><option value="claude-opus-5-5">{x.opus}</option><option value="claude-sonnet-5-5">{x.sonnet}</option></select>
+        </Field>
+      </section>
       <Saver a={a} ok={ok} />
     </SForm>
   );

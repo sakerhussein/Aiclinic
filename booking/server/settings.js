@@ -30,11 +30,11 @@ export function createSettings({ pool, tx, now = () => new Date() }) {
   async function read(ctx) {
     const id = ctx.clinicId;
     const q = (sql) => pool.query(sql, [id]).then((r) => r.rows);
-    const [[profile], hours, closures, doctors, services, faqs, rules, [general], [online]] = await Promise.all([
+    const [[profile], hours, closures, doctors, services, faqs, rules, [general], [online], [scribe]] = await Promise.all([
       q(`select id, slug, name_en, name_ar, timezone, phone, address_en, address_ar, maps_url, default_language, week_start, slot_step_minutes from clinics where id = $1`),
       q(`select id, weekday, to_char(start_time, 'HH24:MI') as start, to_char(end_time, 'HH24:MI') as "end" from clinic_hours where clinic_id = $1 order by weekday, start_time`),
       q(`select id, doctor_id, starts_at, ends_at, reason from time_off where clinic_id = $1 and ends_at > now() - interval '30 days' order by starts_at`),
-      q(`select d.id, d.name_en, d.name_ar, d.title_en, d.title_ar, d.gender, d.active, d.slot_minutes, d.buffer_minutes,
+      q(`select d.id, d.name_en, d.name_ar, d.title_en, d.title_ar, d.gender, d.active, d.slot_minutes, d.buffer_minutes, d.scribe_enabled,
                 coalesce((select array_agg(ds.service_id) from doctor_services ds where ds.doctor_id = d.id), '{}') as service_ids,
                 coalesce((select json_agg(json_build_object('weekday', w.weekday, 'start', to_char(w.start_time, 'HH24:MI'), 'end', to_char(w.end_time, 'HH24:MI')) order by w.weekday, w.start_time)
                             from working_hours w where w.doctor_id = d.id), '[]') as hours
@@ -50,8 +50,10 @@ export function createSettings({ pool, tx, now = () => new Date() }) {
       // "Find my booking" sends by WhatsApp, so it can only be switched on once the clinic's WhatsApp number is connected.
       q(`select ${ONLINE_COLS.map((x) => `o.${x}`).join(", ")}, (c.wa_phone_number_id is not null) as whatsapp_connected
            from online_booking o join clinics c on c.id = o.clinic_id where o.clinic_id = $1`),
+      q(`select enabled, note_language, consent_en, consent_ar, sections, max_recording_minutes, transcript_keep_days, notes_per_doctor_per_day,
+                speech_service, draft_model from scribe_settings where clinic_id = $1`),
     ]);
-    return { profile, hours, closures, doctors, services, faqs, rules, general, online, options: OPTIONS, outside: await outside(ctx) };
+    return { profile, hours, closures, doctors, services, faqs, rules, general, online, scribe, options: OPTIONS, outside: await outside(ctx) };
   }
 
   // Upcoming active bookings that no longer fit the hours, a closure or leave, or whose doctor was switched off.
@@ -212,6 +214,25 @@ export function createSettings({ pool, tx, now = () => new Date() }) {
     return { ok: true };
   }
 
+  // Settings > AI Scribe, and which doctors may record. Sections keep their keys, so notes made before a rename still read right.
+  async function updateScribe(ctx, b) {
+    const keys = b.sections.map((s) => s.key);
+    if (new Set(keys).size !== keys.length) throw bad("duplicate_section");
+    await write(ctx, async (c) => {
+      await c.query(
+        `update scribe_settings set enabled = $2, note_language = $3, consent_en = $4, consent_ar = $5, sections = $6, max_recording_minutes = $7,
+                transcript_keep_days = $8, notes_per_doctor_per_day = $9, speech_service = $10, draft_model = $11 where clinic_id = $1`,
+        [ctx.clinicId, b.enabled, b.noteLanguage, b.consentEn.trim(), b.consentAr.trim(),
+         JSON.stringify(b.sections.map((s) => ({ key: s.key, en: s.en.trim(), ar: s.ar.trim(), hint: (s.hint ?? "").trim() }))),
+         b.maxRecordingMinutes, b.transcriptKeepDays, b.notesPerDoctorPerDay, b.speechService, b.draftModel]);
+      for (const d of b.doctors) {
+        const r = await c.query("update doctors set scribe_enabled = $3 where clinic_id = $1 and id = $2 and scribe_enabled is distinct from $3", [ctx.clinicId, d.id, d.scribeEnabled]);
+        if (!r.rowCount && !(await one(c, "select 1 from doctors where clinic_id = $1 and id = $2", [ctx.clinicId, d.id]))) throw notFound("doctor_not_found");
+      }
+    });
+    return { ok: true };
+  }
+
   async function addFaq(ctx, b) {
     const r = await write(ctx, (c) => one(c, `insert into clinic_faqs (clinic_id, topic, question_en, question_ar, answer_en, answer_ar, sort)
       values ($1,$2,$3,$4,$5,$6,(select coalesce(max(sort), 0) + 1 from clinic_faqs where clinic_id = $1)) returning id`,
@@ -234,5 +255,5 @@ export function createSettings({ pool, tx, now = () => new Date() }) {
   }
 
   return { read, outside, updateProfile, setClinicHours, addTimeOff, removeTimeOff, createDoctor, updateDoctor, setDoctorHours, setDoctorServices,
-           createService, updateService, updateRules, updateGeneral, updateOnline, addFaq, updateFaq, removeFaq };
+           createService, updateService, updateRules, updateGeneral, updateOnline, updateScribe, addFaq, updateFaq, removeFaq };
 }
