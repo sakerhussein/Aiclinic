@@ -28,7 +28,7 @@ function PatientNotes({ id }: { id: string }) {
           <thead><tr><th>{n.date}</th><th>{n.doctor}</th><th>{n.visit}</th><th>{n.note}</th></tr></thead>
           <tbody>{rows.map((r) => (
             <tr key={r.id}>
-              <td className="mono">{can("booking.notes.read") ? <Link to={`/bookings/${r.appointment_id}/note`}>{fmtDateTime(r.starts_at, look.clinic.timezone, lang)}</Link> : fmtDateTime(r.starts_at, look.clinic.timezone, lang)}</td>
+              <td>{can("booking.notes.read") ? <Link to={`/bookings/${r.appointment_id}/note`}>{fmtDateTime(r.starts_at, look.clinic.timezone, lang)}</Link> : fmtDateTime(r.starts_at, look.clinic.timezone, lang)}</td>
               <td>{lang === "ar" ? r.doctor_name_ar : r.doctor_name_en}</td>
               <td>{lang === "ar" ? r.service_name_ar : r.service_name_en}</td>
               <td><span className={`pill ${r.status === "signed" ? (r.ai_drafted ? "ok" : "") : r.status === "failed" ? "bad" : "warn"}`}>{state(r)}</span>

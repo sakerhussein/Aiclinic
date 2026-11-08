@@ -265,3 +265,5 @@ mark.d{background:#E8F0FF;border-bottom:2px solid #3B6FD8;padding:0 2px;border-r
 .notelink{text-decoration:none}
 .notelink .pill{box-shadow:0 0 0 1px var(--accent-ink)}
 .notelink:hover .pill{box-shadow:0 0 0 2px var(--accent-ink)}
+/* Phone numbers, codes and links keep their left-to-right order, but in Arabic they start at the right like every other field. */
+html[dir="rtl"] input.mono{text-align:right}
