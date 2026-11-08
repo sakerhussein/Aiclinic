@@ -1,6 +1,6 @@
 # Limitsiz Clinic: status and next steps
 
-Last updated: 2026-11-06. Update this file whenever a step below finishes or a new one appears.
+Last updated: 2026-11-08. Update this file whenever a step below finishes or a new one appears.
 
 ## What is built
 
@@ -10,6 +10,9 @@ Last updated: 2026-11-06. Update this file whenever a step below finishes or a n
 - **Audit log**: tamper-evident log with a nightly check. The owner confirmed the nightly email arrives.
 - **Doctor limits**: doctors see only their own bookings and patients. The owner confirmed this on live.
 - **Excel export**: Bookings and Patients pages, for clinic administrators (commit `02e8551`).
+- **Online booking link** (`book.limitsiz.si/<clinic>`, plan `booking/PLAN_public_link_and_voice.md`): patients choose a time themselves and get a private link to check, change or cancel, with a share button and a calendar file. Switched on per clinic in Settings › Online booking; on for the demo clinic. "Find my booking" is built but off until WhatsApp is connected.
+- **Talk to the assistant**: the same assistant as WhatsApp, by typing on the booking link; on for the demo clinic. Both assistants run on Haiku 5.5 since 2026-11-08 (the earlier settings are kept in `agent/.env.before-haiku` on the server).
+- **Brochures** (2026-11-08, migration 0015): reception flyer, table stand, take-away card and next-visit card, made from the clinic's details with its own QR code, in Settings › Online booking › Brochures.
 
 ## Security update, 2026-11-06
 
@@ -41,10 +44,13 @@ Results before deploying:
 
 1. **Check the nightly audit email**: the owner confirmed on 2026-11-06 that a real email from Accounts arrived on nodemailer 10.3.1. The nightly audit email from Booking and the website's alert emails have not been seen on the new version yet.
 2. **Turn on WhatsApp**: the owner adds `WA_TOKEN`, `WA_APP_SECRET` and `WA_VERIFY_TOKEN` from Meta, and the `appointment_reminder` template must be approved. See `agent/META_SETUP.md`. In the same round: the `booking_link` template, then switch on and test "Find my booking" (three steps in `agent/META_SETUP.md`, section "Find my booking" template).
-3. **Finish the agent evaluation**: run the full 51 cases in `agent/evals/booking_chats` and get the owner's grading sign-off. The harness changed, so the run needs `--approve-harness` from the owner first.
+3. **Agent evaluation**: done on Haiku 5.5 on 2026-11-08 (48 of 51, then 8 of 8 after the language fix, and 9 of 10 for Jordanian Arabic). Any new run needs `--approve-harness` from the owner first.
 4. **Build the hand-off inbox**: where staff take over from the agent. Not built yet.
 5. **Confirm the remaining live checks**: the owner still needs to check the audit page and the Arabic version.
 6. **Decide on the `exceljs` warning**: `npm audit` reports 2 moderate findings in Booking, from the old `uuid` inside `exceljs` 4.4.0 (GHSA-w5hq-g745-h8pq). The only offered fix downgrades `exceljs` to 3.4.0.
+7. **Demo clinic tidy-up**: set "Chats per connection per day" back to 5 (raised to 30 for testing), and replace the placeholder clinic phone +962790000000.
+8. **Voice assistant**: Jordanian voice recordings for the speech test (step 4 of the plan in `booking/PLAN_public_link_and_voice.md`).
+9. **AI Scribe**: plan approved 2026-11-08 (`scribe/PLAN_ai_scribe.md`, design `booking/design/ai-scribe.html`). Step 1, the doctors' role-played recordings, starts on the owner's go-ahead.
 
 ## Known gaps
 

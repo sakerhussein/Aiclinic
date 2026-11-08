@@ -1,6 +1,6 @@
 # Plan: AI Scribe (consultation notes)
 
-Version 1, 2026-11-08, for the owner's review. Design: `booking/design/ai-scribe.html`.
+Version 2, 2026-11-08: approved, with your answers to the decisions added at the end. Design: `booking/design/ai-scribe.html`.
 
 The business case lists the AI Scribe as Phase 2: "ambient consultation transcription into structured clinical notes (doctor reviews & signs off)".
 
@@ -55,7 +55,7 @@ Inside **Booking**, not a new site. The doctor already has the day's appointment
 This is the hard part. A consultation in Amman mixes Jordanian Arabic with English medical words ("عندك eczema على الـ elbow"). Two people talk, and there can be noise in the room.
 
 - **Candidates:** Speechmatics claims an Arabic-English medical model with code-switching. We'll test it against two or three others on our own recordings. The published figures come from vendors and other dialects, not Jordanian clinics.
-- **Test recordings:** 20 to 30 role-played dermatology consultations, 5 to 10 minutes each, recorded with your doctors or volunteers. No real patients. This can be done together with the speech test already planned for the voice assistant.
+- **Test recordings:** 20 to 30 role-played dermatology consultations, 5 to 10 minutes each, recorded by your doctors, with a colleague or volunteer playing the patient. No real patients (point 2 under Decisions). They get their own session, separate from the voice assistant's speech test (point 4).
 - **How we score:** overall word accuracy, plus, separately, **how many medical terms and medicines come out right**. A wrong drug name matters far more than a wrong "و".
 - **Cost:** published third-party prices are a fraction of a cent per minute for general speech. Medical models cost more. The test will give the real figure.
 
@@ -96,12 +96,12 @@ This is the hard part. A consultation in Amman mixes Jordanian Arabic with Engli
 
 | Step | What | Rough size | Needs |
 |---|---|---|---|
-| 1 | Test recordings and the "right" notes | 1 to 2 weeks | Your doctors' time |
+| 1 | Role-played test recordings and the "right" notes | 1 to 2 weeks | Your doctors' time |
 | 2 | Speech test: choose the service | Under 1 week | The recordings |
 | 3 | Draft test: choose the model, set the format rules | 1 week | API cost, a doctor's grading |
 | 4 | Visit note screen: consent, recording, draft, edit, sign | 2 to 3 weeks | Steps 2 and 3 |
 | 5 | Notes on the patient page, additions, Settings › AI Scribe, audit | 1 week | |
-| 6 | Pilot with one doctor at the demo clinic, then one real clinic | 2 to 4 weeks | Legal review done |
+| 6 | Pilot with one doctor at the demo clinic, then one real clinic. The first real consultations, with the patient's agreement | 2 to 4 weeks | Legal review and the providers' terms done |
 
 Each step is tested in English and Arabic before it goes live, and goes live only with your go-ahead.
 
@@ -117,10 +117,34 @@ Each step is tested in English and Arabic before it goes live, and goes live onl
 
 ## Decisions for the owner
 
-1. Notes in English by default, with Arabic as a setting?
-2. Who records the test consultations, and when?
-3. Keep transcripts 30 days by default?
-4. Start after the voice assistant's speech test, sharing the same recordings session?
+Your answers, 2026-11-08:
+
+1. **Note language: decided.** English by default, with Arabic as a setting.
+2. **Test recordings: decided.** Doctors record role-played consultations for the tests. Real consultations, with the patient's agreement, start at the pilot. See below.
+3. **Transcripts: decided.** Kept 30 days by default, then deleted. The number of days is a setting.
+4. **Speech tests: decided.** Kept separate. The Scribe's recordings get their own session, apart from the voice assistant's speech test. See below.
+
+### Point 2: role-played tests, real consultations at the pilot
+
+Decided 2026-11-08.
+
+- **Tests (steps 1 and 2):** doctors record role-played consultations. A colleague or volunteer plays the patient. No real patients, so the tests don't wait for the lawyer.
+- **Pilot (step 6):** real consultations start here, as you described: the patient enters the examination room and agrees to the recording. This happens only after the legal review and the providers' terms for health data are done.
+
+Why the tests don't use real patients:
+
+- A test sends each recording to three or four speech services, and the text to Claude. With real patients, their health details would go to companies we may never use.
+- Jordan's data protection law (No. 24 of 2023) treats health data as sensitive. Two items from "Before a real clinic uses it" must come first: the legal review, which covers the consent wording and sending audio abroad, and the providers' terms for health data, including no training on it.
+
+### Point 4: separate speech tests
+
+Decided 2026-11-08.
+
+- The Scribe's role-played consultations are recorded in their own session. Its speech test chooses a service for consultations only.
+- The voice assistant keeps its own speech test (`booking/PLAN_public_link_and_voice.md`, step 4 of its Order of work).
+- So the Scribe's tests don't need to wait for the voice assistant's. Step 1 starts when you give the go-ahead.
+
+We considered one shared session for both tests. You chose to keep them separate.
 
 ## Sources
 

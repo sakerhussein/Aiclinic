@@ -1,6 +1,6 @@
 # Plan: online booking link, voice assistant and brochures
 
-Status: **for the owner's approval, nothing built yet.** Written 2026-11-07, version 2 (voice is now a conversation with the clinic's assistant, and brochures are added). Background: `reports/Clinic booking competitive analysis.md`.
+Status, 2026-11-08: approved by the owner on 2026-11-07. Built: the link (step 1), the brochures (step 2), the Haiku 5.5 test and switch (step 3) and the assistant chat by typing (step 5, first part). Next: the Jordanian recordings for the speech test (step 4). Written 2026-11-07, version 2 (voice is now a conversation with the clinic's assistant, and brochures are added). Background: `reports/Clinic booking competitive analysis.md`.
 
 ## Where this puts us against competitors
 
@@ -114,6 +114,8 @@ Print-ready files made from the clinic's own details, so each clinic gets its na
 | Next-visit card | Business card | A space to write the follow-up date, with the QR code to book it |
 
 Staff download a PDF from Settings and print it anywhere. Each design uses its own QR tag, so the clinic sees which one works.
+
+As built (2026-11-08, migration 0015): Settings › Online booking › Brochures opens each design at its real size, and the browser's own "Save as PDF" makes the file, which keeps the Arabic shaped correctly. The clinic picks the colour, the languages on the cards, and whether the AI line is printed. The table stand is one A5 sheet folded across the middle, so each face lies on its side (148 × 105 mm) with the code beside the words. The logo spot shows the Limitsiz mark, as in the approved design; a clinic's own logo would need an upload in Settings, which is not built.
 
 **Wording needs care.** Jordan Medical Association instructions bar offers and discounts without committee approval, and advertising must be in Arabic. So brochures carry booking instructions only, with no prices, offers or claims about results, and Arabic stays the lead language. They should say the assistant is an AI. The lawyer should confirm whether a clinic brochure counts as advertising.
 
