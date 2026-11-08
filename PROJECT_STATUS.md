@@ -50,7 +50,7 @@ Results before deploying:
 6. **Decide on the `exceljs` warning**: `npm audit` reports 2 moderate findings in Booking, from the old `uuid` inside `exceljs` 4.4.0 (GHSA-w5hq-g745-h8pq). The only offered fix downgrades `exceljs` to 3.4.0.
 7. **Demo clinic tidy-up**: set "Chats per connection per day" back to 5 (raised to 30 for testing), and replace the placeholder clinic phone +962790000000.
 8. **Voice assistant**: Jordanian voice recordings for the speech test (step 4 of the plan in `booking/PLAN_public_link_and_voice.md`).
-9. **AI Scribe**: plan approved 2026-11-08 (`scribe/PLAN_ai_scribe.md`, design `booking/design/ai-scribe.html`). Step 1, the doctors' role-played recordings, starts on the owner's go-ahead.
+9. **AI Scribe**: plan approved 2026-11-08 (`scribe/PLAN_ai_scribe.md`, design `booking/design/ai-scribe.html`). Step 1 kit is in `scribe/test-recordings/`. Steps 4 and 5 (visit notes) are live in code since 2026-11-08 (migration 0016), off for every clinic; before switching it on, the owner runs `bash /root/Aiclinic/deploy/setup-scribe.sh` once on the server.
 
 ## Known gaps
 

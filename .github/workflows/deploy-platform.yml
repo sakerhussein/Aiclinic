@@ -46,6 +46,8 @@ jobs:
             MARK=/root/Aiclinic-platform-deployed.txt
             # Written by deploy/setup-online-booking.sh. Until then the online booking page is built but not run.
             PUBLIC_MARK=/root/Aiclinic-public-deployed.txt
+            # Written by deploy/setup-scribe.sh. Until then the AI Scribe's process is not run here.
+            SCRIBE_MARK=/root/Aiclinic-scribe-deployed.txt
 
             # Before deploy/setup-platform.sh has run there is nothing to deploy to, and nothing is touched.
             if [ ! -f "$MARK" ]; then
@@ -78,6 +80,11 @@ jobs:
             # The online booking page is part of Booking: same code, its own build (dist-public) and process.
             PUBLIC=0
             case " $CHANGED " in *" booking "*) [ -f "$PUBLIC_MARK" ] && PUBLIC=1 ;; esac
+            # So is the AI Scribe's own process (server/scribe-index.js).
+            SCRIBE=0
+            case " $CHANGED " in *" booking "*) [ -f "$SCRIBE_MARK" ] && SCRIBE=1 ;; esac
+            # The Scribe has no web address: "status restarts" from PM2, to see it stays up.
+            scribe_state() { pm2 jlist 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const p=JSON.parse(s||"[]").find(x=>x.name==="limitsiz-scribe");if(p)console.log(p.pm2_env.status+" "+p.pm2_env.restart_time)})'; }
 
             mkdir -p "$BACKUP"
             for s in $CHANGED; do
@@ -104,6 +111,7 @@ jobs:
                 pm2 restart "limitsiz-$s"
               done
               if [ "$PUBLIC" = 1 ]; then pm2 restart limitsiz-public; fi
+              if [ "$SCRIBE" = 1 ]; then pm2 restart limitsiz-scribe; fi
               exit 1
             }
 
@@ -121,6 +129,7 @@ jobs:
               pm2 restart "limitsiz-$s"
             done
             if [ "$PUBLIC" = 1 ]; then pm2 restart limitsiz-public; fi
+            if [ "$SCRIBE" = 1 ]; then pm2 restart limitsiz-scribe; fi
 
             # Give each service up to 40 seconds, going through Nginx and to the database.
             for s in $CHANGED; do
@@ -138,6 +147,11 @@ jobs:
                 sleep 2
               done
               [ "$ok" = 1 ] || rollback "the online booking page did not answer after restart"
+            fi
+            if [ "$SCRIBE" = 1 ]; then
+              sleep 3; before=$(scribe_state); sleep 8; after=$(scribe_state)
+              case "$after" in online*) ;; *) rollback "the AI Scribe is not running after restart ($after)" ;; esac
+              [ "$before" = "$after" ] || rollback "the AI Scribe keeps restarting ($before, then $after)"
             fi
 
             echo "$NOW" > "$MARK"
