@@ -1,0 +1,1050 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Scribe recording kit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap">
+<style>
+:root{
+  --ink:#0A0F14;--paper:#F2F4F3;--white:#fff;--text:#0A0F14;--muted:#4B5863;--rule:#C9D6D2;--rule-soft:#E1E6E4;
+  --accent:#2EE6B5;--accent-ink:#0B7A64;--accent-tint:#DDF7EE;--amber-tint:#FFF0D6;--amber-line:#F1D3A0;
+  --font-display:"Unbounded","Geist",system-ui,sans-serif;--font-body:"Geist",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"Geist Mono",ui-monospace,Menlo,monospace;--font-ar:"IBM Plex Sans Arabic","Segoe UI",Tahoma,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{overflow-x:clip}
+body{margin:0;background:var(--paper);color:var(--text);font:14px/1.5 var(--font-body);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+[lang="ar"]{font-family:var(--font-ar)}
+h1,h2,h3,p,ul,ol,dl{margin:0}
+bdi{unicode-bidi:isolate}
+
+/* screen bar */
+.bar{position:sticky;top:0;z-index:5;background:var(--ink);color:#E8EEF0}
+.bar .in{max-width:210mm;margin-inline:auto;padding-inline:16px;min-height:52px;display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap;padding-block:6px}
+.bar b{font-weight:600}
+.bar nav{display:flex;gap:4px 14px;flex-wrap:wrap;flex:1}
+.bar a{color:#93A3AD;text-decoration:none;font-size:13px}
+.bar a:hover{color:#fff}
+.bar button{min-height:38px;padding:0 18px;border-radius:999px;border:0;background:var(--accent);color:var(--ink);font:600 14px var(--font-body);cursor:pointer}
+
+/* pages */
+.page{background:var(--white);max-width:210mm;margin:20px auto;padding:13mm 14mm;border-radius:4px;box-shadow:0 1px 2px rgba(10,15,20,.06),0 8px 24px rgba(10,15,20,.06)}
+.eyebrow{font:500 11px/1.4 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent-ink)}
+h1{font:500 25px/1.2 var(--font-display);letter-spacing:-.01em;margin-top:6px}
+.ar-sub{font-size:16px;color:var(--muted);margin-top:4px}
+.lead{font-size:15px;margin-top:12px;max-width:68ch}
+.ph{font:600 18px/1.3 var(--font-body);margin-top:4px}
+.muted{color:var(--muted)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:0 8mm;margin-top:6mm}
+.cols h2,.agree h3{font:600 14px/1.3 var(--font-body);margin:14px 0 6px;padding-top:7px;border-top:2px solid var(--ink)}
+.cols > div > h2:first-child{margin-top:0}
+ul,ol{padding-inline-start:18px;display:grid;gap:4px}
+code{font:12px var(--font-mono);background:var(--rule-soft);padding:1px 5px;border-radius:4px}
+
+/* case list */
+table{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px}
+th{text-align:start;font:500 11px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:6px 8px;border-bottom:2px solid var(--ink)}
+td{padding:6px 8px;border-bottom:1px solid var(--rule-soft);vertical-align:top}
+td:first-child{font-family:var(--font-mono);color:var(--accent-ink)}
+td.blank{min-width:90px;border-bottom:1px solid var(--rule)}
+.legend{margin-top:10px;font-size:12.5px}
+
+/* case card */
+.ch{display:flex;gap:14px;align-items:flex-start;border-bottom:2px solid var(--ink);padding-bottom:10px}
+.num{font:500 30px/1 var(--font-display);color:var(--accent-ink);min-width:58px}
+.ch h2{font:600 19px/1.25 var(--font-body)}
+.setup{color:var(--muted);font-size:13px;margin-top:3px}
+.box{margin-top:11px;border:1px solid var(--rule);border-radius:10px;padding:10px 14px}
+.box h3{font:500 11px/1.4 var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+.box[lang="ar"] h3,.box h3 [lang="ar"]{font:600 13px/1.5 var(--font-ar);letter-spacing:0;text-transform:none}
+.pt{background:var(--paper)}
+.tp{background:var(--amber-tint);border-color:var(--amber-line)}
+dl{display:grid;grid-template-columns:max-content 1fr;gap:5px 14px}
+dt{font-weight:600}
+dd{margin:0}
+.box[lang="ar"]{font-size:14.5px;line-height:1.75}
+.change{margin-top:12px;font-size:12.5px;color:var(--muted);border-top:1px dashed var(--rule);padding-top:8px}
+.change span{display:inline-block;min-width:60%;border-bottom:1px solid var(--rule);margin-inline-start:6px}
+
+/* agreement */
+.agree .ar-block{margin-top:8mm;padding-top:6mm;border-top:1px dashed var(--rule)}
+.agree p{margin-top:8px}
+.agree ul{margin-top:8px}
+.sign{display:grid;grid-template-columns:1fr 1fr;gap:10mm 8mm;margin-top:10mm}
+.sign div{border-top:1px solid var(--ink);padding-top:5px;font-size:12.5px;color:var(--muted)}
+.sign .wide{grid-column:1 / -1}
+.box-tick{display:inline-block;width:11px;height:11px;border:1px solid var(--ink);vertical-align:-1px;margin-inline:10px 4px}
+
+/* note template */
+.meta{display:grid;grid-template-columns:repeat(4,1fr);gap:6mm;margin-top:6mm}
+.meta div{border-top:1px solid var(--ink);padding-top:4px;font-size:12px;color:var(--muted)}
+.sec{margin-top:4.5mm}
+.sec b{display:block;font-weight:600}
+.sec i{font-style:normal;color:var(--muted);font-size:12.5px}
+.lines{display:block;margin-top:2px;background:repeating-linear-gradient(to bottom,transparent 0,transparent 24px,var(--rule) 24px,var(--rule) 25px)}
+.l1{height:25px}.l2{height:50px}.l3{height:75px}.l4{height:100px}.l5{height:125px}
+
+@media (max-width:640px){
+  .bar nav{display:none}
+  .bar .in{justify-content:space-between}
+  .page{margin:12px 0;padding:20px 16px;border-radius:0}
+  .cols{grid-template-columns:1fr}
+  .cols > div + div > h2:first-child{margin-top:14px}
+  dl{grid-template-columns:1fr;gap:2px}
+  dd{margin-bottom:6px}
+  .meta,.sign{grid-template-columns:1fr 1fr}
+  table{font-size:12px}
+  th,td{padding:5px 4px}
+}
+@media print{
+  @page{size:A4;margin:11mm 12mm}
+  html,body{background:#fff}
+  body{font-size:10pt}
+  .bar{display:none}
+  .page{max-width:none;margin:0;padding:0;border-radius:0;box-shadow:none;break-after:page}
+  .page:last-of-type{break-after:auto}
+  .box,.sec,tr,.sign{break-inside:avoid}
+  .box[lang="ar"]{font-size:10.5pt}
+}
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <div class="in">
+    <b>AI Scribe · recording kit</b>
+    <nav>
+      <a href="#guide">Guide</a>
+      <a href="#cases">Case list</a>
+      <a href="#agreement">Agreement</a>
+      <a href="#c01">Cases</a>
+      <a href="#note">Note template</a>
+    </nav>
+    <button type="button" onclick="window.print()">Print</button>
+  </div>
+</div>
+
+<!-- ============ GUIDE ============ -->
+<section class="page" id="guide">
+  <p class="eyebrow">Limitsiz Clinic · AI Scribe · step 1</p>
+  <h1>Test recordings: kit for the recording day</h1>
+  <p class="ar-sub" lang="ar" dir="rtl">الكاتب الذكي · تسجيلات الاختبار</p>
+  <p class="lead">24 role-played dermatology consultations, 5 to 10 minutes each. No real patients. They test two things: how well speech services understand Jordanian Arabic mixed with English medical words, and how good the AI's draft notes are.</p>
+
+  <div class="cols">
+    <div>
+      <h2>Who</h2>
+      <ul>
+        <li>Doctors play themselves. Speak as you do with real patients: Arabic, with the English words you normally use.</li>
+        <li>A colleague or volunteer plays the patient. They read only the patient part of the card (in Arabic), then talk naturally. Change the patient's age or gender to suit them.</li>
+        <li>Mix it up: several doctors, men and women, different "patients" and accents.</li>
+      </ul>
+
+      <h2>Before the day</h2>
+      <ol>
+        <li>A doctor checks every case. The plans are suggestions: change any medicine or dose you'd handle differently, and write the change on the card.</li>
+        <li>Choose who records which case (the case list has a column for it).</li>
+        <li>Everyone who will be recorded signs the agreement, one copy each.</li>
+        <li>Choose a private folder for the recordings that only your team can open. Not this project folder, and not a WhatsApp group.</li>
+      </ol>
+
+      <h2>Set-up</h2>
+      <ul>
+        <li>A real examination room, door closed. Normal sounds such as the air conditioning are part of the test. Some cases add noise on purpose.</li>
+        <li>The device sits on the desk between doctor and patient, where it would be in a real visit. Each case says phone or laptop. Use a tablet instead of the laptop if that's what the clinic would use.</li>
+        <li>Use the device's normal voice recorder app.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>Each recording</h2>
+      <ul>
+        <li>Read the card, then start recording. Don't read the card aloud.</li>
+        <li>Say the examination aloud: where, size, colour, spread. The Scribe only hears.</li>
+        <li>Say each medicine's name, strength, dose and how long, aloud.</li>
+        <li>Do the case's test points. They are small traps for the AI, such as changing your mind about a medicine.</li>
+        <li>Don't stop for mistakes. Real visits have them.</li>
+        <li>No real patients' names or details. The person playing the patient uses the card's story, not their own health.</li>
+      </ul>
+
+      <h2>After each recording</h2>
+      <ul>
+        <li>Name the file with the case number, for example <code>case-07</code>. A second take is <code>case-07b</code>.</li>
+        <li>Fill in its row in the tracking sheet, <code>tracking.csv</code>.</li>
+        <li>Copy the file to the private folder. On WhatsApp, send it as a document, not as a voice note, so the sound isn't compressed.</li>
+        <li>The doctor writes the "right" note on the template at the end, the same day if possible. Write what was actually said, not what the card says. Listen back if unsure.</li>
+      </ul>
+
+      <h2>Next: step 2</h2>
+      <ul>
+        <li>The recordings go to three or four speech services, to compare them.</li>
+        <li>For word accuracy we need an answer key: someone who speaks Jordanian Arabic corrects one transcript per recording, roughly half an hour each.</li>
+        <li>Medicines and doses are checked against the right notes.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CASE LIST ============ -->
+<section class="page" id="cases">
+  <p class="eyebrow">Plan the day</p>
+  <h2 class="ph">The 24 cases</h2>
+  <p class="muted">Write the doctor for each case in the last column. A second person is needed for cases 04, 11 and 15, and is optional for 02 and 18.</p>
+  <table>
+    <thead><tr><th>#</th><th>Case</th><th>Device</th><th>Set-up</th><th>Doctor</th></tr></thead>
+    <tbody>
+      <tr><td>01</td><td>Acne: starting isotretinoin</td><td>Phone</td><td>Quiet</td><td class="blank"></td></tr>
+      <tr><td>02</td><td>Eczema in a child; the mother answers</td><td>Phone</td><td>Child's voice (optional)</td><td class="blank"></td></tr>
+      <tr><td>03</td><td>Psoriasis; small talk first</td><td>Laptop</td><td>Air conditioning on</td><td class="blank"></td></tr>
+      <tr><td>04</td><td>Ringworm made worse by a steroid cream</td><td>Phone</td><td>Secretary knocks once</td><td class="blank"></td></tr>
+      <tr><td>05</td><td>Chronic hives</td><td>Phone</td><td>Quiet</td><td class="blank"></td></tr>
+      <tr><td>06</td><td>Scabies in a family</td><td>Laptop</td><td>Quiet</td><td class="blank"></td></tr>
+      <tr><td>07</td><td>Melasma; a medicine ruled out</td><td>Phone</td><td>Air conditioning on</td><td class="blank"></td></tr>
+      <tr><td>08</td><td>Hair shedding with low iron</td><td>Laptop</td><td>Quiet</td><td class="blank"></td></tr>
+      <tr><td>09</td><td>Alopecia areata; injection given</td><td>Phone</td><td>Quiet</td><td class="blank"></td></tr>
+      <tr><td>10</td><td>Leishmaniasis from the Jordan Valley</td><td>Phone</td><td>Rural or Bedouin accent welcome</td><td class="blank"></td></tr>
+      <tr><td>11</td><td>Shingles in an older patient</td><td>Laptop</td><td>Daughter present</td><td class="blank"></td></tr>
+      <tr><td>12</td><td>A changing mole; dictation at the end</td><td>Phone</td><td>Quiet</td><td class="blank"></td></tr>
+      <tr><td>13</td><td>Rosacea; a phone call</td><td>Phone</td><td>Doctor's mobile rings once</td><td class="blank"></td></tr>
+      <tr><td>14</td><td>Seborrhoeic dermatitis, in English</td><td>Laptop</td><td>Whole visit in English</td><td class="blank"></td></tr>
+      <tr><td>15</td><td>Warts; cryotherapy given</td><td>Phone</td><td>Father present</td><td class="blank"></td></tr>
+      <tr><td>16</td><td>Vitiligo; two treatments</td><td>Laptop</td><td>Air conditioning on</td><td class="blank"></td></tr>
+      <tr><td>17</td><td>Heavy sweating; Botox discussed</td><td>Phone</td><td>Quiet</td><td class="blank"></td></tr>
+      <tr><td>18</td><td>Impetigo; penicillin allergy</td><td>Phone</td><td>Child's voice (optional)</td><td class="blank"></td></tr>
+      <tr><td>19</td><td>Reaction to hair dye</td><td>Laptop</td><td>Quiet</td><td class="blank"></td></tr>
+      <tr><td>20</td><td>Toenail fungus; a dose corrected</td><td>Phone</td><td>Air conditioning on</td><td class="blank"></td></tr>
+      <tr><td>21</td><td>Molluscum in a young child</td><td>Laptop</td><td>The mother answers</td><td class="blank"></td></tr>
+      <tr><td>22</td><td>Laser hair removal consultation</td><td>Phone</td><td>Quiet</td><td class="blank"></td></tr>
+      <tr><td>23</td><td>Pityriasis rosea; an anxious patient</td><td>Laptop</td><td>Fast talk, interruptions</td><td class="blank"></td></tr>
+      <tr><td>24</td><td>Isotretinoin follow-up</td><td>Phone</td><td>Quiet</td><td class="blank"></td></tr>
+    </tbody>
+  </table>
+  <p class="legend muted">Between them, the cases cover: brand and generic names, doses in ml and mg, lab values, procedures done in the visit, plans that depend on a test result, medicines discussed but not given, a dose the doctor corrects, interruptions, children and relatives speaking, and one visit in English.</p>
+</section>
+
+<!-- ============ AGREEMENT ============ -->
+<section class="page agree" id="agreement">
+  <p class="eyebrow">Sign before recording · one copy per person</p>
+  <h2 class="ph">Agreement to take part in test recordings</h2>
+  <p>I agree to take part in role-played test recordings for Limitsiz Clinic's AI Scribe. I understand that:</p>
+  <ul>
+    <li>The consultations are made up. I will not mention real patients or my own health.</li>
+    <li>My voice will be sent to three or four speech-to-text services, and the text to an AI service (Claude, by Anthropic), only to test them. These are companies outside Jordan, and each handles what it receives under its own terms.</li>
+    <li>The recordings and their text are used only to test the AI Scribe. Limitsiz deletes its copies when testing ends, or sooner if I ask.</li>
+    <li>I can withdraw at any time, and my recordings will then be deleted.</li>
+  </ul>
+
+  <div class="ar-block" lang="ar" dir="rtl">
+    <h2 class="ph">موافقة على المشاركة في تسجيلات الاختبار</h2>
+    <p>أوافق على المشاركة في تسجيلات تمثيلية لاختبار «الكاتب الذكي» من <bdi>Limitsiz Clinic</bdi>، وأفهم أن:</p>
+    <ul>
+      <li>الاستشارات تمثيلية وليست حقيقية، ولن أذكر أي مريض حقيقي ولا أي شيء عن صحتي أنا.</li>
+      <li>صوتي سيُرسَل إلى ثلاث أو أربع خدمات لتحويل الكلام إلى نص، والنص إلى خدمة ذكاء اصطناعي (<bdi>Claude</bdi> من شركة <bdi>Anthropic</bdi>)، لغرض اختبارها فقط. هذه شركات خارج الأردن، وكلٌّ منها يتعامل مع ما يصله وفق شروطه الخاصة.</li>
+      <li>التسجيلات ونصوصها تُستخدم لاختبار الكاتب الذكي فقط، وتحذف <bdi>Limitsiz</bdi> نسخها عند انتهاء الاختبار، أو قبل ذلك إذا طلبت.</li>
+      <li>يمكنني الانسحاب في أي وقت، وعندها تُحذف تسجيلاتي.</li>
+    </ul>
+  </div>
+
+  <div class="sign">
+    <div class="wide">Name · الاسم</div>
+    <div class="wide">Role · الدور
+      <span class="box-tick"></span>Doctor · طبيب
+      <span class="box-tick"></span>Patient (role-play) · مريض (تمثيل)
+      <span class="box-tick"></span>Other · غير ذلك
+    </div>
+    <div>Signature · التوقيع</div>
+    <div>Date · التاريخ</div>
+  </div>
+</section>
+
+<!-- ============ CASES ============ -->
+
+<section class="page case" id="c01">
+  <header class="ch"><span class="num">01</span><div><h2>Acne: starting isotretinoin</h2><p class="setup">Phone · quiet room · 7 to 10 min</p></div></header>
+  <div class="box pt" lang="ar" dir="rtl">
+    <h3>للمريض: اقرأها قبل التسجيل، وبعدين احكي بشكل طبيعي</h3>
+    <dl>
+      <dt>الشخصية</dt><dd>رهف، ٢٠ سنة، طالبة جامعة. وزنك ٦٠ كيلو.</dd>
+      <dt>الشكوى</dt><dd>حب شباب بالوجه والظهر من سنتين، وبيترك آثار.</dd>
+      <dt>علاجات سابقة</dt><dd>جل ديفرين <bdi>(Differin)</bdi> ٦ شهور، وحبوب دوكسيسايكلين <bdi>(doxycycline)</bdi> ٣ شهور السنة الماضية. ما نفعوا كتير.</dd>
+      <dt>أسئلتك للدكتور</dt><dd>الروكتان بيأثر على الحمل بالمستقبل؟ بقدر أعمل واكس؟</dd>
+    </dl>
+  </div>
+  <div class="box dr">
+    <h3>For the doctor</h3>
+    <dl>
+      <dt>Say aloud</dt><dd>Inflammatory papules and pustules on the cheeks, forehead and upper back; a few nodules on the jawline; some small depressed scars on the cheeks.</dd>
+      <dt>Assessment</dt><dd>Moderate to severe acne, not responding to adapalene and doxycycline.</dd>
+      <dt>Plan</dt><dd>Isotretinoin (Roaccutane) 20 mg once a day with food. Before starting: CBC, liver function, lipid profile and a pregnancy test. Two methods of contraception during treatment and for one month after. Lip balm and moisturiser. No waxing, laser or peeling during treatment.</dd>
+      <dt>Follow-up</dt><dd>1 month, with the blood results.</dd>
+    </dl>
+  </div>
+  <div class="box tp">
+    <h3>Test points: the draft note must get these right</h3>
+    <ul>
+      <li>Weight 60 kg; isotretinoin 20 mg once a day.</li>
+      <li>The four tests: CBC, liver function, lipids, pregnancy test.</li>
+      <li>Don't ask about allergies. The note must say allergies "not mentioned".</li>
+      <li>Differin and doxycycline belong in the history, not the plan.</li>
+    </ul>
+  </div>
+  <p class="change">Changed anything? Write it here and in the right note:<span>&nbsp;</span></p>
+</section>
+
+<section class="page case" id="c02">
+  <header class="ch"><span class="num">02</span><div><h2>Eczema in a child; the mother answers</h2><p class="setup">Phone · a second person plays the child (optional) · 6 to 8 min</p></div></header>
+  <div class="box pt" lang="ar" dir="rtl">
+    <h3>للمريض: اقرأها قبل التسجيل، وبعدين احكي بشكل طبيعي</h3>
+    <dl>
+      <dt>الشخصية</dt><dd>إنتِ أم آدم. آدم عمره ٦ سنين، ووزنه ٢٠ كيلو.</dd>
+      <dt>الشكوى</dt><dd>حكّة وطفح بثنية الكوعين وورا الركب من ٣ شهور. بتزيد بالشتا وبالليل، وما بيعرف ينام.</dd>
+      <dt>علاجات سابقة</dt><dd>كريم كورتيزون من الصيدلية <bdi>(hydrocortisone)</bdi>. بيخف شوي وبيرجع.</dd>
+      <dt>إذا سألك الدكتور</dt><dd>أخوه الكبير عنده ربو.</dd>
+      <dt>أسئلتك للدكتور</dt><dd>الكورتيزون بيضر الولد؟ لازم أوقّف عنه الحليب؟</dd>
+      <dt>آدم (اختياري)</dt><dd>شخص تاني بيقاطع مرتين: «ماما بدّي أروّح» و«بيحكّني!»</dd>
+    </dl>
+  </div>
+  <div class="box dr">
+    <h3>For the doctor</h3>
+    <dl>
+      <dt>Say aloud</dt><dd>Dry skin all over; red, scaly, scratched patches in both elbow folds and behind both knees; thickened skin behind the knees; no signs of infection.</dd>
+      <dt>Assessment</dt><dd>Atopic dermatitis (eczema), moderate.</dd>
+      <dt>Plan</dt><dd>Fragrance-free moisturiser at least twice a day. Mometasone 0.1% cream (Elocon) once a day on the red patches for 7 days, then twice a week on the same places to stop flares. Cetirizine (Zyrtec) syrup, 5 ml at night, for the itch. Short lukewarm baths, cotton clothes. No need to stop milk.</dd>
+      <dt>Follow-up</dt><dd>3 weeks.</dd>
+    </dl>
+  </div>
+  <div class="box tp">
+    <h3>Test points: the draft note must get these right</h3>
+    <ul>
+      <li>Say the syrup dose as "5 ml". The note must keep 5 ml and not turn it into mg.</li>
+      <li>Mometasone: once a day for 7 days, then twice a week.</li>
+      <li>The child's interruptions don't belong in the note.</li>
+      <li>Family history: brother with asthma.</li>
+    </ul>
+  </div>
+  <p class="change">Changed anything? Write it here and in the right note:<span>&nbsp;</span></p>
+</section>
+
+<section class="page case" id="c03">
+  <header class="ch"><span class="num">03</span><div><h2>Psoriasis; small talk first</h2><p class="setup">Laptop · air conditioning on · 8 to 10 min</p></div></header>
+  <div class="box pt" lang="ar" dir="rtl">
+    <h3>للمريض: اقرأها قبل التسجيل، وبعدين احكي بشكل طبيعي</h3>
+    <dl>
+      <dt>خلال الزيارة</dt><dd>ابدأ بدقيقة دردشة مع الدكتور عن مباراة الفيصلي والوحدات.</dd>
+      <dt>الشخصية</dt><dd>سامر، ٤٥ سنة، موظف بنك. بتدخّن علبة باليوم.</dd>
+      <dt>الشكوى</dt><dd>بقع حمرا عليها قشور بالكوعين والركب وفروة الراس من ١٠ سنين. هالفترة زادت مع ضغط الشغل.</dd>
+      <dt>علاجات سابقة</dt><dd>ديرموفيت <bdi>(Dermovate)</bdi>، كان ينفع بس الدكتور قلّك ما تطوّل عليه.</dd>
+      <dt>إذا سألك الدكتور</dt><dd>أبوك كان عنده صدفية.</dd>
+      <dt>أسئلتك للدكتور</dt><dd>سمعت عن إبر جديدة للصدفية، بتنفع معي؟</dd>
+    </dl>
+  </div>
+  <div class="box dr">
+    <h3>For the doctor</h3>
+    <dl>
+      <dt>Start</dt><dd>A minute of football chat, then the consultation.</dd>
+      <dt>Say aloud</dt><dd>Well-defined red plaques with silvery scale on both elbows and knees; scaly patches on the scalp behind the ears; a few pits on the fingernails. About 5% of the body.</dd>
+      <dt>Assessment</dt><dd>Chronic plaque psoriasis, mild to moderate.</dd>
+      <dt>Plan</dt><dd>Daivobet gel (calcipotriol with betamethasone) once a day on the plaques for 4 weeks, then on weekends only. Clobex shampoo (clobetasol 0.05%) on the scalp once a day for 2 weeks, then twice a week; leave it 15 minutes, then rinse. Advice to stop smoking. Injections (biologics) and methotrexate: explain they're not needed now, as it covers under 10% of the body.</dd>
+      <dt>Follow-up</dt><dd>6 weeks.</dd>
+    </dl>
+  </div>
+  <div class="box tp">
+    <h3>Test points: the draft note must get these right</h3>
+    <ul>
+      <li>The football chat must not appear in the note.</li>
+      <li>Biologics and methotrexate were discussed, not prescribed.</li>
+      <li>Clobex: once a day for 2 weeks, then twice a week; 15 minutes.</li>
+      <li>Smoking (a pack a day) and the father's psoriasis go in the history.</li>
+    </ul>
+  </div>
+  <p class="change">Changed anything? Write it here and in the right note:<span>&nbsp;</span></p>
+</section>
+
+<section class="page case" id="c04">
+  <header class="ch"><span class="num">04</span><div><h2>Ringworm made worse by a steroid cream</h2><p class="setup">Phone · quiet room · a second person plays the secretary · 6 to 8 min</p></div></header>
+  <div class="box pt" lang="ar" dir="rtl">
+    <h3>للمريض: اقرأها قبل التسجيل، وبعدين احكي بشكل طبيعي</h3>
+    <dl>
+      <dt>الشخصية</dt><dd>أنس، ٣٢ سنة. عندك قطة بالبيت.</dd>
+      <dt>الشكوى</dt><dd>حبوب حمرا على شكل دواير بالفخذين، بتحك، من شهر، وعم تكبر.</dd>
+      <dt>علاجات سابقة</dt><dd>كريم من الصيدلية اسمه بيتنوفيت <bdi>(Betnovate)</bdi>. أول إشي خف، بعدين انتشر أكتر.</dd>
+      <dt>أسئلتك للدكتور</dt><dd>بيعدي مرتي؟ القطة هي السبب؟</dd>
+      <dt>السكرتيرة</dt><dd>شخص تاني: بنص الزيارة بتدق الباب وبتقول «دكتور، مريض الساعة ١١ وصل».</dd>
+    </dl>
+  </div>
+  <div class="box dr">
+    <h3>For the doctor</h3>
+    <dl>
+      <dt>Say aloud</dt><dd>Several ring-shaped red patches with a raised scaly edge on both inner thighs and the right buttock, the largest about 6 cm, clearer in the centre.</dd>
+      <dt>In the visit</dt><dd>Say you're taking a skin scraping for a fungus test (KOH).</dd>
+      <dt>Assessment</dt><dd>Tinea (ringworm), made worse by the steroid cream.</dd>
+      <dt>Plan</dt><dd>Stop Betnovate. Terbinafine 1% cream (Lamisil) twice a day for 2 weeks, and terbinafine 250 mg tablets once a day for 2 weeks, because it is widespread. Keep the area dry. Take the cat to a vet.</dd>
+      <dt>Follow-up</dt><dd>2 weeks.</dd>
+      <dt>The knock</dt><dd>Answer the secretary briefly, then carry on.</dd>
+    </dl>
+  </div>
+  <div class="box tp">
+    <h3>Test points: the draft note must get these right</h3>
+    <ul>
+      <li>Betnovate goes in the history as stopped, never in the plan.</li>
+      <li>Both forms of terbinafine, each with its dose and 2 weeks.</li>
+      <li>The secretary's interruption must not appear in the note.</li>
+      <li>Skin scraping taken: result to follow.</li>
+    </ul>
+  </div>
+  <p class="change">Changed anything? Write it here and in the right note:<span>&nbsp;</span></p>
+</section>
+
+<section class="page case" id="c05">
+  <header class="ch"><span class="num">05</span><div><h2>Chronic hives</h2><p class="setup">Phone · quiet room · 6 to 8 min</p></div></header>
+  <div class="box pt" lang="ar" dir="rtl">
+    <h3>للمريض: اقرأها قبل التسجيل، وبعدين احكي بشكل طبيعي</h3>
+    <dl>
+      <dt>الشخصية</dt><dd>هبة، ٣٥ سنة، معلمة.</dd>
+      <dt>الشكوى</dt><dd>حبوب حمرا منفّخة بتطلع كل يوم تقريباً من شهرين. بتروح خلال ساعات وبترجع بمكان تاني. أحياناً شفايفك بتنتفخ.</dd>
+      <dt>إذا سألك الدكتور</dt><dd>بتزيد لما تاخدي بروفين <bdi>(ibuprofen)</bdi> للصداع. ما في ضيق نفس.</dd>
+      <dt>خلال الزيارة</dt><dd>ورجي الدكتور صور الحبوب على تلفونك.</dd>
+      <dt>أسئلتك للدكتور</dt><dd>السبب أكل معين؟ لازم أعمل فحص حساسية؟</dd>
+    </dl>
+  </div>
+  <div class="box dr">
+    <h3>For the doctor</h3>
+    <dl>
+      <dt>Say aloud</dt><dd>No hives at the moment; the photos show raised red wheals on the arms and trunk. Stroke the forearm lightly and say it rose into a line (dermographism).</dd>
+      <dt>Assessment</dt><dd>Chronic spontaneous urticaria, made worse by anti-inflammatory painkillers.</dd>
+      <dt>Plan</dt><dd>Cetirizine 10 mg, one tablet at night; if not controlled after one week, one in the morning and one at night. Avoid ibuprofen and aspirin; paracetamol is fine for headaches. Blood tests: CBC and TSH. Food allergy tests not needed. If still not controlled in a month, an injection called omalizumab (Xolair) is an option: explain only.</dd>
+      <dt>Follow-up</dt><dd>4 weeks.</dd>
+    </dl>
+  </div>
+  <div class="box tp">
+    <h3>Test points: the draft note must get these right</h3>
+    <ul>
+      <li>The two-step cetirizine plan, with its one-week condition.</li>
+      <li>Omalizumab (Xolair) is a later option, not prescribed.</li>
+      <li>Ibuprofen as a trigger in the history; "avoid ibuprofen and aspirin" in the plan.</li>
+      <li>The lips sometimes swell; no breathing problems.</li>
+    </ul>
+  </div>
+  <p class="change">Changed anything? Write it here and in the right note:<span>&nbsp;</span></p>
+</section>
+
+<section class="page case" id="c06">
+  <header class="ch"><span class="num">06</span><div><h2>Scabies in a family</h2><p class="setup">Laptop · quiet room · 6 to 8 min</p></div></header>
+  <div class="box pt" lang="ar" dir="rtl">
+    <h3>للمريض: اقرأها قبل التسجيل، وبعدين احكي بشكل طبيعي</h3>
+    <dl>
+      <dt>الشخصية</dt><dd>خالد، ٢٨ سنة.</dd>
+      <dt>الشكوى</dt><dd>حكة قوية بالليل من ٣ أسابيع، بين الأصابع وعلى الرسغين وحوالين الخصر. مرتك وبنتك (٤ سنين) كمان بيحكّوا.</dd>
+      <dt>أسئلتك للدكتور</dt><dd>لازم أغسل كل الفرشات والأواعي؟ إمتى بتروح الحكة؟</dd>
+    </dl>
+  </div>
+  <div class="box dr">
+    <h3>For the doctor</h3>
+    <dl>
+      <dt>Say aloud</dt><dd>Small itchy bumps and short burrows in the finger webs and on the wrists; scratched bumps around the waist.</dd>
+      <dt>Assessment</dt><dd>Scabies.</dd>
+      <dt>Plan</dt><dd>Permethrin 5% cream on the whole body from the neck down, at night; wash off after 8 to 12 hours; repeat after 7 days. Treat the wife and daughter on the same night. Wash bedding and clothes at 60 degrees. The itch can last 2 to 4 weeks after treatment. For the itch, say only «وخود حبة حساسية بالليل», without naming a medicine.</dd>
+      <dt>Follow-up</dt><dd>4 weeks, if still itchy.</dd>
+    </dl>
+  </div>
+  <div class="box tp">
+    <h3>Test points: the draft note must get these right</h3>
+    <ul>
+      <li>The allergy pill has no name. The note must say "an antihistamine at night (name not given)" and must not invent one.</li>
+      <li>Repeat after 7 days; the whole family on the same night.</li>
+      <li>8 to 12 hours; 60 degrees.</li>
+    </ul>
+  </div>
+  <p class="change">Changed anything? Write it here and in the right note:<span>&nbsp;</span></p>
+</section>
+
+<section class="page case" id="c07">
+  <header class="ch"><span class="num">07</span><div><h2>Melasma; a medicine ruled out</h2><p class="setup">Phone · air conditioning on · 6 to 8 min</p></div></header>
+  <div class="box pt" lang="ar" dir="rtl">
+    <h3>للمريض: اقرأها قبل التسجيل، وبعدين احكي بشكل طبيعي</h3>
+    <dl>
+      <dt>الشخصية</dt><dd>رنا، ٣٨ سنة.</dd>
+      <dt>الشكوى</dt><dd>بقع بنية على الخدود والجبين. بلشت بعد الحمل قبل ٣ سنين، وبتزيد بالصيف.</dd>
+      <dt>أدويتك</dt><dd>حبوب منع حمل اسمها ياسمين <bdi>(Yasmin)</bdi>. مش مرضعة.</dd>
+      <dt>أسئلتك للدكتور</dt><dd>سمعت عن حبوب ترانيكساميك أسيد <bdi>(tranexamic acid)</bdi>، بتنفع معي؟</dd>
+    </dl>
+  </div>
+  <div class="box dr">
+    <h3>For the doctor</h3>
+    <dl>
+      <dt>Say aloud</dt><dd>Symmetrical light-to-medium brown patches on both cheeks, the forehead and the upper lip.</dd>
+      <dt>Assessment</dt><dd>Melasma.</dd>
+      <dt>Plan</dt><dd>Tinted sunscreen SPF 50 every morning, and again every 2 to 3 hours outdoors. Hydroquinone 4% cream at night on the patches for 3 months, then stop. Azelaic acid 20% cream (Skinoren) in the morning. Tranexamic acid tablets: not suitable while she takes a combined pill, because of the clot risk. Chemical peels can come later.</dd>
+      <dt>Follow-up</dt><dd>3 months.</dd>
+    </dl>
+  </div>
+  <div class="box tp">
+    <h3>Test points: the draft note must get these right</h3>
+    <ul>
+      <li>Tranexamic acid was asked about and ruled out, with the reason. It must not appear as prescribed.</li>
+      <li>Yasmin under current medicines.</li>
+      <li>Hydroquinone: at night, 3 months, then stop.</li>
+    </ul>
+  </div>
+  <p class="change">Changed anything? Write it here and in the right note:<span>&nbsp;</span></p>
+</section>
+
+<section class="page case" id="c08">
+  <header class="ch"><span class="num">08</span><div><h2>Hair shedding with low iron</h2><p class="setup">Laptop · quiet room · 6 to 8 min</p></div></header>
+  <div class="box pt" lang="ar" dir="rtl">
+    <h3>للمريض: اقرأها قبل التسجيل، وبعدين احكي بشكل طبيعي</h3>
+    <dl>
+      <dt>الشخصية</dt><dd>دانة، ٢٧ سنة.</dd>
+      <dt>الشكوى</dt><dd>شعرك بيتساقط كتير من ٣ شهور، عالمخدة وبالشاور. قبل ٦ شهور عملتي رجيم قاسي ونزلتي ١٠ كيلو.</dd>
+      <dt>خلال الزيارة</dt><dd>معك فحوصات من الأسبوع الماضي، اقريها للدكتور: الفيريتين <bdi>(ferritin)</bdi> ٨، فيتامين د ١٢، الغدة <bdi>(TSH)</bdi> ٢٫١.</dd>
+      <dt>أسئلتك للدكتور</dt><dd>رح أصلع؟ بتنفع إبر البلازما <bdi>(PRP)</bdi>؟</dd>
+    </dl>
+  </div>
+  <div class="box dr">
+    <h3>For the doctor</h3>
+    <dl>
+      <dt>Say aloud</dt><dd>Diffuse thinning; positive hair pull test at the crown and sides; no bald patches; scalp normal.</dd>
+      <dt>Assessment</dt><dd>Telogen effluvium after crash dieting, with low iron and low vitamin D.</dd>
+      <dt>Plan</dt><dd>Iron tablets, 65 mg elemental iron, once a day with orange juice for 3 months. Vitamin D3 50,000 units once a week for 8 weeks. Enough protein in the diet. Reassure: the shedding usually settles in 3 to 6 months, and she won't go bald. PRP: not needed now.</dd>
+      <dt>Follow-up</dt><dd>3 months; recheck ferritin and vitamin D.</dd>
+    </dl>
+  </div>
+  <div class="box tp">
+    <h3>Test points: the draft note must get these right</h3>
+    <ul>
+      <li>Lab values: ferritin 8, vitamin D 12, TSH 2.1.</li>
+      <li>Vitamin D3 50,000 units once a week for 8 weeks.</li>
+      <li>PRP was asked about and not given.</li>
+    </ul>
+  </div>
+  <p class="change">Changed anything? Write it here and in the right note:<span>&nbsp;</span></p>
+</section>
+
+<section class="page case" id="c09">
+  <header class="ch"><span class="num">09</span><div><h2>Alopecia areata; injection given</h2><p class="setup">Phone · quiet room · 7 to 9 min</p></div></header>
+  <div class="box pt" lang="ar" dir="rtl">
+    <h3>للمريض: اقرأها قبل التسجيل، وبعدين احكي بشكل طبيعي</h3>
+    <dl>
+      <dt>الشخصية</dt><dd>يزن، ٢٤ سنة، عندك امتحانات هالفترة. ما عندك أمراض، وما بتاخد أدوية.</dd>
+      <dt>الشكوى</dt><dd>بقعتين بلا شعر بالراس من ورا، من ٦ أسابيع.</dd>
+      <dt>خلال الإبرة</dt><dd>قول «آه» مرة أو مرتين، واحكي شوي عن الامتحانات.</dd>
+      <dt>أسئلتك للدكتور</dt><dd>الشعر رح يرجع؟ السبب الضغط النفسي؟</dd>
+    </dl>
+  </div>
+  <div class="box dr">
+    <h3>For the doctor</h3>
+    <dl>
+      <dt>Say aloud</dt><dd>Two smooth round bald patches on the back of the scalp, 3 cm and 1.5 cm, with short "exclamation mark" hairs at the edges; nails and beard normal.</dd>
+      <dt>Assessment</dt><dd>Alopecia areata.</dd>
+      <dt>In the visit</dt><dd>Inject both patches with triamcinolone (Kenacort) diluted to 5 mg per ml, 0.1 ml per spot, about 1 cm apart, about 2 ml in total. Say it aloud as you go.</dd>
+      <dt>Plan</dt><dd>Clobetasol 0.05% scalp lotion (Dermovate scalp application) on the patches at night, 5 nights a week. Repeat injections in 4 to 6 weeks. Hair usually grows back; stress can play a part.</dd>
+      <dt>Follow-up</dt><dd>4 to 6 weeks.</dd>
+    </dl>
+  </div>
+  <div class="box tp">
+    <h3>Test points: the draft note must get these right</h3>
+    <ul>
+      <li>The injection was given today: the drug, 5 mg per ml, 0.1 ml per spot, about 2 ml.</li>
+      <li>Patch sizes: 3 cm and 1.5 cm.</li>
+      <li>The "ouch" and the chat during the injection don't belong in the note.</li>
+    </ul>
+  </div>
+  <p class="change">Changed anything? Write it here and in the right note:<span>&nbsp;</span></p>
+</section>
+
+<section class="page case" id="c10">
+  <header class="ch"><span class="num">10</span><div><h2>Leishmaniasis from the Jordan Valley</h2><p class="setup">Phone · quiet room · a rural or Bedouin accent is welcome · 6 to 8 min</p></div></header>
+  <div class="box pt" lang="ar" dir="rtl">
+    <h3>للمريض: اقرأها قبل التسجيل، وبعدين احكي بشكل طبيعي</h3>
+    <dl>
+      <dt>الشخصية</dt><dd>أبو محمد، ٤٨ سنة، مزارع بالأغوار. إذا بتعرف، احكي بلهجة فلاحية أو بدوية.</dd>
+      <dt>الشكوى</dt><dd>حبة على الساعد اليمين من شهرين. بلشت حبة صغيرة بعد قرص حشرات، كبرت وصار فيها جرح وقشرة. ما بتوجع. جيرانك قالولك «لشمانيا».</dd>
+      <dt>أدويتك</dt><dd>عندك سكري، بتاخد جلوكوفاج ١٠٠٠ <bdi>(Glucophage)</bdi> مرتين باليوم.</dd>
+      <dt>أسئلتك للدكتور</dt><dd>بتترك أثر؟ بتعدي الأولاد؟</dd>
+    </dl>
+  </div>
+  <div class="box dr">
+    <h3>For the doctor</h3>
+    <dl>
+      <dt>Say aloud</dt><dd>A 2.5 cm crusted ulcer with a raised, firm edge on the right forearm; no other lesions; no swollen lymph nodes.</dd>
+      <dt>Assessment</dt><dd>Likely cutaneous leishmaniasis.</dd>
+      <dt>Plan</dt><dd>Skin smear today to confirm. If positive: sodium stibogluconate (Pentostam) injected into the lesion once a week for 4 to 6 weeks, with cryotherapy at the same visits. It doesn't pass from person to person; protect from sandfly bites with nets and repellent at dusk.</dd>
+      <dt>Follow-up</dt><dd>1 week, with the smear result.</dd>
+    </dl>
+  </div>
+  <div class="box tp">
+    <h3>Test points: the draft note must get these right</h3>
+    <ul>
+      <li>"Likely" and "if positive": the note must keep the uncertainty and the condition.</li>
+      <li>Pentostam and sodium stibogluconate spelled correctly.</li>
+      <li>Diabetes, and Glucophage 1000 mg twice a day, in the history.</li>
+    </ul>
+  </div>
+  <p class="change">Changed anything? Write it here and in the right note:<span>&nbsp;</span></p>
+</section>
+
+<section class="page case" id="c11">
+  <header class="ch"><span class="num">11</span><div><h2>Shingles in an older patient</h2><p class="setup">Laptop · a second person plays the daughter · 7 to 9 min</p></div></header>
+  <div class="box pt" lang="ar" dir="rtl">
+    <h3>للمريض: اقرأها قبل التسجيل، وبعدين احكي بشكل طبيعي</h3>
+    <dl>
+      <dt>الشخصية</dt><dd>أم فراس، ٦٨ سنة. بنتك معك (شخص تاني)، وبتحكي كتير.</dd>
+      <dt>الشكوى</dt><dd>وجع حارق بالجنب الشمال من ٤ أيام، وقبل يومين طلعت حبوب مي على شكل حزام.</dd>
+      <dt>أدويتك</dt><dd>جلوكوفاج ٥٠٠ <bdi>(Glucophage)</bdi> مرتين باليوم، ونورفاسك ٥ <bdi>(Norvasc)</bdi> مرة باليوم.</dd>
+      <dt>البنت</dt><dd>بتسأل إذا بتعدي الحفيد الصغير، وبتقول إن الكلى كانت منيحة بآخر فحص قبل شهرين.</dd>
+    </dl>
+  </div>
+  <div class="box dr">
+    <h3>For the doctor</h3>
+    <dl>
+      <dt>Say aloud</dt><dd>Groups of blisters on a red base in a band on the left side of the chest, from the back round to the front, not crossing the midline: left T5.</dd>
+      <dt>Assessment</dt><dd>Herpes zoster (shingles), left T5.</dd>
+      <dt>Plan</dt><dd>Valacyclovir (Valtrex) 1 g three times a day for 7 days. Paracetamol 1 g up to three times a day. If the pain is strong at night: pregabalin (Lyrica) 75 mg at night. Keep the blisters covered; avoid pregnant women and babies who haven't had chickenpox. Shingles vaccine after recovery: discuss only.</dd>
+      <dt>Follow-up</dt><dd>1 week, or sooner if the rash comes near the eye.</dd>
+    </dl>
+  </div>
+  <div class="box tp">
+    <h3>Test points: the draft note must get these right</h3>
+    <ul>
+      <li>Current medicines with doses: metformin (Glucophage) 500 mg twice a day, amlodipine (Norvasc) 5 mg once a day.</li>
+      <li>Pregabalin only "if the pain is strong at night".</li>
+      <li>The daughter's information (kidneys normal two months ago) goes in the history.</li>
+      <li>"Left T5", not crossing the midline.</li>
+    </ul>
+  </div>
+  <p class="change">Changed anything? Write it here and in the right note:<span>&nbsp;</span></p>
+</section>
+
+<section class="page case" id="c12">
+  <header class="ch"><span class="num">12</span><div><h2>A changing mole; dictation at the end</h2><p class="setup">Phone · quiet room · 6 to 8 min</p></div></header>
+  <div class="box pt" lang="ar" dir="rtl">
+    <h3>للمريض: اقرأها قبل التسجيل، وبعدين احكي بشكل طبيعي</h3>
+    <dl>
+      <dt>الشخصية</dt><dd>فادي، ٥٠ سنة. شغلك أغلبه برا بالشمس.</dd>
+      <dt>الشكوى</dt><dd>شامة على ظهرك. مرتك لاحظت إنها كبرت وتغيّر لونها بآخر ٦ شهور.</dd>
+      <dt>إذا سألك الدكتور</dt><dd>ابن عمك كان عنده ميلانوما <bdi>(melanoma)</bdi>.</dd>
+      <dt>أسئلتك للدكتور</dt><dd>هي سرطان؟ العملية بتوجع؟</dd>
+    </dl>
+  </div>
+  <div class="box dr">
+    <h3>For the doctor</h3>
+    <dl>
+      <dt>Say aloud</dt><dd>With the dermatoscope: on the upper back, a 7 mm mole, asymmetric, two shades of brown, an irregular network at one edge. The other moles look regular.</dd>
+      <dt>Assessment</dt><dd>Atypical mole; melanoma must be ruled out.</dd>
+      <dt>Plan</dt><dd>Excision biopsy with 2 mm margins under local anaesthetic next week; send for histology. Sun protection; a full skin check every year.</dd>
+      <dt>At the end</dt><dd>Dictate a short summary in English, as you would for your own notes: "So, for the note: …"</dd>
+      <dt>Follow-up</dt><dd>2 weeks after the biopsy, for the result.</dd>
+    </dl>
+  </div>
+  <div class="box tp">
+    <h3>Test points: the draft note must get these right</h3>
+    <ul>
+      <li>The note says "atypical mole, rule out melanoma", not "melanoma".</li>
+      <li>The biopsy is planned for next week, not done today.</li>
+      <li>The dictated summary and the conversation become one note, without repeats.</li>
+      <li>Family history: a cousin with melanoma.</li>
+    </ul>
+  </div>
+  <p class="change">Changed anything? Write it here and in the right note:<span>&nbsp;</span></p>
+</section>
+
+<section class="page case" id="c13">
+  <header class="ch"><span class="num">13</span><div><h2>Rosacea; a phone call</h2><p class="setup">Phone · quiet room · the doctor's mobile rings once · 6 to 8 min</p></div></header>
+  <div class="box pt" lang="ar" dir="rtl">
+    <h3>للمريض: اقرأها قبل التسجيل، وبعدين احكي بشكل طبيعي</h3>
+    <dl>
+      <dt>الشخصية</dt><dd>ديما، ٤٥ سنة. بتستعملي كريمات تجميل كتير.</dd>
+      <dt>الشكوى</dt><dd>احمرار بالوجه وحبوب صغيرة من سنة. بيزيد مع الشاي السخن والشمس والأكل الحار.</dd>
+      <dt>إذا سألك الدكتور</dt><dd>عيونك ما فيها إشي.</dd>
+      <dt>أسئلتك للدكتور</dt><dd>بينفع الليزر للاحمرار؟</dd>
+    </dl>
+  </div>
+  <div class="box dr">
+    <h3>For the doctor</h3>
+    <dl>
+      <dt>The call</dt><dd>Have your mobile ring once in the middle. Decline it and say sorry.</dd>
+      <dt>Say aloud</dt><dd>Redness of the cheeks and nose with small visible blood vessels; papules and pustules on the cheeks; eyes not affected.</dd>
+      <dt>Assessment</dt><dd>Rosacea, with papules and pustules.</dd>
+      <dt>Plan</dt><dd>Ivermectin 1% cream (Soolantra) once a day for 3 months. Doxycycline 100 mg once a day for 6 weeks. Gentle cleanser, sunscreen SPF 50, fewer cosmetic products. Avoid her triggers. Laser for the redness: later, once the bumps settle.</dd>
+      <dt>Follow-up</dt><dd>6 weeks.</dd>
+    </dl>
+  </div>
+  <div class="box tp">
+    <h3>Test points: the draft note must get these right</h3>
+    <ul>
+      <li>The phone call must not appear in the note.</li>
+      <li>Laser is for later, not booked now.</li>
+      <li>Triggers: hot tea, sun, spicy food.</li>
+    </ul>
+  </div>
+  <p class="change">Changed anything? Write it here and in the right note:<span>&nbsp;</span></p>
+</section>
+
+<section class="page case" id="c14">
+  <header class="ch"><span class="num">14</span><div><h2>Seborrhoeic dermatitis, in English</h2><p class="setup">Laptop · quiet room · the whole visit in English · 5 to 7 min</p></div></header>
+  <div class="box pt">
+    <h3>For the patient · <span lang="ar" dir="rtl">للمريض: هالزيارة كلها بالإنجليزي</span></h3>
+    <dl>
+      <dt>You</dt><dd>Omar, 33. You grew up in Canada and prefer English.</dd>
+      <dt>Complaint</dt><dd>Itchy, flaky scalp for months; flakes on the eyebrows and beside the nose. Worse in winter and when stressed.</dd>
+      <dt>Tried before</dt><dd>An anti-dandruff shampoo from the supermarket.</dd>
+      <dt>Ask the doctor</dt><dd>Is it contagious? Can I use coconut oil?</dd>
+    </dl>
+  </div>
+  <div class="box dr">
+    <h3>For the doctor</h3>
+    <dl>
+      <dt>Language</dt><dd>The whole visit in English.</dd>
+      <dt>Say aloud</dt><dd>Greasy yellowish scale on the scalp, the eyebrows and the folds beside the nose, with mild redness.</dd>
+      <dt>Assessment</dt><dd>Seborrhoeic dermatitis.</dd>
+      <dt>Plan</dt><dd>Ketoconazole 2% shampoo (Nizoral) twice a week, left on for 5 minutes, for 4 weeks, then once a week. Hydrocortisone 1% cream on the face twice a day, for up to 5 days at a time when it flares. Not contagious. No oils on the scalp; coconut oil can make it worse.</dd>
+      <dt>Follow-up</dt><dd>6 weeks, if not better.</dd>
+    </dl>
+  </div>
+  <div class="box tp">
+    <h3>Test points: the draft note must get these right</h3>
+    <ul>
+      <li>An English-only visit: the note should be as good as for Arabic visits.</li>
+      <li>Shampoo: twice a week for 4 weeks, then weekly; 5 minutes.</li>
+      <li>Hydrocortisone: face only, up to 5 days at a time.</li>
+    </ul>
+  </div>
+  <p class="change">Changed anything? Write it here and in the right note:<span>&nbsp;</span></p>
+</section>
+
+<section class="page case" id="c15">
+  <header class="ch"><span class="num">15</span><div><h2>Warts; cryotherapy given</h2><p class="setup">Phone · a second person plays the father · 6 to 8 min</p></div></header>
+  <div class="box pt" lang="ar" dir="rtl">
+    <h3>للمريض: اقرأها قبل التسجيل، وبعدين احكي بشكل طبيعي</h3>
+    <dl>
+      <dt>الشخصية</dt><dd>تالا، ١٦ سنة، مع أبوكِ (شخص تاني). أبوكِ بيحكي أكتر منك.</dd>
+      <dt>الشكوى</dt><dd>ثواليل على أصابع إيدك اليمين (٣)، وواحد بباطن رجلك اليمين بيوجع لما تمشي، من ٥ شهور.</dd>
+      <dt>الأب</dt><dd>بيقاطع. بيسأل إذا بتقدر تسبح بالمدرسة، وبيشتكي إنه ما لقى مكان يصفّ السيارة قدام العيادة.</dd>
+      <dt>أسئلتك للدكتور</dt><dd>العلاج بيوجع؟</dd>
+    </dl>
+  </div>
+  <div class="box dr">
+    <h3>For the doctor</h3>
+    <dl>
+      <dt>Say aloud</dt><dd>Three rough warts on the right index and middle fingers, 3 to 6 mm; a 7 mm plantar wart under the right forefoot, with black dots.</dd>
+      <dt>In the visit</dt><dd>Liquid nitrogen cryotherapy on all four warts, two freeze-thaw cycles each. Say it aloud as you go.</dd>
+      <dt>Plan</dt><dd>Salicylic acid (Duofilm) on the foot wart at night, after soaking and filing, avoiding normal skin. Swimming is fine with a waterproof plaster. A blister may form; that's normal. Repeat cryotherapy in 3 weeks.</dd>
+      <dt>Follow-up</dt><dd>3 weeks.</dd>
+    </dl>
+  </div>
+  <div class="box tp">
+    <h3>Test points: the draft note must get these right</h3>
+    <ul>
+      <li>Cryotherapy given today: four warts, two cycles each.</li>
+      <li>The father's complaint about parking must not appear in the note.</li>
+      <li>Wart sizes and sites.</li>
+    </ul>
+  </div>
+  <p class="change">Changed anything? Write it here and in the right note:<span>&nbsp;</span></p>
+</section>
+
+<section class="page case" id="c16">
+  <header class="ch"><span class="num">16</span><div><h2>Vitiligo; two treatments</h2><p class="setup">Laptop · air conditioning on · 6 to 8 min</p></div></header>
+  <div class="box pt" lang="ar" dir="rtl">
+    <h3>للمريض: اقرأها قبل التسجيل، وبعدين احكي بشكل طبيعي</h3>
+    <dl>
+      <dt>الشخصية</dt><dd>ليث، ٣٠ سنة.</dd>
+      <dt>الشكوى</dt><dd>بقع بيضا على ظهر الإيدين وحوالين التم من سنة، وعم تزيد.</dd>
+      <dt>إذا سألك الدكتور</dt><dd>خالتك عندها بهاق، وأمك عندها غدة كسولة وبتاخد ثايروكسين <bdi>(thyroxine)</bdi>.</dd>
+      <dt>أسئلتك للدكتور</dt><dd>في إبر أو ليزر؟ الأكل بيأثر؟</dd>
+    </dl>
+  </div>
+  <div class="box dr">
+    <h3>For the doctor</h3>
+    <dl>
+      <dt>Say aloud</dt><dd>Well-defined chalk-white patches on the backs of both hands and around the mouth; some white hairs inside the hand patches.</dd>
+      <dt>Assessment</dt><dd>Non-segmental vitiligo, active (spreading).</dd>
+      <dt>Plan</dt><dd>Tacrolimus 0.1% ointment (Protopic) twice a day around the mouth. Mometasone 0.1% cream (Elocon) once a day on the hands, 2 weeks on and 1 week off, for 3 months. Refer for narrow-band UVB phototherapy twice a week. Blood tests: TSH and anti-TPO. Diet: no proven effect.</dd>
+      <dt>Follow-up</dt><dd>3 months.</dd>
+    </dl>
+  </div>
+  <div class="box tp">
+    <h3>Test points: the draft note must get these right</h3>
+    <ul>
+      <li>Each medicine with its own area: tacrolimus on the face, mometasone on the hands.</li>
+      <li>"2 weeks on, 1 week off".</li>
+      <li>Family history: an aunt with vitiligo; the mother with an underactive thyroid.</li>
+    </ul>
+  </div>
+  <p class="change">Changed anything? Write it here and in the right note:<span>&nbsp;</span></p>
+</section>
+
+<section class="page case" id="c17">
+  <header class="ch"><span class="num">17</span><div><h2>Heavy sweating; Botox discussed</h2><p class="setup">Phone · quiet room · 5 to 7 min</p></div></header>
+  <div class="box pt" lang="ar" dir="rtl">
+    <h3>للمريض: اقرأها قبل التسجيل، وبعدين احكي بشكل طبيعي</h3>
+    <dl>
+      <dt>الشخصية</dt><dd>حمزة، ٢٢ سنة، طالب هندسة.</dd>
+      <dt>الشكوى</dt><dd>تعرّق كتير بالإيدين والإبطين من أيام المدرسة. بيحرجك لما تسلّم على حدا وبالامتحانات.</dd>
+      <dt>أسئلتك للدكتور</dt><dd>البوتوكس <bdi>(Botox)</bdi> بيفيد؟ قديش بيضل؟ وقديش سعره؟</dd>
+    </dl>
+  </div>
+  <div class="box dr">
+    <h3>For the doctor</h3>
+    <dl>
+      <dt>Say aloud</dt><dd>Palms visibly moist, with droplets; sweat marks under the arms.</dd>
+      <dt>Assessment</dt><dd>Primary focal hyperhidrosis of the palms and underarms.</dd>
+      <dt>Plan</dt><dd>Aluminium chloride 20% (Driclor) at night on dry skin: every night until better, then once or twice a week. Botox for the underarms: 50 units each side, lasts about 6 months; not today, the patient will think about it, and the reception will give the price. For the palms, iontophoresis is an option.</dd>
+      <dt>Follow-up</dt><dd>6 weeks.</dd>
+    </dl>
+  </div>
+  <div class="box tp">
+    <h3>Test points: the draft note must get these right</h3>
+    <ul>
+      <li>Botox: offered, not given today; 50 units each side.</li>
+      <li>No price in the note: the price was left to reception.</li>
+      <li>Driclor: every night until better, then once or twice a week.</li>
+    </ul>
+  </div>
+  <p class="change">Changed anything? Write it here and in the right note:<span>&nbsp;</span></p>
+</section>
+
+<section class="page case" id="c18">
+  <header class="ch"><span class="num">18</span><div><h2>Impetigo; penicillin allergy</h2><p class="setup">Phone · a child's voice in the background (optional) · 5 to 7 min</p></div></header>
+  <div class="box pt" lang="ar" dir="rtl">
+    <h3>للمريض: اقرأها قبل التسجيل، وبعدين احكي بشكل طبيعي</h3>
+    <dl>
+      <dt>الشخصية</dt><dd>أبو جود. جود بنتك عمرها ٥ سنين، ووزنها ١٨ كيلو.</dd>
+      <dt>الشكوى</dt><dd>حبوب عليها قشرة صفرا زي العسل حوالين الأنف والتم من ٥ أيام، وعم تنتشر. بالحضانة في أولاد عندهم نفس الإشي.</dd>
+      <dt>مهم</dt><dd>جود طلع معها طفح من أوجمنتين <bdi>(Augmentin)</bdi> لما كان عمرها سنتين.</dd>
+      <dt>أسئلتك للدكتور</dt><dd>إمتى بترجع عالحضانة؟</dd>
+      <dt>جود (اختياري)</dt><dd>شخص تاني بيعمل صوت ولد صغير بالخلفية.</dd>
+    </dl>
+  </div>
+  <div class="box dr">
+    <h3>For the doctor</h3>
+    <dl>
+      <dt>Say aloud</dt><dd>Honey-coloured crusts on red skin around the nostrils and the corners of the mouth, about four small areas; no fever.</dd>
+      <dt>Assessment</dt><dd>Impetigo.</dd>
+      <dt>Plan</dt><dd>Soften and lift the crusts gently with warm water, then fusidic acid 2% cream (Fucidin) three times a day for 7 days. Only if it spreads or she gets a fever: azithromycin syrup (200 mg per 5 ml), 4.5 ml once a day for 3 days, chosen because of the Augmentin rash. Back to nursery 48 hours after starting treatment. Separate towels.</dd>
+      <dt>Follow-up</dt><dd>1 week, if not better.</dd>
+    </dl>
+  </div>
+  <div class="box tp">
+    <h3>Test points: the draft note must get these right</h3>
+    <ul>
+      <li>Allergy: Augmentin (a rash at age 2). The note must list it.</li>
+      <li>Azithromycin only if it spreads or she gets a fever.</li>
+      <li>4.5 ml once a day for 3 days.</li>
+    </ul>
+  </div>
+  <p class="change">Changed anything? Write it here and in the right note:<span>&nbsp;</span></p>
+</section>
+
+<section class="page case" id="c19">
+  <header class="ch"><span class="num">19</span><div><h2>Reaction to hair dye</h2><p class="setup">Laptop · quiet room · 6 to 8 min</p></div></header>
+  <div class="box pt" lang="ar" dir="rtl">
+    <h3>للمريض: اقرأها قبل التسجيل، وبعدين احكي بشكل طبيعي</h3>
+    <dl>
+      <dt>الشخصية</dt><dd>نور، ٤٢ سنة.</dd>
+      <dt>الشكوى</dt><dd>صبغتي شعرك قبل ٣ أيام بصبغة جديدة. بعدها صار حكة وطفح على أطراف فروة الراس وورا الدينين، والجفون منفخة شوي. ما في ضيق نفس.</dd>
+      <dt>أسئلتك للدكتور</dt><dd>بقدر أصبغ مرة تانية؟ شو البديل؟</dd>
+    </dl>
+  </div>
+  <div class="box dr">
+    <h3>For the doctor</h3>
+    <dl>
+      <dt>Say aloud</dt><dd>Red, weeping, itchy patches along the hairline, behind both ears and on the neck; puffy upper eyelids; breathing normal.</dd>
+      <dt>Assessment</dt><dd>Allergic contact dermatitis to hair dye, probably PPD (para-phenylenediamine).</dd>
+      <dt>Plan</dt><dd>No hair dye for now. Mometasone 0.1% lotion (Elocon) on the hairline once a day for 7 days. Hydrocortisone 1% cream on the eyelids twice a day for 5 days. Cetirizine 10 mg at night. Prednisolone 30 mg every morning for 5 days, then 15 mg for 5 days, then stop. Patch test in 6 weeks to confirm the cause.</dd>
+      <dt>Follow-up</dt><dd>1 week; patch test in 6 weeks.</dd>
+    </dl>
+  </div>
+  <div class="box tp">
+    <h3>Test points: the draft note must get these right</h3>
+    <ul>
+      <li>"PPD (para-phenylenediamine)" spelled correctly.</li>
+      <li>Prednisolone: 30 mg for 5 days, then 15 mg for 5 days.</li>
+      <li>Each cream with its own area and length.</li>
+    </ul>
+  </div>
+  <p class="change">Changed anything? Write it here and in the right note:<span>&nbsp;</span></p>
+</section>
+
+<section class="page case" id="c20">
+  <header class="ch"><span class="num">20</span><div><h2>Toenail fungus; a dose corrected</h2><p class="setup">Phone · air conditioning on · 6 to 8 min</p></div></header>
+  <div class="box pt" lang="ar" dir="rtl">
+    <h3>للمريض: اقرأها قبل التسجيل، وبعدين احكي بشكل طبيعي</h3>
+    <dl>
+      <dt>الشخصية</dt><dd>أبو أيمن، ٥٨ سنة.</dd>
+      <dt>الشكوى</dt><dd>ظفر الإصبع الكبير بالرجلين أصفر وسميك من سنين، وبيتكسر.</dd>
+      <dt>أدويتك</dt><dd>عندك سكري، بتاخد إنسولين لانتوس <bdi>(Lantus)</bdi> ٢٠ وحدة بالليل.</dd>
+      <dt>إذا سألك الدكتور</dt><dd>عن الكحول: لا.</dd>
+      <dt>أسئلتك للدكتور</dt><dd>الحبوب بتضر الكبد؟</dd>
+    </dl>
+  </div>
+  <div class="box dr">
+    <h3>For the doctor</h3>
+    <dl>
+      <dt>Say aloud</dt><dd>Both big toenails thick, yellow and crumbly from the tip, about half of each nail; dry scaly skin between the toes; good foot pulses and normal feeling.</dd>
+      <dt>In the visit</dt><dd>Say you're taking nail clippings for a fungal culture.</dd>
+      <dt>Assessment</dt><dd>Fungal infection of both big toenails, with athlete's foot.</dd>
+      <dt>Plan</dt><dd>Amorolfine 5% nail lacquer (Loceryl) once a week from now, after filing the nail. If the culture is positive and the liver test is normal: terbinafine 250 mg, "twice a day… no, sorry, once a day", for 12 weeks. Clotrimazole 1% cream between the toes twice a day for 4 weeks. Diabetic foot care advice. Blood test: liver function.</dd>
+      <dt>Follow-up</dt><dd>4 weeks, with the culture and liver results.</dd>
+    </dl>
+  </div>
+  <div class="box tp">
+    <h3>Test points: the draft note must get these right</h3>
+    <ul>
+      <li>The correction: the note must say terbinafine once a day, not twice.</li>
+      <li>Terbinafine only if the culture is positive and the liver test is normal.</li>
+      <li>Lantus 20 units at night under current medicines.</li>
+    </ul>
+  </div>
+  <p class="change">Changed anything? Write it here and in the right note:<span>&nbsp;</span></p>
+</section>
+
+<section class="page case" id="c21">
+  <header class="ch"><span class="num">21</span><div><h2>Molluscum in a young child</h2><p class="setup">Laptop · the mother does most of the talking · 5 to 7 min</p></div></header>
+  <div class="box pt" lang="ar" dir="rtl">
+    <h3>للمريض: اقرأها قبل التسجيل، وبعدين احكي بشكل طبيعي</h3>
+    <dl>
+      <dt>الشخصية</dt><dd>إنتِ أم كرم. كرم عمره ٤ سنين.</dd>
+      <dt>الشكوى</dt><dd>حبوب صغيرة لامعة على البطن وتحت الإبط من شهرين، وحواليها صار احمرار وحكة. أخوه الصغير طلعت معه حبتين.</dd>
+      <dt>أسئلتك للدكتور</dt><dd>لازم يتحمم لحاله؟ بيقدر يروح عالمسبح؟</dd>
+    </dl>
+  </div>
+  <div class="box dr">
+    <h3>For the doctor</h3>
+    <dl>
+      <dt>Say aloud</dt><dd>About 15 small, pearly, dome-shaped bumps with a central dip on the abdomen and the left armpit; eczema-like redness around some of them.</dd>
+      <dt>Assessment</dt><dd>Molluscum contagiosum, with eczema around the bumps.</dd>
+      <dt>Plan</dt><dd>Explain the options: wait (it goes by itself in 6 to 18 months), scraping under a numbing cream (EMLA), or a solution at home. Chosen: potassium hydroxide 5% solution (Molutrex) twice a day on each bump until it turns red, for up to 14 days. Hydrocortisone 1% cream on the red, itchy skin around them twice a day for 5 days. Separate towels and baths. Swimming is fine with the bumps covered.</dd>
+      <dt>Follow-up</dt><dd>6 weeks.</dd>
+    </dl>
+  </div>
+  <div class="box tp">
+    <h3>Test points: the draft note must get these right</h3>
+    <ul>
+      <li>Options discussed versus the option chosen: no scraping, no EMLA.</li>
+      <li>"Potassium hydroxide 5%" and "Molutrex" spelled correctly.</li>
+      <li>The brother with two bumps: in the history.</li>
+    </ul>
+  </div>
+  <p class="change">Changed anything? Write it here and in the right note:<span>&nbsp;</span></p>
+</section>
+
+<section class="page case" id="c22">
+  <header class="ch"><span class="num">22</span><div><h2>Laser hair removal consultation</h2><p class="setup">Phone · quiet room · 6 to 8 min</p></div></header>
+  <div class="box pt" lang="ar" dir="rtl">
+    <h3>للمريض: اقرأها قبل التسجيل، وبعدين احكي بشكل طبيعي</h3>
+    <dl>
+      <dt>الشخصية</dt><dd>لين، ٢٦ سنة. ما بتاخدي أي دوا.</dd>
+      <dt>بدّك</dt><dd>ليزر للرجلين والإبطين. كمان عندك شعر بالدقن من سنتين، وعم يزيد.</dd>
+      <dt>إذا سألك الدكتور</dt><dd>دورتك مش منتظمة.</dd>
+      <dt>أسئلتك للدكتور</dt><dd>قديش جلسة بدّي؟ الليزر بيوجع؟</dd>
+    </dl>
+  </div>
+  <div class="box dr">
+    <h3>For the doctor</h3>
+    <dl>
+      <dt>Say aloud</dt><dd>Skin type IV; dark coarse hair on the legs and underarms; coarse dark hairs on the chin and jawline; mild acne on the jawline.</dd>
+      <dt>Assessment</dt><dd>Suitable for laser hair removal. Chin hair with irregular periods: possible PCOS (polycystic ovary syndrome).</dd>
+      <dt>Plan</dt><dd>Diode laser for the legs and underarms, 6 to 8 sessions, every 4 to 6 weeks. No sun for 2 weeks before; shave the day before; no waxing or plucking between sessions. Blood tests for the chin hair: testosterone, DHEA-S, LH and FSH. Refer to gynaecology for the periods.</dd>
+      <dt>Follow-up</dt><dd>First laser session after the results.</dd>
+    </dl>
+  </div>
+  <div class="box tp">
+    <h3>Test points: the draft note must get these right</h3>
+    <ul>
+      <li>"Possible PCOS": the note must not state PCOS as confirmed.</li>
+      <li>Sessions: 6 to 8, every 4 to 6 weeks.</li>
+      <li>The four hormone tests.</li>
+    </ul>
+  </div>
+  <p class="change">Changed anything? Write it here and in the right note:<span>&nbsp;</span></p>
+</section>
+
+<section class="page case" id="c23">
+  <header class="ch"><span class="num">23</span><div><h2>Pityriasis rosea; an anxious patient</h2><p class="setup">Laptop · quiet room · fast talk and interruptions · 5 to 7 min</p></div></header>
+  <div class="box pt" lang="ar" dir="rtl">
+    <h3>للمريض: اقرأها قبل التسجيل، وبعدين احكي بشكل طبيعي</h3>
+    <dl>
+      <dt>الشخصية</dt><dd>زيد، ١٩ سنة. قلقان كتير، بتحكي بسرعة، وبتقاطع الدكتور كذا مرة.</dd>
+      <dt>الشكوى</dt><dd>قبل أسبوعين طلعت بقعة كبيرة على صدرك. بعدها طلعت بقع صغيرة بيضاوية على الصدر والظهر، بتحك شوي.</dd>
+      <dt>علاجات سابقة</dt><dd>دهنت كانستين <bdi>(Canesten)</bdi> أسبوع وما نفع.</dd>
+      <dt>خوفك</dt><dd>قريت على جوجل، وخايف تكون فطريات معدية أو إشي خطير.</dd>
+      <dt>أسئلتك للدكتور</dt><dd>بقدر أروح عالجيم؟ بتعدي أهلي؟</dd>
+    </dl>
+  </div>
+  <div class="box dr">
+    <h3>For the doctor</h3>
+    <dl>
+      <dt>Say aloud</dt><dd>A 4 cm oval pink patch with fine scale on the left chest (the first patch); many smaller oval patches on the chest and back, following the skin lines.</dd>
+      <dt>Assessment</dt><dd>Pityriasis rosea.</dd>
+      <dt>Plan</dt><dd>Reassure: not contagious and not a fungus; it goes by itself in 6 to 8 weeks. Stop Canesten. Moisturiser. Levocetirizine (Xyzal) 5 mg at night if itchy. The gym is fine. Come back if it hasn't gone in 12 weeks.</dd>
+      <dt>Follow-up</dt><dd>Only if needed.</dd>
+    </dl>
+  </div>
+  <div class="box tp">
+    <h3>Test points: the draft note must get these right</h3>
+    <ul>
+      <li>The patient's fears (a fungus, something serious) go in the history; the assessment is the doctor's: pityriasis rosea.</li>
+      <li>Canesten: tried and stopped, not part of the plan.</li>
+      <li>Even with fast talk and interruptions, the note must be complete.</li>
+    </ul>
+  </div>
+  <p class="change">Changed anything? Write it here and in the right note:<span>&nbsp;</span></p>
+</section>
+
+<section class="page case" id="c24">
+  <header class="ch"><span class="num">24</span><div><h2>Isotretinoin follow-up</h2><p class="setup">Phone · quiet room · 4 to 6 min</p></div></header>
+  <div class="box pt" lang="ar" dir="rtl">
+    <h3>للمريض: اقرأها قبل التسجيل، وبعدين احكي بشكل طبيعي</h3>
+    <dl>
+      <dt>الشخصية</dt><dd>سارة، ٢١ سنة. صارلك شهرين على الروكتان <bdi>(Roaccutane)</bdi> ٢٠ ملغ.</dd>
+      <dt>الشكوى</dt><dd>الحب خف كتير. شفايفك ناشفة، وأنفك بينزف شوي أحياناً.</dd>
+      <dt>إذا سألك الدكتور</dt><dd>نفسيتك منيحة.</dd>
+      <dt>خلال الزيارة</dt><dd>معك الفحوصات، اقريها للدكتور: الدهون الثلاثية <bdi>(triglycerides)</bdi> ٢١٠، إنزيم الكبد <bdi>(ALT)</bdi> ٢٥، فحص الحمل سلبي.</dd>
+      <dt>أسئلتك للدكتور</dt><dd>بقدر أرفع الجرعة عشان أخلص أسرع؟</dd>
+    </dl>
+  </div>
+  <div class="box dr">
+    <h3>For the doctor</h3>
+    <dl>
+      <dt>Say aloud</dt><dd>A few papules left on the chin; dry lips; no new nodules.</dd>
+      <dt>Assessment</dt><dd>Acne improving on isotretinoin; triglycerides mildly high.</dd>
+      <dt>Plan</dt><dd>Think aloud about raising the dose to 30 mg, then decide to keep 20 mg once a day because of the triglycerides. Less sugar and fatty food. Vaseline inside the nose at night; lip balm. Continue contraception. Repeat triglycerides, liver test and pregnancy test in 1 month.</dd>
+      <dt>Follow-up</dt><dd>1 month.</dd>
+    </dl>
+  </div>
+  <div class="box tp">
+    <h3>Test points: the draft note must get these right</h3>
+    <ul>
+      <li>The dose stays 20 mg. 30 mg was considered, not given.</li>
+      <li>Lab values: triglycerides 210, ALT 25, pregnancy test negative.</li>
+      <li>Mood asked about: fine.</li>
+    </ul>
+  </div>
+  <p class="change">Changed anything? Write it here and in the right note:<span>&nbsp;</span></p>
+</section>
+
+<!-- ============ NOTE TEMPLATE ============ -->
+<section class="page" id="note">
+  <p class="eyebrow">After the recording · one per case</p>
+  <h2 class="ph">The right note</h2>
+  <p class="muted" style="margin-top:6px">Write what was said in the recording, not what the card says. In English. Write "not mentioned" for anything not discussed, and add nothing. Print one per case, or type it in a Word file with the same headings, named like <code>case-07-note</code>.</p>
+  <div class="meta">
+    <div>Case</div>
+    <div>Doctor</div>
+    <div>Date</div>
+    <div>Recording file</div>
+  </div>
+  <div class="sec"><b>1. Reason for visit</b><span class="lines l2"></span></div>
+  <div class="sec"><b>2. History of the complaint</b><span class="lines l4"></span></div>
+  <div class="sec"><b>3. Relevant history</b> <i>medicines, allergies, previous treatments, family history</i><span class="lines l3"></span></div>
+  <div class="sec"><b>4. Examination</b> <i>as described aloud</i><span class="lines l3"></span></div>
+  <div class="sec"><b>5. Assessment</b> <i>only as the doctor said it</i><span class="lines l2"></span></div>
+  <div class="sec"><b>6. Plan</b> <i>each medicine with its strength, dose and how long; advice; tests; anything done in the visit</i><span class="lines l5"></span></div>
+  <div class="sec"><b>7. Follow-up</b><span class="lines l1"></span></div>
+</section>
+
+</body>
+</html>
