@@ -56,6 +56,6 @@ export type Appt = {
   doctor_name_en: string; doctor_name_ar: string; service_name_en: string; service_name_ar: string; duration_minutes: number; price_jod: string | null;
   outside_hours?: boolean;
   online_from?: string | null; booked_name?: string | null; booked_for_other?: boolean; unchecked?: boolean; name_differs?: boolean; moved_by_patient?: boolean;
-  note_status?: string | null;   // the visit note's state only, for everyone; the content is on the visit note screen
+  note_status?: string | null; note_by_hand?: boolean;   // the visit note's state only, for everyone; the content is on the visit note screen
 };
 export type Patient = { id: string; full_name: string | null; phone_e164: string | null; preferred_language: "ar" | "en" | null; whatsapp_reminders: boolean; last_visit?: string | null };

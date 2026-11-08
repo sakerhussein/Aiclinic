@@ -35,6 +35,7 @@ const EN = {
   additions: "Additions", addAddition: "Add an addition", additionHint: "A signed note never changes. An addition is dated and kept under it.", add: "Add", cancel: "Cancel",
   addedBy: "{name}, {when}",
   // patient page
+  filter: { "": "All", none: "None yet", unsigned: "Not signed", signed: "Signed" } as Record<string, string>,
   notesTitle: "Visit notes", notesNone: "No visit notes.", date: "Date", doctor: "Doctor", visit: "Visit", note: "Note",
 };
 
@@ -66,8 +67,12 @@ const AR: typeof EN = {
   signedBy: "وقّعها {name}، {when}.", aiLine: "صيغت بالكاتب الذكي، وراجعها الطبيب ووقّعها.", handLine: "كتبها الطبيب ووقّعها.",
   additions: "الإضافات", addAddition: "أضف إضافة", additionHint: "الملاحظة الموقّعة لا تتغير. الإضافة مؤرخة وتُحفظ تحتها.", add: "أضف", cancel: "إلغاء",
   addedBy: "{name}، {when}",
+  filter: { "": "الكل", none: "لا يوجد بعد", unsigned: "غير موقّعة", signed: "موقّعة" },
   notesTitle: "ملاحظات الزيارات", notesNone: "لا توجد ملاحظات زيارات.", date: "التاريخ", doctor: "الطبيب", visit: "الزيارة", note: "الملاحظة",
 };
+
+// The visit note's state as a small coloured label (Bookings list, booking page).
+export const NOTE_PILL: Record<string, string> = { signed: "ok", draft: "warn", recording: "bad", failed: "bad", processing: "" };
 
 export const useN = () => (useI18n().lang === "ar" ? AR : EN);
 export const fill = (s: string, v: Record<string, string | number>) => s.replace(/\{(\w+)\}/g, (_, k) => String(v[k] ?? ""));

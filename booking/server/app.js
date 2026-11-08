@@ -116,9 +116,10 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
     from: day.optional(), to: day.optional(), doctor: uuid.optional(), patient: uuid.optional(), q: z.string().max(80).optional(),
     status: z.enum(["booked", "confirmed", "cancelled", "completed", "no_show", "voided"]).optional(),
     source: z.enum(["whatsapp", "phone", "walkin", "staff", "web"]).optional(), voided: z.enum(["1"]).optional(), unchecked: z.enum(["1"]).optional(),
+    note: z.enum(["none", "unsigned", "signed"]).optional(),
   });
   const apptQuery = (q) => ({ from: q.from, to: q.to, doctorId: q.doctor, patientId: q.patient, q: q.q, status: q.status, source: q.source,
-                              includeVoided: !!q.voided, unchecked: !!q.unchecked });
+                              includeVoided: !!q.voided, unchecked: !!q.unchecked, note: q.note });
   app.get("/api/appointments", auth("booking.appointments.view"), wrap(async (req, res) => {
     res.json(await svc.listAppointments(req.ctx, apptQuery(parse(apptFilter, req.query))));
   }));

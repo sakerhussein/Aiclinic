@@ -115,11 +115,12 @@ export function createService({ pool, auditPool, now = () => new Date(), audioDi
       (a.needs_check and a.checked_at is null) as unchecked,
       a.moved_online_at, (a.moved_online_at is not null and a.status = 'booked') as moved_by_patient,
       (a.booked_name is not null and lower(trim(a.booked_name)) is distinct from lower(trim(p.full_name))) as name_differs,
-      (select n.status from visit_notes n where n.appointment_id = a.id and n.status <> 'discarded') as note_status
+      vn.status as note_status, (vn.status = 'signed' and not vn.ai_drafted) as note_by_hand
     from appointments a
     join patients p on p.clinic_id = a.clinic_id and p.id = a.patient_id
     join doctors d on d.clinic_id = a.clinic_id and d.id = a.doctor_id
-    join services s on s.clinic_id = a.clinic_id and s.id = a.service_id`;
+    join services s on s.clinic_id = a.clinic_id and s.id = a.service_id
+    left join visit_notes vn on vn.appointment_id = a.id and vn.status <> 'discarded'`;
 
   async function listAppointments(ctx, q, limit = 500) {
     const where = ["a.clinic_id = $1"], p = [ctx.clinicId];
@@ -133,6 +134,10 @@ export function createService({ pool, auditPool, now = () => new Date(), audioDi
     if (q.source) add("a.source = ?", q.source);
     // Online bookings waiting for the clinic: the person not checked yet, or a new time chosen by the patient not confirmed yet.
     if (q.unchecked) where.push("((a.needs_check and a.checked_at is null and a.status in ('booked','confirmed')) or (a.moved_online_at is not null and a.status = 'booked'))");
+    // Visit note (AI Scribe): none yet, not signed (recording, making the draft, draft, failed), or signed.
+    if (q.note === "none") where.push("vn.id is null");
+    else if (q.note === "unsigned") where.push("vn.status in ('recording', 'processing', 'draft', 'failed')");
+    else if (q.note === "signed") where.push("vn.status = 'signed'");
     if (q.status) add("a.status = ?::appointment_status", q.status); else if (!q.includeVoided) where.push("a.status <> 'voided'");
     if (q.q) { p.push(`%${q.q.replace(/[%_\\]/g, "\\$&")}%`); where.push(`(p.full_name ilike $${p.length} or p.phone_e164 like $${p.length})`); }
     const { rows } = await pool.query(`${SELECT} where ${where.join(" and ")} order by a.starts_at, d.name_en limit ${Number(limit)}`, p);

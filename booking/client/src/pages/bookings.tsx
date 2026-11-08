@@ -5,18 +5,20 @@ import { fmtDateTime, hm, todayIn, dayOf } from "../lib";
 import { useI18n } from "../i18n";
 import { useApp } from "../session";
 import { Banner, ExportButton, SendLinkButton, StatusPill, useAction } from "../ui";
-import { useN } from "./notes-text";
+import { NOTE_PILL, useN } from "./notes-text";
 
 export function BookingList() {
   const { t, lang, d } = useI18n();
   const { look, me, can } = useApp();
+  const nt = useN();
   const own = me.role === "doctor";                     // a doctor's list holds only their own bookings
+  const notes = look.notesEnabled;                      // the visit note column and filter, while the clinic uses visit notes
   const tz = look.clinic.timezone;
-  const [f, setF] = useState({ from: todayIn(tz), to: "", doctor: "", status: "", source: "", q: "", voided: false, unchecked: false });
+  const [f, setF] = useState({ from: todayIn(tz), to: "", doctor: "", status: "", source: "", q: "", voided: false, unchecked: false, note: "" });
   const [rows, setRows] = useState<Appt[] | null>(null);
   const p = new URLSearchParams();
   if (f.from) p.set("from", f.from); if (f.to) p.set("to", f.to); if (f.doctor) p.set("doctor", f.doctor);
-  if (f.status) p.set("status", f.status); if (f.source) p.set("source", f.source); if (f.q) p.set("q", f.q); if (f.voided) p.set("voided", "1"); if (f.unchecked) p.set("unchecked", "1");
+  if (f.status) p.set("status", f.status); if (f.source) p.set("source", f.source); if (f.q) p.set("q", f.q); if (f.voided) p.set("voided", "1"); if (f.unchecked) p.set("unchecked", "1"); if (notes && f.note) p.set("note", f.note);
   const params = p.toString();
   const load = useCallback(() => {
     get<Appt[]>(`/api/appointments?${params}`).then(setRows).catch(() => setRows([]));
@@ -32,6 +34,7 @@ export function BookingList() {
           {!own && <label className="field">{t("doctor")}<select value={f.doctor} onChange={(e) => setF({ ...f, doctor: e.target.value })}><option value="">{t("allDoctors")}</option>{look.doctors.map((x) => <option key={x.id} value={x.id}>{lang === "ar" ? x.name_ar : x.name_en}</option>)}</select></label>}
           <label className="field">{t("status")}<select value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })}><option value="">{t("allStatuses")}</option>{Object.entries(d.statuses).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
           <label className="field">{t("source")}<select value={f.source} onChange={(e) => setF({ ...f, source: e.target.value })}><option value="">{t("allSources")}</option>{Object.entries(d.sources).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
+          {notes && <label className="field">{nt.noteLine}<select value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })}>{Object.entries(nt.filter).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>}
           <label className="field">{t("search")}<input value={f.q} onChange={(e) => setF({ ...f, q: e.target.value })} /></label>
           <div className="filter-checks">
             <label className="check"><input type="checkbox" checked={f.voided} onChange={(e) => setF({ ...f, voided: e.target.checked })} /> {t("showVoided")}</label>
@@ -39,7 +42,7 @@ export function BookingList() {
           </div>
         </div>
         <div className="tablewrap"><table>
-          <thead><tr><th>{t("time")}</th><th>{t("patient")}</th><th>{t("service")}</th>{!own && <th>{t("doctor")}</th>}<th>{t("source")}</th><th>{t("status")}</th></tr></thead>
+          <thead><tr><th>{t("time")}</th><th>{t("patient")}</th><th>{t("service")}</th>{!own && <th>{t("doctor")}</th>}<th>{t("source")}</th><th>{t("status")}</th>{notes && <th>{nt.noteLine}</th>}</tr></thead>
           <tbody>{rows?.map((a) => (
             <tr key={a.id}>
               <td><Link to={`/bookings/${a.id}`}>{fmtDateTime(a.starts_at, tz, lang)}</Link></td>
@@ -48,11 +51,22 @@ export function BookingList() {
               {!own && <td>{lang === "ar" ? a.doctor_name_ar : a.doctor_name_en}</td>}
               <td>{d.sources[a.source] ?? a.source}{a.online_from ? ` · ${a.online_from}` : ""}</td>
               <td><StatusPill status={a.status} />{a.unchecked && <> <span className="pill warn">{t("notChecked")}</span></>}{a.moved_by_patient && <> <span className="pill warn">{t("movedByPatient")}</span></>}</td>
+              {notes && <td><NoteState a={a} /></td>}
             </tr>))}</tbody>
         </table>{rows && rows.length === 0 && <p className="hint">{t("noBookings")}</p>}</div>
       </section>
     </main>
   );
+}
+
+// The visit note's state on the list. Only the treating doctor gets a link to it; everyone else sees the state alone.
+function NoteState({ a }: { a: Appt }) {
+  const nt = useN();
+  const { me, can } = useApp();
+  if (!a.note_status) return <span className="hint">—</span>;
+  const label = a.note_by_hand ? nt.patientStates.manual : nt.states[a.note_status] ?? a.note_status;
+  const pill = <span className={`pill ${a.note_by_hand ? "" : NOTE_PILL[a.note_status] ?? ""}`}>{label}</span>;
+  return can("booking.notes.read") && me.doctorId === a.doctor_id ? <Link className="notelink" to={`/bookings/${a.id}/note`}>{pill}</Link> : pill;
 }
 
 type Ev = { at: string; actor_type: string; actor_label: string; action: string; changed_fields: string[] | null; reason: string | null };
@@ -111,7 +125,7 @@ export function BookingDetail() {
         {act.err && (conflict
           ? <Banner><b>{t("conflictTitle")}</b> {act.message} <button className="link" onClick={() => { act.clear(); load(); }}>{t("reload")}</button></Banner>
           : <Banner>{act.message}</Banner>)}
-        {(look.notesEnabled || a.note_status) && <p className="hint">{nt.noteLine}: {a.note_status ? nt.states[a.note_status] ?? a.note_status : nt.none}</p>}
+        {(look.notesEnabled || a.note_status) && <p className="hint">{nt.noteLine}: {a.note_status ? (a.note_by_hand ? nt.patientStates.manual : nt.states[a.note_status] ?? a.note_status) : nt.none}</p>}
         <div className="row">
           {noteButton}
           {a.unchecked && active && can("booking.appointments.edit") && <button className="btn btn-accent btn-sm" disabled={act.busy}

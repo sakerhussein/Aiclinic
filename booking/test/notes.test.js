@@ -285,3 +285,24 @@ test("Settings > AI Scribe: validated, saved with the doctors' switches, audited
   const { rows } = await t.owner.query("select action, changed_fields from audit.events where clinic_id = $1 and entity = 'scribe_settings' order by seq desc limit 1", [t.clinicA]);
   assert.ok(rows[0].changed_fields.includes("draft_model"));
 });
+
+test("the Bookings list shows each visit note's state, and filters by it", async () => {
+  await scribeOn();
+  const v = await recordAndDraft();                                                   // Rania: a draft
+  const signedByHand = (await book(sec, P.doctorRecord, "Omar Haddad", "0785550103", "13:00")).json;
+  const m = (await dr.post(`/api/appointments/${signedByHand.id}/note`, { mode: "manual" })).json;
+  const w = (await dr.patch(`/api/notes/${m.id}`, { content: { reason: "Follow-up." }, expectedVersion: m.rowVersion })).json;
+  await dr.post(`/api/notes/${w.id}/sign`, { expectedVersion: w.rowVersion, confirmRead: true });
+  const none = (await book(sec, P.doctorRecord, "Dana Saleh", "0785550104", "13:30")).json;
+  const list = async (b, q = "") => Object.fromEntries((await b.get(`/api/appointments?from=${TOMORROW}${q}`)).json.map((a) => [a.id, [a.note_status, a.note_by_hand]]));
+  const all = await list(sec);
+  assert.deepEqual(all[appt.id], ["draft", false]);
+  assert.deepEqual(all[signedByHand.id], ["signed", true], "signed, written by hand");
+  assert.deepEqual(all[none.id], [null, null]);
+  assert.deepEqual(Object.keys(await list(sec, "&note=unsigned")), [appt.id]);
+  assert.deepEqual(Object.keys(await list(sec, "&note=signed")), [signedByHand.id]);
+  assert.deepEqual(Object.keys(await list(sec, "&note=none")), [none.id]);
+  assert.equal((await sec.get("/api/appointments?note=maybe")).status, 400);
+  assert.ok(!JSON.stringify((await sec.get(`/api/appointments?from=${TOMORROW}`)).json).includes("Itchy"), "the list never carries the note's words");
+  void v;
+});
