@@ -558,7 +558,7 @@ function ScribeTab({ data, reload }: P) {
         <h2>{x.servicesTitle}</h2>
         <Field label={x.speech} hint={x.speechHint}><select value={f.speechService} onChange={(e) => setF({ ...f, speechService: e.target.value })}><option value="stand_in">{x.standIn}</option></select></Field>
         <Field label={x.model} hint={x.modelHint}>
-          <select value={f.draftModel} onChange={(e) => setF({ ...f, draftModel: e.target.value })}><option value="claude-opus-5-5">{x.opus}</option><option value="claude-sonnet-5-5">{x.sonnet}</option></select>
+          <select value={f.draftModel} onChange={(e) => setF({ ...f, draftModel: e.target.value })}><option value="claude-opus-5-5">{x.opus}</option><option value="claude-sonnet-5-5">{x.sonnet}</option><option value="claude-haiku-5-5">{x.haiku}</option></select>
         </Field>
       </section>
       <Saver a={a} ok={ok} />

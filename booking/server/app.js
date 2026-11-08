@@ -245,7 +245,7 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
     consentEn: z.string().trim().min(1).max(1000), consentAr: z.string().trim().min(1).max(1000),
     sections: z.array(section).min(1).max(12),
     maxRecordingMinutes: n(5, 120), transcriptKeepDays: n(1, 365), notesPerDoctorPerDay: n(1, 500),
-    speechService: z.enum(["stand_in"]), draftModel: z.enum(["claude-opus-5-5", "claude-sonnet-5-5"]),
+    speechService: z.enum(["stand_in"]), draftModel: z.enum(["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"]),
     doctors: z.array(z.object({ id: uuid, scribeEnabled: z.boolean() })).max(200),
   }), req.body)))));
   app.patch("/api/settings/profile", EDIT, wrap(async (req, res) => res.json(await S.updateProfile(req.ctx, parse(z.object({

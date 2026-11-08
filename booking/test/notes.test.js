@@ -264,6 +264,7 @@ test("Settings > AI Scribe: validated, saved with the doctors' switches, audited
   assert.equal((await adm.patch("/api/settings/scribe", { ...body, draftModel: "gpt" })).status, 400);
   assert.equal((await adm.patch("/api/settings/scribe", { ...body, sections: [body.sections[0], body.sections[0]] })).json.error, "duplicate_section");
   assert.equal((await adm.patch("/api/settings/scribe", { ...body, sections: [{ key: "Bad Key", en: "x", ar: "x" }] })).status, 400);
+  assert.equal((await adm.patch("/api/settings/scribe", { ...body, draftModel: "claude-haiku-5-5" })).status, 200, "Haiku 5.5 is a choice");
   assert.equal((await adm.patch("/api/settings/scribe", body)).status, 200);
   const after = (await adm.get("/api/settings")).json;
   assert.equal(after.scribe.note_language, "ar");

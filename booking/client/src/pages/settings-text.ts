@@ -91,7 +91,7 @@ const EN = {
     audioAlways: "The audio is always deleted as soon as it becomes text; that is not a setting.",
     servicesTitle: "Speech and draft", speech: "Speech to text", speechHint: "The speech test chooses the real service. Until then no audio leaves the clinic.",
     standIn: "Stand-in (a sample transcript, for testing)", model: "Model for the draft", modelHint: "The draft test confirms the choice.",
-    opus: "Claude Opus 5.5 (best drafts)", sonnet: "Claude Sonnet 5.5 (faster, lower cost)",
+    opus: "Claude Opus 5.5 (best drafts)", sonnet: "Claude Sonnet 5.5 (faster, lower cost)", haiku: "Claude Haiku 5.5 (fastest, lowest cost)",
   },
 };
 
@@ -185,7 +185,7 @@ const AR: typeof EN = {
     audioAlways: "الصوت يُحذف دائماً فور تحويله إلى نص؛ هذا ليس خياراً.",
     servicesTitle: "الكلام والمسودة", speech: "تحويل الكلام إلى نص", speechHint: "اختبار الكلام يختار الخدمة الحقيقية. حتى ذلك الحين لا يخرج أي صوت من العيادة.",
     standIn: "بديل (نص نموذجي، للاختبار)", model: "نموذج المسودة", modelHint: "اختبار المسودة يؤكد الاختيار.",
-    opus: "Claude Opus 5.5 (أفضل مسودات)", sonnet: "Claude Sonnet 5.5 (أسرع وأقل تكلفة)",
+    opus: "Claude Opus 5.5 (أفضل مسودات)", sonnet: "Claude Sonnet 5.5 (أسرع وأقل تكلفة)", haiku: "Claude Haiku 5.5 (الأسرع والأقل تكلفة)",
   },
 };
 
