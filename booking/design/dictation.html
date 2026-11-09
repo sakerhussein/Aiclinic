@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Visit note dictation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;500;600&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap">
+<style>
+/* ---- copied from booking/client/src/styles.css (the live Booking app) ---- */
+:root{
+  --ink:#0A0F14;--ink-2:#121A21;--ink-3:#1E2A33;--ink-line:#2A3640;--on-ink:#E8EEF0;--on-ink-muted:#93A3AD;
+  --paper:#F2F4F3;--text:#0A0F14;--muted:#4B5863;--rule:#C9D6D2;--rule-soft:#E1E6E4;--field:#8A99A3;
+  --accent:#2EE6B5;--accent-ink:#0B7A64;--accent-tint:#DDF7EE;--amber:#FFB23E;--amber-tint:#FFF0D6;--error:#B42318;--error-tint:#FDE7E4;
+  --font-display:"Unbounded","Geist",system-ui,sans-serif;--font-body:"Geist",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"Geist Mono",ui-monospace,Menlo,monospace;--font-ar:"IBM Plex Sans Arabic","Segoe UI",Tahoma,sans-serif;
+}
+*{box-sizing:border-box}
+html{overflow-x:clip}
+body{margin:0;background:var(--paper);color:var(--text);font:15px/1.5 var(--font-body);overflow-x:clip}
+html[lang="ar"] body,html[lang="ar"] button{font-family:var(--font-ar)}
+h1,h2,h3,p{margin:0}
+.display{font-family:var(--font-display);font-weight:500;letter-spacing:-.01em}
+html[lang="ar"] .display{font-family:var(--font-ar);font-weight:600}
+.mono{font-family:var(--font-mono);direction:ltr;unicode-bidi:isolate}
+a{color:var(--accent-ink)}
+.wrap{max-width:1100px;margin-inline:auto;padding-inline:16px}
+.bar{background:var(--ink);color:var(--on-ink)}
+.bar .in{display:flex;align-items:center;gap:12px;min-height:60px;flex-wrap:wrap;padding:6px 16px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--font-display);font-size:17px;white-space:nowrap}
+html[lang="ar"] .brand{font-family:var(--font-ar);font-weight:600}
+.grow{flex:1}
+.bar nav{display:flex;gap:4px;flex-wrap:wrap}
+.bar nav a{color:var(--on-ink);text-decoration:none;padding:8px 12px;border-radius:999px;font-size:14px}
+.bar nav a.on{background:var(--ink-3)}
+.um{display:inline-flex;align-items:center;gap:8px;color:var(--on-ink);background:var(--ink-3);border-radius:999px;padding:8px 14px;font-size:14px;white-space:nowrap}
+.page{padding:28px 16px;display:flex;flex-direction:column;gap:20px;max-width:1100px;margin-inline:auto}
+.panel{background:#fff;border:1px solid var(--rule);border-radius:20px;padding:22px;display:flex;flex-direction:column;gap:14px}
+.panel h2{font-size:18px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 24px;border-radius:999px;border:1px solid transparent;font:inherit;font-weight:600;cursor:pointer;text-decoration:none;white-space:nowrap}
+.btn:disabled,.btn.dis{opacity:.55;cursor:default}
+.btn-accent{background:var(--accent);color:var(--ink)}
+.btn-ink{background:var(--ink);color:#fff}
+.btn-outline{border-color:var(--text);color:var(--text);background:transparent}
+.btn-sm{min-height:38px;padding:0 16px;font-size:14px}
+.btn-ghost{background:transparent;color:var(--accent-ink);border-color:var(--rule)}
+.btn-xs{min-height:32px;padding:0 12px;font-size:13px}
+.link{background:none;border:0;padding:0;color:var(--accent-ink);font:inherit;cursor:pointer;text-decoration:underline}
+.field{display:flex;flex-direction:column;gap:6px;font-size:14px;font-weight:600}
+.hint{font-weight:400;color:var(--muted);font-size:13px}
+.banner{padding:12px 14px;border-radius:14px;font-size:14px;border:1px solid}
+.banner.warn{background:var(--amber-tint);border-color:var(--amber);color:#5c3700}
+.banner.bad{background:var(--error-tint);border-color:var(--error);color:#7a1a12}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.between{justify-content:space-between}
+.pill{display:inline-flex;align-items:center;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;background:var(--rule-soft);white-space:nowrap}
+.pill.warn{background:var(--amber-tint);color:#8a5200}
+.stack{display:flex;flex-direction:column;gap:12px}
+.rec{display:inline-flex;align-items:center;gap:8px;font:600 13px var(--font-mono);color:var(--error);background:var(--error-tint);border:1px solid #F3B4AB;border-radius:999px;padding:4px 12px;white-space:nowrap}
+html[lang="ar"] .rec{font-family:var(--font-ar)}
+.rec i{width:10px;height:10px;border-radius:50%;background:#D92D20;display:inline-block}
+.level{display:flex;gap:3px;align-items:center;height:34px;direction:ltr}
+.level span{width:5px;border-radius:3px;background:var(--accent-ink)}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--rule);border-top-color:var(--accent-ink);border-radius:50%;vertical-align:-2px}
+@media (prefers-reduced-motion:no-preference){.rec i{animation:blink 1.2s ease-in-out infinite}.spinner{animation:spin .8s linear infinite}}
+@keyframes blink{50%{opacity:.25}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.note{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:900px){.note{grid-template-columns:1fr}}
+.sec-h{font:500 12px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent-ink);margin-bottom:4px}
+html[lang="ar"] .sec-h{font-family:var(--font-ar);font-weight:600;letter-spacing:0;font-size:13px}
+.nbox{display:block;width:100%;border:1px solid var(--field);border-radius:12px;padding:10px 12px;background:#fff;font-size:14px;line-height:1.55;min-height:42px;color:var(--text);white-space:pre-wrap;text-align:start}
+.nbox .empty{color:var(--muted);font-size:13px}
+mark.u{background:var(--amber-tint);border-bottom:2px solid var(--amber);padding:0 2px;border-radius:3px;color:inherit}
+mark.d{background:#E8F0FF;border-bottom:2px solid #3B6FD8;padding:0 2px;border-radius:3px;color:inherit}
+.tx{background:#fff;border:1px solid var(--rule);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.signbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:14px;border:1px solid var(--rule);border-radius:16px;background:#fff}
+
+/* ---- new for dictation ---- */
+.sec-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}
+.sec-row .sec-h{margin-bottom:0}
+.mic{display:inline-flex;align-items:center;gap:6px;min-height:30px;padding:0 10px;border-radius:999px;border:1px solid var(--rule);background:#fff;color:var(--accent-ink);font:600 12.5px var(--font-body);cursor:pointer;white-space:nowrap}
+html[lang="ar"] .mic{font-family:var(--font-ar)}
+.mic.dis{opacity:.45;cursor:default}
+.dict{border:1.5px solid var(--error);border-radius:12px;background:#FFF8F7;padding:10px 12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.dict .t{font:500 15px var(--font-mono)}
+.dict.busy{border-color:var(--accent-ink);background:#F6FDFA}
+.heard{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-top:4px}
+.heard q{font-style:normal}
+.nbox.new{border-color:var(--accent-ink);box-shadow:0 0 0 3px var(--accent-tint)}
+.whole{border:1px dashed var(--accent-ink);border-radius:16px;background:#F6FDFA;padding:14px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.whole b{display:block}
+.whole .grow{min-width:200px}
+.ic{width:38px;height:38px;border-radius:12px;background:var(--accent-tint);color:var(--accent-ink);display:grid;place-items:center;flex:none}
+.sel{font-weight:400;min-height:46px;padding:0 14px;border:1px solid var(--field);border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:space-between;color:var(--text)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.box{width:20px;height:20px;border-radius:6px;border:1.5px solid var(--field);background:#fff;flex:none;display:grid;place-items:center}
+.box.on{background:var(--accent-ink);border-color:var(--accent-ink)}
+.box.on::after{content:"";width:9px;height:5px;border-inline-start:2px solid #fff;border-bottom:2px solid #fff;transform:translateY(-1px) rotate(-45deg)}
+[dir="rtl"] .box.on::after{transform:translateY(-1px) rotate(45deg)}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:14px}
+.radio{display:flex;flex-direction:column;gap:8px}
+.radio label{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--rule);border-radius:12px;font-size:14px}
+.radio label.on{border:2px solid var(--accent-ink);background:#F6FDFA}
+.dot{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--field);flex:none;margin-top:2px}
+.on .dot{border:5px solid var(--accent-ink)}
+.newbadge{font:600 10px var(--font-mono);background:var(--accent);color:var(--ink);border-radius:999px;padding:1px 6px;margin-inline-start:6px;vertical-align:middle}
+.phone{width:380px;max-width:100%;margin:0 auto;border:1px solid var(--rule);border-radius:28px;overflow:hidden;background:var(--paper)}
+
+/* ---- design page frame ---- */
+.topnote{position:sticky;top:0;z-index:40;background:var(--ink);color:var(--on-ink);border-bottom:1px solid var(--ink-3)}
+.topnote .wrap{display:flex;gap:12px;align-items:center;justify-content:space-between;min-height:54px;flex-wrap:wrap;padding-block:6px}
+.topnote span{color:var(--on-ink-muted);font-size:13px}
+.lang-toggle{min-height:38px;padding:0 16px;border-radius:999px;border:1px solid var(--ink-line);background:transparent;color:var(--on-ink);font:inherit;cursor:pointer}
+.idx{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding-block:12px;border-bottom:1px solid var(--rule)}
+.idx b{font-size:12px;color:var(--muted);font-family:var(--font-mono);letter-spacing:.06em;text-transform:uppercase;margin-inline-end:4px}
+.idx a{min-width:30px;height:30px;padding:0 8px;border-radius:999px;border:1px solid var(--rule);background:#fff;color:var(--text);text-decoration:none;display:inline-grid;place-items:center;font:500 13px var(--font-mono)}
+.frame-title{margin-block:44px 6px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-ink);font-family:var(--font-mono);font-weight:500}
+.frame-p{color:var(--muted);max-width:780px;margin-bottom:14px}
+.shot{border-radius:20px;border:1px solid var(--rule);overflow:hidden;background:var(--paper)}
+.scroll{overflow-x:auto}.scroll>.wide{min-width:960px}
+.rules{background:#fff;border:1px solid var(--rule);border-radius:20px;padding:20px 22px;margin-top:16px}
+.rules h2{font-size:17px;margin-bottom:8px}
+.rules ul{margin:0;padding-inline-start:20px;display:flex;flex-direction:column;gap:6px}
+.hl{outline:2px dashed var(--accent-ink);outline-offset:4px;border-radius:14px}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="loop" viewBox="0 0 40 20"><path d="M20 10 C16.6 5.5 13.2 2 8.8 2 A8 8 0 0 0 8.8 18 C13.2 18 16.6 14.5 20 10 C23.4 5.5 26.8 2 31.2 2 A8 8 0 0 1 38.4 12.9" fill="none" stroke="#2EE6B5" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="33.6" cy="17.2" r="1.8" fill="#2EE6B5"/></symbol>
+  <symbol id="mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+</defs></svg>
+
+<div class="topnote"><div class="wrap">
+  <div><b style="font-family:var(--font-display);font-weight:500">Limitsiz Clinic</b> <span data-ar="الإملاء الصوتي في ملاحظة الزيارة · للموافقة">Dictating into the visit note · for approval</span></div>
+  <button class="lang-toggle" id="lang">العربية</button>
+</div></div>
+
+<main class="wrap" style="padding-bottom:60px">
+  <div class="idx"><b data-ar="الشاشات">Screens</b><a href="#d1">1</a><a href="#d2">2</a><a href="#d3">3</a><a href="#d4">4</a><a href="#d5">5</a><a href="#d6">6</a></div>
+  <div id="out"></div>
+</main>
+
+<script>
+(function(){
+  var T=function(en,ar){return '<span data-ar="'+ar.replace(/"/g,'&quot;')+'">'+en+'</span>'};
+  var NEW=function(){return '<span class="newbadge">'+T('new','جديد')+'</span>'};
+  var MIC='<svg width="15" height="15" aria-hidden="true"><use href="#mic"/></svg>';
+  function frame(id,n,h,p,inner,wide){return '<div class="frame-title" id="'+id+'">'+n+' · '+T(h[0],h[1])+'</div><p class="frame-p">'+T(p[0],p[1])+'</p><div class="shot'+(wide?' scroll':'')+'">'+(wide?'<div class="wide">'+inner+'</div>':inner)+'</div>'}
+  function bar(){return '<div class="bar"><div class="in"><span class="brand"><svg width="30" height="16"><use href="#loop"/></svg>Limitsiz Clinic · '+T('Booking','المواعيد')+'</span><nav><a href="#">'+T('Calendar','التقويم')+'</a><a class="on" href="#">'+T('Bookings','المواعيد')+'</a><a href="#">'+T('Patients','المرضى')+'</a></nav><span class="grow"></span><span class="um">'+T('Dr. Omar Khalil','د. عمر خليل')+' <span aria-hidden="true">▾</span></span></div></div>'}
+  var SECS=[['reason','Reason for visit','سبب الزيارة'],['history','History of the complaint','تاريخ الشكوى'],['relevant','Relevant history','التاريخ ذو الصلة'],['exam','Examination','الفحص'],['assessment','Assessment (as stated by the doctor)','التقييم (كما قاله الطبيب)'],['plan','Plan','الخطة'],['followup','Follow-up','المتابعة']];
+  var EMPTY='<span class="empty">'+T('(empty)','(فارغ)')+'</span>';
+  function micBtn(dis){return '<button class="mic'+(dis?' dis':'')+'" type="button">'+MIC+T('Dictate','إملاء')+'</button>'}
+  function sec(s,body,opts){opts=opts||{};return '<div><div class="sec-row"><div class="sec-h">'+T(s[1],s[2])+'</div>'+(opts.noMic?'':micBtn(opts.dis))+'</div>'+body+(opts.after||'')+'</div>'}
+  function box(html,cls){return '<div class="nbox'+(cls?' '+cls:'')+'" dir="ltr" lang="en">'+html+'</div>'}
+  function head(){return '<div class="row between"><h1 class="display" style="font-size:30px">'+T('Visit note','ملاحظة الزيارة')+' · Claude Test</h1><span class="pill warn">'+T('Draft, not signed','مسودة، غير موقّعة')+'</span></div><p class="hint">'+T('9 Nov 2026, 19:15 · Dermatology consultation · Dr. Omar Khalil','٩ تشرين الثاني ٢٠٢٦، ١٩:١٥ · استشارة جلدية · د. عمر خليل')+'</p>'}
+  function whole(state){
+    if(state==='rec') return '<div class="whole" style="border-style:solid;border-color:var(--error);background:#FFF8F7"><span class="rec"><i></i>'+T('Recording the whole note','تسجيل الملاحظة كاملة')+'</span><span class="mono t" style="font-size:15px">01:12 / 05:00</span><div class="level" aria-hidden="true">'+[10,22,30,16,26,34,18,12,28,20,8,24].map(function(h){return '<span style="height:'+h+'px"></span>'}).join('')+'</div><span class="grow"></span><button class="btn btn-ink btn-sm">'+T('Stop and fill the fields','إيقاف وتعبئة الحقول')+'</button><button class="btn btn-outline btn-xs">'+T('Cancel','إلغاء')+'</button></div>';
+    if(state==='busy') return '<div class="whole"><span class="spinner" aria-hidden="true"></span><span>'+T('Sorting what you said into the seven fields…','نرتّب ما قلته في الحقول السبعة…')+'</span></div>';
+    return '<div class="whole'+(state==='hl'?' hl':'')+'"><span class="ic">'+MIC+'</span><div class="grow"><b>'+T('Dictate the whole note','إملاء الملاحظة كاملة')+NEW()+'</b><span class="hint">'+T('Talk through the visit once; each part goes to its field. Fields you do not mention stay as they are.','تحدّث عن الزيارة مرة واحدة، فيذهب كل جزء إلى حقله. الحقول التي لا تذكرها تبقى كما هي.')+'</span></div><button class="btn btn-accent btn-sm">'+MIC+T('Start','ابدأ')+'</button></div>';
+  }
+  function signbar(){return '<div class="signbar"><button class="btn btn-ghost btn-sm">'+T('Save draft','حفظ المسودة')+'</button><button class="btn btn-accent btn-sm">'+T('Review and sign','مراجعة وتوقيع')+'</button><span class="hint">'+T('The note is used only after you sign.','لا تُعتمد الملاحظة إلا بعد توقيعك.')+'</span></div>'}
+  function tx(){return '<aside class="tx"><div class="sec-h">'+T('Transcript','النص المكتوب')+'</div><p class="hint">'+T('No transcript: this note was written by hand.','لا يوجد نص: كُتبت هذه الملاحظة يدوياً.')+'</p></aside>'}
+
+  var rules='<div class="rules"><h2>'+T('How it works','كيف يعمل')+'</h2><ul>'+
+    '<li>'+T('<b>Only the doctor is recorded,</b> after or between visits, so it needs no patient agreement. It works on any unsigned note, written by hand or drafted by the AI Scribe.','<b>يُسجَّل صوت الطبيب فقط،</b> بعد الزيارة أو بين الزيارات، فلا يحتاج موافقة المريض. يعمل في أي ملاحظة غير موقّعة، مكتوبة يدوياً أو مسودة من الكاتب الذكي.')+'</li>'+
+    '<li>'+T('<b>Speech becomes text,</b> then (if switched on) Claude Haiku 5.5 tidies it: no "umm" or repeats, written in the note\'s language, medicines and unsure words marked. It never adds what was not said.','<b>يتحول الكلام إلى نص،</b> ثم (إن كان مفعّلاً) يرتّبه Claude Haiku 5.5: بلا تردد أو تكرار، بلغة الملاحظة، مع تمييز الأدوية والكلمات غير المؤكدة. ولا يضيف ما لم يُقل.')+'</li>'+
+    '<li>'+T('<b>The text is added after what is already in the field,</b> never over it. "Heard" shows the words as they were heard, and Undo puts the field back.','<b>يُضاف النص بعد ما في الحقل،</b> ولا يكتب فوقه. يظهر تحته «سُمع» بالكلمات كما سُمعت، و«تراجع» يعيد الحقل كما كان.')+'</li>'+
+    '<li>'+T('<b>The audio is never stored:</b> it goes to the speech service and is dropped. Nothing is saved until the doctor saves or signs, as today.','<b>لا يُحفظ الصوت أبداً:</b> يذهب إلى خدمة تحويل الكلام ثم يُحذف. ولا يُحفظ شيء حتى يحفظ الطبيب أو يوقّع، كما اليوم.')+'</li>'+
+    '<li>'+T('Until the speech test chooses a service, the stand-in puts sample text in, as the AI Scribe does today.','إلى أن يختار اختبار الكلام خدمة، يضع البديل نصاً تجريبياً، كما يفعل الكاتب الذكي اليوم.')+'</li>'+
+    '</ul></div>';
+
+  var d1=frame('d1',1,['The visit note, with a microphone on every field and one for the whole note','ملاحظة الزيارة: ميكروفون على كل حقل، وواحد للملاحظة كاملة'],
+    ['Your screenshot, with two additions: "Dictate the whole note" at the top, and "Dictate" beside each field\'s name. Typing still works exactly as now.','لقطة الشاشة نفسها مع إضافتين: «إملاء الملاحظة كاملة» في الأعلى، و«إملاء» بجانب اسم كل حقل. والكتابة تبقى كما هي الآن.'],
+    bar()+'<div class="page">'+head()+'<div class="note"><div class="stack">'+whole('hl')+SECS.map(function(s){return sec(s,box(EMPTY))}).join('')+signbar()+'</div>'+tx()+'</div></div>',true);
+
+  var d2=frame('d2',2,['Dictating one field','الإملاء في حقل واحد'],
+    ['Press Dictate, speak, press Stop and insert. One field at a time: the other microphones wait. The longest recording is a setting (2 minutes here).','اضغط «إملاء» وتحدّث ثم «إيقاف وإدراج». حقل واحد في كل مرة: الميكروفونات الأخرى تنتظر. أطول تسجيل إعداد (دقيقتان هنا).'],
+    bar()+'<div class="page"><div class="note"><div class="stack">'+
+    sec(SECS[3],'<div class="dict"><span class="rec"><i></i>'+T('Recording','يسجّل')+'</span><span class="t mono">00:14 / 02:00</span><div class="level" aria-hidden="true">'+[8,18,26,14,30,22,10,24,16,8].map(function(h){return '<span style="height:'+h+'px"></span>'}).join('')+'</div><span class="grow"></span><button class="btn btn-ink btn-sm">'+T('Stop and insert','إيقاف وإدراج')+'</button><button class="btn btn-outline btn-xs">'+T('Cancel','إلغاء')+'</button></div>',{noMic:true})+
+    sec(SECS[4],box(EMPTY),{dis:true})+
+    sec(SECS[5],'<div class="dict busy"><span class="spinner" aria-hidden="true"></span><span>'+T('Writing what you said…','نكتب ما قلته…')+'</span></div>',{noMic:true})+
+    '</div><div class="stack"><p class="hint">'+T('Top: while recording. Bottom: a moment after Stop, while the words are written (a few seconds).','في الأعلى: أثناء التسجيل. في الأسفل: بعد الإيقاف بلحظة، أثناء كتابة الكلمات (بضع ثوانٍ).')+'</p></div></div></div>',true);
+
+  var heard=function(en,ar){return '<div class="heard"><span>'+T('Heard:','سُمع:')+'</span><q dir="rtl" lang="ar">'+ar+'</q><button class="link" style="font-size:12.5px">'+T('Undo','تراجع')+'</button></div>'};
+  var d3=frame('d3',3,['After one field: the tidy text goes in, with what was heard under it','بعد حقل واحد: يدخل النص المرتّب، وتحته ما سُمع'],
+    ['The doctor spoke Jordanian Arabic with English terms; the note is in English, so it is written in English. The medicine is marked blue for checking, as in AI drafts. "Heard" and Undo stay until the next edit or save.','تحدّث الطبيب بالعامية الأردنية مع مصطلحات إنجليزية؛ والملاحظة بالإنجليزية، فكُتبت بالإنجليزية. الدواء مميّز بالأزرق للتحقق كما في مسودات الذكاء الاصطناعي. ويبقى «سُمع» و«تراجع» حتى التعديل أو الحفظ التالي.'],
+    bar()+'<div class="page"><div class="note"><div class="stack">'+
+    sec(SECS[3],box('Both elbows: dry, scaly patches about 3 × 4 cm. No signs of infection.','new'),{after:heard('','هون عالكوعين في dry scaly patches يعني تقريباً 3 by 4 cm، ما في infection')})+
+    sec(SECS[5],box('<mark class="d">Mometasone 0.1% cream</mark>, thin layer once daily for 2 weeks. Fragrance-free moisturiser twice daily.'))+
+    '</div>'+tx()+'</div></div>',true);
+
+  var d4=frame('d4',4,['Dictating the whole note','إملاء الملاحظة كاملة'],
+    ['One recording (up to 5 minutes, a setting). Claude sorts it into the seven fields and adds each part after what is already there. Fields not mentioned stay as they were, so a doctor can dictate the whole note and then fix one field by its own microphone.','تسجيل واحد (حتى 5 دقائق، إعداد). يرتّبه Claude في الحقول السبعة ويضيف كل جزء بعد ما في الحقل. الحقول غير المذكورة تبقى كما هي، فيستطيع الطبيب إملاء الملاحظة كاملة ثم تصحيح حقل واحد بميكروفونه.'],
+    bar()+'<div class="page"><div class="stack">'+whole('rec')+whole('busy')+'</div><div class="note"><div class="stack">'+
+    sec(SECS[0],box('Itchy rash on both elbows for 3 weeks.','new'))+
+    sec(SECS[1],box('Worse at night and after hot showers. Tried a <mark class="u">pharmacy cream</mark> for 5 days with little change.','new'))+
+    sec(SECS[2],box(EMPTY))+
+    sec(SECS[3],box('Both elbows: dry, scaly patches about 3 × 4 cm. No signs of infection.','new'))+
+    '<p class="hint">'+T('…and the other fields the same way. Under the note: "Heard" with the whole recording\'s words, and one Undo for all of it.','…وبقية الحقول بالطريقة نفسها. وتحت الملاحظة: «سُمع» بكلمات التسجيل كله، و«تراجع» واحد له كله.')+'</p>'+
+    '</div>'+tx()+'</div></div>',true);
+
+  function radio(on,title,sub){return '<label class="'+(on?'on':'')+'"><span class="dot"></span><span><b>'+title+'</b><br><span class="hint">'+sub+'</span></span></label>'}
+  var d5=frame('d5',5,['Settings › AI Scribe › Dictation','الإعدادات › الكاتب الذكي › الإملاء'],
+    ['A new group in the existing AI Scribe tab. Off by default, like the rest of the Scribe.','مجموعة جديدة في تبويب الكاتب الذكي الحالي. متوقفة افتراضياً، مثل بقية الكاتب.'],
+    '<div class="page" style="max-width:820px"><section class="panel"><h2>'+T('Dictation','الإملاء')+NEW()+'</h2>'+
+    '<div class="check"><span class="box on"></span><span>'+T('Doctors can dictate into the visit note','يستطيع الأطباء الإملاء في ملاحظة الزيارة')+'<br><span class="hint">'+T('Only the doctor\'s voice is recorded. The audio is not kept.','يُسجَّل صوت الطبيب فقط. ولا يُحتفظ بالصوت.')+'</span></span></div>'+
+    '<div class="field">'+T('Tidy the words with','ترتيب الكلمات بواسطة')+'<div class="radio">'+
+      radio(false,T('Nothing: insert exactly what was heard','لا شيء: إدراج ما سُمع كما هو'),T('Free. No translation, no marks; "Dictate the whole note" is not offered.','مجاني. بلا ترجمة ولا تمييز؛ ولا يُعرض «إملاء الملاحظة كاملة».'))+
+      radio(true,T('Claude Haiku 5.5 (recommended)','Claude Haiku 5.5 (مُوصى به)'),T('The cheapest. A fraction of a cent per field.','الأرخص. جزء من السنت لكل حقل.'))+
+      radio(false,T('Claude Sonnet 5.5','Claude Sonnet 5.5'),T('Stronger, about 20 times the price of Haiku.','أقوى، بنحو 20 ضعف سعر Haiku.'))+
+    '</div></div>'+
+    '<div class="check"><span class="box on"></span><span>'+T('Write it in the note\'s language','اكتبه بلغة الملاحظة')+'<br><span class="hint">'+T('Arabic speech goes into an English note in English (and the other way). Off: kept in the words used.','الكلام العربي يدخل الملاحظة الإنجليزية بالإنجليزية (والعكس). عند الإيقاف: يبقى بالكلمات المستخدمة.')+'</span></span></div>'+
+    '<div class="grid2">'+
+      '<label class="field">'+T('Longest recording for one field','أطول تسجيل لحقل واحد')+'<span class="sel">'+T('2 minutes','دقيقتان')+' <span aria-hidden="true">▾</span></span><span class="hint">'+T('30 seconds to 5 minutes','من 30 ثانية إلى 5 دقائق')+'</span></label>'+
+      '<label class="field">'+T('Longest recording for the whole note','أطول تسجيل للملاحظة كاملة')+'<span class="sel">'+T('5 minutes','5 دقائق')+' <span aria-hidden="true">▾</span></span><span class="hint">'+T('2 to 15 minutes','من 2 إلى 15 دقيقة')+'</span></label>'+
+      '<label class="field">'+T('Dictations per doctor per day','عدد الإملاءات لكل طبيب يومياً')+'<span class="sel">200</span><span class="hint">'+T('A cap so nobody can run up the bill','حدّ كي لا ترتفع التكلفة')+'</span></label>'+
+    '</div><div><button class="btn btn-ink">'+T('Save','حفظ')+'</button></div></section></div>');
+
+  var d6=frame('d6',6,['On a phone','على الهاتف'],
+    ['The microphone sits beside each field\'s name; the recording bar takes the field\'s place.','الميكروفون بجانب اسم كل حقل؛ وشريط التسجيل يحل محل الحقل.'],
+    '<div style="padding:22px"><div class="phone"><div style="padding:14px;display:flex;flex-direction:column;gap:12px">'+whole('')+
+    sec(SECS[0],box('Itchy rash on both elbows for 3 weeks.'))+
+    sec(SECS[1],'<div class="dict"><span class="rec"><i></i>'+T('Recording','يسجّل')+'</span><span class="t mono">00:06</span><span class="grow"></span><button class="btn btn-ink btn-sm">'+T('Stop and insert','إيقاف وإدراج')+'</button></div>',{noMic:true})+
+    sec(SECS[2],box(EMPTY),{dis:true})+'</div></div></div>');
+
+  document.getElementById('out').innerHTML=rules+d1+d2+d3+d4+d5+d6;
+
+  var btn=document.getElementById('lang'),isAr=false;
+  btn.addEventListener('click',function(){
+    isAr=!isAr;
+    document.documentElement.dir=isAr?'rtl':'ltr';document.documentElement.lang=isAr?'ar':'en';
+    document.querySelectorAll('[data-ar]').forEach(function(e){
+      if(e.dataset.en===undefined)e.dataset.en=e.innerHTML;
+      e.innerHTML=isAr?e.dataset.ar:e.dataset.en;
+    });
+    btn.textContent=isAr?'English':'العربية';
+  });
+})();
+</script>
+</body>
+</html>

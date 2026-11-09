@@ -123,7 +123,7 @@ export function claudeDrafter({ client }) {
 
 // For this machine's preview and the tests only: a fixed draft of the sample consultation, so the screens can be tried without
 // calling Claude. Never offered as a clinic setting.
-const SAMPLE_NOTE = {
+export const SAMPLE_NOTE = {
   en: {
     reason: "Itchy rash on both elbows for 3 weeks.",
     history: "Started about 3 weeks ago, worse at night and after hot showers. Tried a pharmacy cream for 5 days with little change.",

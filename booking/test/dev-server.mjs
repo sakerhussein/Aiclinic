@@ -9,6 +9,7 @@ import { sha256 } from "../../accounts/server/crypto.js";
 import { createPublicService } from "../server/public-service.js";
 import { createPublicApp } from "../server/public-app.js";
 import { createScribe, sampleDrafter } from "../server/scribe.js";
+import { sampleTidier } from "../server/dictation.js";
 
 const t = await setup();
 await t.reset();
@@ -67,10 +68,10 @@ demo.svc = createPublicService({ pool: publicPool, agent: demoAgent });
 createPublicApp({ svc: demo.svc, config: pubConfig }).listen(3005, "127.0.0.1", () => console.log("READY  Online booking http://localhost:3005/demo-derma"));
 // AI Scribe: on for the demo clinic and every doctor, with the worker in this process. The stand-in speech service and a fixed
 // sample draft, so trying the screens costs nothing (the real draft: server/scribe-index.js with ANTHROPIC_API_KEY).
-await t.owner.query("update scribe_settings set enabled = true where clinic_id = $1", [t.clinicA]);
+await t.owner.query("update scribe_settings set enabled = true, dictation_enabled = true where clinic_id = $1", [t.clinicA]);
 await t.owner.query("update doctors set scribe_enabled = true where clinic_id = $1", [t.clinicA]);
 createScribe({ pool, drafter: sampleDrafter }).start();
-bookingApp({ svc: createService({ pool, auditPool }), config: bkConfig }).listen(3004, "127.0.0.1", () =>
+bookingApp({ svc: createService({ pool, auditPool, tidier: sampleTidier }), config: bkConfig }).listen(3004, "127.0.0.1", () =>
   console.log(`READY  Booking http://localhost:3004   sign in: sec@demo.jo / ${GOOD}   (administrator admin@demo.jo needs two-step)`));
 console.log(`Administrator admin@demo.jo has two-step on. Current code:  node -e "import('../accounts/server/crypto.js').then(m=>console.log(m.totp('${P.admin.secret}')))"  (run it in the repo's accounts/ folder... see README)`);
 console.log(`ADMIN_SECRET=${P.admin.secret}`);

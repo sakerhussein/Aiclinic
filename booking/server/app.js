@@ -192,6 +192,12 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
     parse(z.object({ seconds: z.number().int().min(0).max(7200).optional() }), req.body)))));
   app.patch("/api/notes/:id", WRITE_NOTES, wrap(async (req, res) => res.json(await NOTES.save(req.ctx, noteId(req),
     parse(z.object({ content: z.record(z.string().max(40), z.string().max(4000)), expectedVersion: z.number().int() }), req.body)))));
+  // Dictation: the doctor's voice into one field or the whole note, sent once when they press Stop. The audio is never stored.
+  app.post("/api/notes/:id/dictate", WRITE_NOTES, express.raw({ type: () => true, limit: "8mb" }), wrap(async (req, res) => {
+    const q = parse(z.object({ scope: z.enum(["field", "note"]), section: z.string().max(40).optional(), seconds: z.coerce.number().min(0).max(1200),
+      expectedVersion: z.coerce.number().int() }).refine((x) => x.scope === "note" || !!x.section), req.query);
+    res.json(await NOTES.dictate(req.ctx, noteId(req), { ...q, mime: req.get("content-type"), audio: req.body }));
+  }));
   app.post("/api/notes/:id/sign", SIGN_NOTES, wrap(async (req, res) => res.json(await NOTES.sign(req.ctx, noteId(req),
     parse(z.object({ expectedVersion: z.number().int(), confirmRead: z.literal(true) }), req.body)))));
   app.post("/api/notes/:id/additions", WRITE_NOTES, wrap(async (req, res) => res.status(201).json(await NOTES.addition(req.ctx, noteId(req),
@@ -248,6 +254,8 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
     maxRecordingMinutes: n(5, 120), transcriptKeepDays: n(1, 365), notesPerDoctorPerDay: n(1, 500),
     speechService: z.enum(["stand_in"]), draftModel: z.enum(["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"]),
     doctors: z.array(z.object({ id: uuid, scribeEnabled: z.boolean() })).max(200),
+    dictation: z.object({ enabled: z.boolean(), model: z.enum(["none", "claude-haiku-5-5", "claude-sonnet-5-5"]), translate: z.boolean(),
+      fieldSeconds: pick(30, 60, 90, 120, 180, 300), noteMinutes: pick(2, 3, 5, 10, 15), perDoctorPerDay: n(1, 2000) }).optional(),
   }), req.body)))));
   app.patch("/api/settings/profile", EDIT, wrap(async (req, res) => res.json(await S.updateProfile(req.ctx, parse(z.object({
     nameEn: name, nameAr: name, phone: z.string().trim().max(30).nullish(), addressEn: optText, addressAr: optText, mapsUrl: z.string().trim().url().max(500).nullish().or(z.literal("")),

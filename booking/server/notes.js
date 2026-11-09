@@ -3,11 +3,12 @@
 // Who: a doctor reaches only their own patients' notes (as with bookings), and only the treating doctor records, edits and signs.
 // A secretary never gets the content: the booking and the patient's page show only whether there is a note and its state.
 import { HttpError, bad, denied, notFound } from "./http.js";
-import { DEFAULT_AUDIO_DIR, STUCK_MS, audioFiles, removeAudio, writeChunk } from "./scribe.js";
+import { DEFAULT_AUDIO_DIR, STUCK_MS, ScribeError, audioFiles, removeAudio, writeChunk } from "./scribe.js";
+import { DICTATION_SPEECH, appendTo, checkTidy } from "./dictation.js";
 
 const OPEN_VISIT = ["booked", "confirmed", "completed"];
 
-export function createNotes({ pool, tx, now = () => new Date(), audioDir = DEFAULT_AUDIO_DIR, getAppointment }) {
+export function createNotes({ pool, tx, now = () => new Date(), audioDir = DEFAULT_AUDIO_DIR, getAppointment, speech = DICTATION_SPEECH, tidier = null, log = console }) {
   const one = async (c, sql, p) => (await c.query(sql, p)).rows[0];
   const settingsOf = (c, clinicId) => one(c, "select * from scribe_settings where clinic_id = $1", [clinicId]);
 
@@ -44,6 +45,7 @@ export function createNotes({ pool, tx, now = () => new Date(), audioDir = DEFAU
         enabled: s.enabled, recording: s.enabled && !!d?.scribe_enabled, language: s.note_language, consentEn: s.consent_en, consentAr: s.consent_ar,
         maxMinutes: s.max_recording_minutes, keepDays: s.transcript_keep_days, standIn: s.speech_service === "stand_in",
         isTheDoctor: ctx.onlyDoctor === a.doctor_id, openVisit: OPEN_VISIT.includes(a.status),
+        dictation: { enabled: s.dictation_enabled, tidy: s.dictation_model !== "none", fieldSeconds: s.dictation_field_seconds, noteMinutes: s.dictation_note_minutes },
       },
       note: n ? view(n, await additionsOf(pool, n.id)) : null,
     };
@@ -157,6 +159,73 @@ export function createNotes({ pool, tx, now = () => new Date(), audioDir = DEFAU
     return view(r);
   }
 
+  // ---------------------------------------------------------------- dictation (design: booking/design/dictation.html)
+  // The doctor's own voice into one field (scope "field") or the whole note (scope "note"). Checked first, then speech and tidying
+  // with no transaction open (they take seconds), then the words are added in one transaction, if nobody changed the note meanwhile.
+  async function dictate(ctx, id, { scope, section, seconds, expectedVersion, mime, audio }) {
+    if (!Buffer.isBuffer(audio) || !audio.length) throw bad("empty_audio");
+    if (!/^audio\/[a-z0-9.+-]+(\s*;.*)?$/i.test(mime || "")) throw bad("not_audio");
+    const n = await noteRow(pool, ctx, id);
+    theDoctor(ctx, n);
+    if (n.status !== "draft") throw new HttpError(409, "not_a_draft");
+    sameVersion(n, expectedVersion);
+    const s = await settingsOf(pool, ctx.clinicId);
+    if (!s.enabled || !s.dictation_enabled) throw denied("dictation_off");
+    if (scope === "field" && !n.sections.some((x) => x.key === section)) throw bad("unknown_section");
+    if (scope === "note" && s.dictation_model === "none") throw bad("whole_note_needs_tidy");
+    const limit = scope === "field" ? s.dictation_field_seconds : s.dictation_note_minutes * 60;
+    if (seconds > limit + 5) throw bad("dictation_too_long");
+    const { timezone } = await one(pool, "select timezone from clinics where id = $1", [ctx.clinicId]);
+    const { used } = await one(pool,
+      `select count(*)::int as used from visit_note_dictations where clinic_id = $1 and doctor_id = $2
+          and (created_at at time zone $3)::date = ($4::timestamptz at time zone $3)::date`, [ctx.clinicId, n.doctor_id, timezone, now()]);
+    if (used >= s.dictations_per_doctor_per_day) throw new HttpError(429, "dictation_daily_limit");
+    const record = (c, outcome) => c.query(
+      "insert into visit_note_dictations (clinic_id, note_id, doctor_id, scope, section, seconds, model, outcome, created_at) values ($1,$2,$3,$4,$5,$6,$7,$8,$9)",
+      [ctx.clinicId, n.id, n.doctor_id, scope, scope === "field" ? section : null, Math.min(1200, Math.max(0, Math.round(seconds))), s.dictation_model, outcome, now()]);
+    const fail = async (outcome, err) => { await tx(ctx, (c) => record(c, outcome)); throw err; };
+
+    // 1. Speech to text. The audio lives only in this request.
+    const service = speech[s.speech_service];
+    if (!service) return fail("failed", new HttpError(502, "speech_failed"));
+    let heard;
+    try { heard = String((await service.dictate({ audio, mime, section: scope === "field" ? section : null, languages: ["ar", "en"] })) ?? "").trim().slice(0, 20000); }
+    catch (e) { log.error("dictation speech:", e?.message); return fail("failed", new HttpError(502, "speech_failed")); }
+    if (!heard) return fail("nothing_heard", new HttpError(422, "nothing_heard"));
+
+    // 2. Tidying (if the clinic chose a model). A field whose tidying fails still gets the words as heard.
+    let parts, flags = [], tidyFailed = false;
+    if (s.dictation_model === "none") parts = { [section]: heard };
+    else {
+      try {
+        if (!tidier) throw new ScribeError("no_tidy_service");
+        const out = checkTidy(await tidier.tidy({ model: s.dictation_model, scope, language: n.language, translate: s.dictation_translate,
+          sections: n.sections, section: scope === "field" ? section : null, heard }), scope, n.sections);
+        if (scope === "field") { parts = out.text ? { [section]: out.text } : {}; flags = out.flags.map((f) => ({ section, ...f })); }
+        else { parts = out.parts; flags = out.flags; }
+      } catch (e) {
+        if (!(e instanceof ScribeError)) log.error("dictation tidy:", e?.message);
+        if (scope !== "field") return fail("failed", new HttpError(502, "tidy_failed", { heard }));
+        parts = { [section]: heard }; tidyFailed = true;
+      }
+    }
+    if (!Object.keys(parts).length) return fail("nothing_heard", new HttpError(422, "nothing_heard", { heard }));
+
+    // 3. Into the note, after what each field already holds.
+    return tx(ctx, async (c) => {
+      const cur = await noteRow(c, ctx, id, true);
+      if (cur.status !== "draft") throw new HttpError(409, "not_a_draft");
+      sameVersion(cur, expectedVersion);
+      const content = { ...cur.content };
+      for (const [k, v] of Object.entries(parts)) content[k] = appendTo(content[k], v);
+      const kept = [...cur.flags, ...flags].filter((f, i, all) => all.findIndex((x) => x.section === f.section && x.text === f.text) === i)
+        .filter((f) => (content[f.section] ?? "").includes(f.text));
+      const r = await one(c, "update visit_notes set content = $2, flags = $3 where id = $1 returning *", [cur.id, JSON.stringify(content), JSON.stringify(kept)]);
+      await record(c, "inserted");
+      return { note: view(r, await additionsOf(c, cur.id)), heard, sections: Object.keys(parts), tidyFailed };
+    });
+  }
+
   // A dated addition under a signed note: the only way to change it.
   async function addition(ctx, id, { text }) {
     return tx(ctx, async (c) => {
@@ -225,5 +294,5 @@ export function createNotes({ pool, tx, now = () => new Date(), audioDir = DEFAU
     return rows;
   }
 
-  return { forVisit, start, saveChunk, alive, stop, save, sign, addition, retry, byHand, discard, forPatient };
+  return { forVisit, start, saveChunk, alive, stop, save, dictate, sign, addition, retry, byHand, discard, forPatient };
 }

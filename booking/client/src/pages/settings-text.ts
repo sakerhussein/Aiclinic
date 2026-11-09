@@ -93,6 +93,13 @@ const EN = {
     servicesTitle: "Speech and draft", speech: "Speech to text", speechHint: "The speech test chooses the real service. Until then no audio leaves the clinic.",
     standIn: "Stand-in (a sample transcript, for testing)", model: "Model for the draft", modelHint: "The draft test confirms the choice.",
     opus: "Claude Opus 5.5 (best drafts)", sonnet: "Claude Sonnet 5.5 (faster, lower cost)", haiku: "Claude Haiku 5.5 (fastest, lowest cost)",
+    // Dictation (design: booking/design/dictation.html)
+    dictTitle: "Dictation", dictOn: "Doctors can dictate into the visit note", dictOnHint: "Only the doctor's voice is recorded, into one field or the whole note. The audio is not kept.",
+    dictModel: "Tidy the words with", dictModelHint: "Removes fillers, writes in the note's language and marks medicines. It never adds what was not said.",
+    dictNone: "Nothing: insert exactly what was heard (no whole-note dictation)", dictHaiku: "Claude Haiku 5.5 (recommended, lowest cost)", dictSonnet: "Claude Sonnet 5.5 (stronger, about 20 times the price of Haiku)",
+    dictTranslate: "Write it in the note's language", dictTranslateHint: "Arabic speech goes into an English note in English, and the other way. Off: kept in the words used.",
+    dictField: "Longest recording for one field", dictNote: "Longest recording for the whole note", dictPerDay: "Dictations per doctor per day", dictPerDayHint: "A cap so nobody can run up the bill.",
+    seconds: "{n} seconds", minutes: "{n} minutes",
   },
 };
 
@@ -188,6 +195,12 @@ const AR: typeof EN = {
     servicesTitle: "الكلام والمسودة", speech: "تحويل الكلام إلى نص", speechHint: "اختبار الكلام يختار الخدمة الحقيقية. حتى ذلك الحين لا يخرج أي صوت من العيادة.",
     standIn: "بديل (نص نموذجي، للاختبار)", model: "نموذج المسودة", modelHint: "اختبار المسودة يؤكد الاختيار.",
     opus: "Claude Opus 5.5 (أفضل مسودات)", sonnet: "Claude Sonnet 5.5 (أسرع وأقل تكلفة)", haiku: "Claude Haiku 5.5 (الأسرع والأقل تكلفة)",
+    dictTitle: "الإملاء", dictOn: "يستطيع الأطباء الإملاء في ملاحظة الزيارة", dictOnHint: "يُسجَّل صوت الطبيب فقط، في حقل واحد أو الملاحظة كاملة. ولا يُحتفظ بالصوت.",
+    dictModel: "ترتيب الكلمات بواسطة", dictModelHint: "يزيل التردد، ويكتب بلغة الملاحظة، ويميّز الأدوية. ولا يضيف ما لم يُقل.",
+    dictNone: "لا شيء: إدراج ما سُمع كما هو (بلا إملاء للملاحظة كاملة)", dictHaiku: "Claude Haiku 5.5 (مُوصى به، الأقل تكلفة)", dictSonnet: "Claude Sonnet 5.5 (أقوى، بنحو 20 ضعف سعر Haiku)",
+    dictTranslate: "اكتبه بلغة الملاحظة", dictTranslateHint: "الكلام العربي يدخل الملاحظة الإنجليزية بالإنجليزية، والعكس. عند الإيقاف: يبقى بالكلمات المستخدمة.",
+    dictField: "أطول تسجيل لحقل واحد", dictNote: "أطول تسجيل للملاحظة كاملة", dictPerDay: "عدد الإملاءات لكل طبيب يومياً", dictPerDayHint: "حدّ كي لا ترتفع التكلفة.",
+    seconds: "{n} ثانية", minutes: "{n} دقائق",
   },
 };
 

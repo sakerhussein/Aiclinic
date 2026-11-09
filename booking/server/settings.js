@@ -7,6 +7,7 @@ export const OPTIONS = {
   slotMinutes: [5, 10, 15, 20, 30, 60], bufferMinutes: [0, 5, 10, 15],
   idleMinutes: [15, 30, 60, 120, 240], lockMinutes: [0, 5, 10, 15, 30], recoveryWarnAt: [1, 2, 3, 4, 5],
   reminderMinutes: [2880, 1440, 720, 240, 120, 60],
+  dictationFieldSeconds: [30, 60, 90, 120, 180, 300], dictationNoteMinutes: [2, 3, 5, 10, 15],
 };
 
 // Settings > Online booking: each body field and its column.
@@ -51,7 +52,8 @@ export function createSettings({ pool, tx, now = () => new Date() }) {
       q(`select ${ONLINE_COLS.map((x) => `o.${x}`).join(", ")}, (c.wa_phone_number_id is not null) as whatsapp_connected
            from online_booking o join clinics c on c.id = o.clinic_id where o.clinic_id = $1`),
       q(`select enabled, note_language, consent_en, consent_ar, sections, max_recording_minutes, transcript_keep_days, notes_per_doctor_per_day,
-                speech_service, draft_model from scribe_settings where clinic_id = $1`),
+                speech_service, draft_model, dictation_enabled, dictation_model, dictation_translate, dictation_field_seconds,
+                dictation_note_minutes, dictations_per_doctor_per_day from scribe_settings where clinic_id = $1`),
     ]);
     return { profile, hours, closures, doctors, services, faqs, rules, general, online, scribe, options: OPTIONS, outside: await outside(ctx) };
   }
@@ -225,6 +227,11 @@ export function createSettings({ pool, tx, now = () => new Date() }) {
         [ctx.clinicId, b.enabled, b.noteLanguage, b.consentEn.trim(), b.consentAr.trim(),
          JSON.stringify(b.sections.map((s) => ({ key: s.key, en: s.en.trim(), ar: s.ar.trim(), hint: (s.hint ?? "").trim() }))),
          b.maxRecordingMinutes, b.transcriptKeepDays, b.notesPerDoctorPerDay, b.speechService, b.draftModel]);
+      // Dictation (design: booking/design/dictation.html). Left out of the body: kept as it was.
+      if (b.dictation) await c.query(
+        `update scribe_settings set dictation_enabled = $2, dictation_model = $3, dictation_translate = $4, dictation_field_seconds = $5,
+                dictation_note_minutes = $6, dictations_per_doctor_per_day = $7 where clinic_id = $1`,
+        [ctx.clinicId, b.dictation.enabled, b.dictation.model, b.dictation.translate, b.dictation.fieldSeconds, b.dictation.noteMinutes, b.dictation.perDoctorPerDay]);
       for (const d of b.doctors) {
         const r = await c.query("update doctors set scribe_enabled = $3 where clinic_id = $1 and id = $2 and scribe_enabled is distinct from $3", [ctx.clinicId, d.id, d.scribeEnabled]);
         if (!r.rowCount && !(await one(c, "select 1 from doctors where clinic_id = $1 and id = $2", [ctx.clinicId, d.id]))) throw notFound("doctor_not_found");

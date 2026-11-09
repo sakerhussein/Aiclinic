@@ -23,7 +23,7 @@ export function normalizePhone(raw, country = "962") {
   return "+" + n;
 }
 
-export function createService({ pool, auditPool, now = () => new Date(), audioDir }) {
+export function createService({ pool, auditPool, now = () => new Date(), audioDir, speech, tidier }) {
   // ---------------------------------------------------------------- transactions with an audit actor
   async function tx(ctx, fn) {
     const c = await pool.connect();
@@ -402,7 +402,7 @@ export function createService({ pool, auditPool, now = () => new Date(), audioDi
 
   const settings = createSettings({ pool, tx, now });
   const audit = createAudit({ pool, auditPool, now });
-  const notes = createNotes({ pool, tx, now, audioDir, getAppointment });
+  const notes = createNotes({ pool, tx, now, audioDir, getAppointment, speech, tidier });
 
   // ---------------------------------------------------------------- Excel files. Recorded before the file exists: no record, no file.
   async function exportFile(ctx, what, fetchRows, build, filters, lang) {

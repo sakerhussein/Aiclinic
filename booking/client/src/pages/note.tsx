@@ -2,7 +2,7 @@
 // transcript, signing, additions. Opened from the booking page at /bookings/:id/note. The server decides who may do what.
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
-import { get, patch, post, type Appt } from "../api";
+import { ApiError, get, goSignIn, patch, post, type Appt } from "../api";
 import { fmtDateTime } from "../lib";
 import { useI18n } from "../i18n";
 import { useApp } from "../session";
@@ -21,7 +21,8 @@ export type Note = {
 type Visit = {
   appointment: Appt; note: Note | null;
   settings: { enabled: boolean; recording: boolean; language: "en" | "ar"; consentEn: string; consentAr: string; maxMinutes: number; keepDays: number;
-    standIn: boolean; isTheDoctor: boolean; openVisit: boolean };
+    standIn: boolean; isTheDoctor: boolean; openVisit: boolean;
+    dictation: { enabled: boolean; tidy: boolean; fieldSeconds: number; noteMinutes: number } };
 };
 
 const NOT_MENTIONED = ["Not mentioned.", "لم يُذكر."];
@@ -319,6 +320,66 @@ function Draft({ v, note, onChange, onDiscarded }: { v: Visit; note: Note; onCha
   const a = useAction();
   useEffect(() => { setContent(note.content); }, [note.id, note.rowVersion]);   // eslint-disable-line react-hooks/exhaustive-deps
   const mine = v.settings.isTheDoctor;
+
+  // Dictation (design: booking/design/dictation.html): one field or the whole note at a time. Unsaved typing is saved first, then
+  // the words are added after what each field holds. "Heard" and Undo stay until the next edit.
+  const d = v.settings.dictation;
+  const canDictate = mine && !signing && d.enabled;
+  const mic = useMic();
+  const [active, setActive] = useState<Target | null>(null);
+  const [busy, setBusy] = useState<Target | null>(null);
+  const [last, setLast] = useState<{ scope: Target["scope"]; sections: string[]; heard: string; before: Record<string, string>; tidyFailed: boolean } | null>(null);
+  const [lost, setLost] = useState("");
+  const dz = useAction();
+  const free = !active && !busy && mic.state !== "starting" && mic.state !== "recording";
+  const limit = active?.scope === "note" ? d.noteMinutes * 60 : d.fieldSeconds;
+  const begin = (t: Target) => { if (!free) return; setLast(null); setLost(""); dz.clear(); setEditing(null); setActive(t); void mic.start(); };
+  const cancelMic = () => { mic.cancel(); setActive(null); };
+  const finish = async () => {
+    const which = active;
+    const clip = await mic.stop();
+    setActive(null);
+    if (!which || !clip) return;
+    setBusy(which);
+    await dz.run(async () => {
+      try {
+        const cur = await saveNow();
+        const q = new URLSearchParams({ scope: which.scope, ...(which.section ? { section: which.section } : {}), seconds: String(Math.round(clip.seconds)), expectedVersion: String(cur.rowVersion) });
+        const res = await fetch(`/api/notes/${note.id}/dictate?${q}`, { method: "POST", credentials: "same-origin", headers: { "content-type": clip.blob.type || "audio/webm" }, body: clip.blob });
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 401 || res.status === 423) { goSignIn(); return; }
+        if (!res.ok) { if (data?.heard) setLost(data.heard); throw new ApiError(res.status, data?.error || "server_error", data || {}); }
+        const r = data as { note: Note; heard: string; sections: string[]; tidyFailed: boolean };
+        onChange(r.note);
+        setLast({ scope: which.scope, sections: r.sections, heard: r.heard, tidyFailed: r.tidyFailed,
+          before: Object.fromEntries(r.sections.map((k) => [k, cur.content[k] ?? ""])) });
+      } finally { setBusy(null); }
+    });
+  };
+  const undo = () => { if (last) void dz.run(async () => {
+    onChange(await patch<Note>(`/api/notes/${note.id}`, { content: { ...content, ...last.before }, expectedVersion: note.rowVersion }));
+    setLast(null);
+  }); };
+  // The longest recording is a clinic setting: it stops by itself there.
+  useEffect(() => { if (active && mic.state === "recording" && mic.secs >= limit) void finish(); });   // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (mic.state === "error") setActive(null); }, [mic.state]);
+  const recBar = (stop: string) => (
+    <div className="dict">
+      <span className="rec"><i />{mic.state === "starting" ? n.micBusy : active?.scope === "note" ? n.wholeRec : n.recording}</span>
+      <span className="mono">{mmss(mic.secs)} / {mmss(limit)}</span>
+      <div className="level small" aria-hidden="true">{mic.levels.map((h, i) => <span key={i} style={{ height: mic.state === "recording" ? h : 4 }} />)}</div>
+      <span className="grow" />
+      <button type="button" className="btn btn-ink btn-sm" disabled={mic.state !== "recording"} onClick={() => void finish()}>{stop}</button>
+      <button type="button" className="btn btn-outline btn-xs" onClick={cancelMic}>{n.cancel}</button>
+    </div>
+  );
+  const heardLine = (label: string) => last && (
+    <div className="heard">
+      <span>{label}</span><q dir="auto">{last.heard}</q>
+      <button type="button" className="link" disabled={dz.busy} onClick={undo}>{n.undo}</button>
+      {last.tidyFailed && <span>{n.tidyFailed}</span>}
+    </div>
+  );
   const dirty = note.sections.some((s) => (content[s.key] ?? "") !== (note.content[s.key] ?? ""));
   const saveNow = async () => (dirty ? patch<Note>(`/api/notes/${note.id}`, { content, expectedVersion: note.rowVersion }) : note);
   const dir = note.language === "ar" ? "rtl" : "ltr";
@@ -326,30 +387,52 @@ function Draft({ v, note, onChange, onDiscarded }: { v: Visit; note: Note; onCha
     <div className="note">
       <div className="stack">
         {v.settings.standIn && note.aiDrafted && <Banner kind="warn">{n.standIn}</Banner>}
+        {canDictate && v.settings.standIn && <p className="hint">{n.standInDictate}</p>}
+        {canDictate && d.tidy && (active?.scope === "note" ? recBar(n.wholeStop) : busy?.scope === "note" ? (
+          <div className="whole"><span className="spinner" aria-hidden="true" /> <span>{n.wholeBusy}</span></div>
+        ) : (
+          <div className="whole">
+            <span className="ic"><MicIcon /></span>
+            <div className="grow"><b>{n.wholeTitle}</b><span className="hint">{n.wholeHint}</span></div>
+            <button type="button" className="btn btn-accent btn-sm" disabled={!free} onClick={() => begin({ scope: "note" })}><MicIcon />{n.wholeStart}</button>
+          </div>
+        ))}
+        {last?.scope === "note" && heardLine(n.heardWhole)}
+        {mic.state === "error" && <Banner kind="warn">{n.noMicDictate}</Banner>}
+        {dz.err && <Banner>{dz.message}</Banner>}
+        {lost && <Banner kind="warn"><span dir="auto">{lost}</span></Banner>}
         {note.aiDrafted && <div className="legend2"><span><mark className="u">{n.unsure}</mark></span><span><mark className="d">{n.medicine}</mark></span>{mine && <span>{n.clickToEdit}</span>}</div>}
         {note.sections.map((s) => {
           const text = content[s.key] ?? "";
           const label = lang === "ar" ? s.ar : s.en;
           return (
             <div key={s.key}>
-              <div className="sec-h" id={`sec-${s.key}`}>{label}</div>
-              {editing === s.key && mine && !signing ? (
+              <div className="sec-row">
+                <div className="sec-h" id={`sec-${s.key}`}>{label}</div>
+                {canDictate && active?.section !== s.key && busy?.section !== s.key && (
+                  <button type="button" className="mic" disabled={!free} onClick={() => begin({ scope: "field", section: s.key })} aria-label={`${n.dictate}: ${label}`}><MicIcon />{n.dictate}</button>
+                )}
+              </div>
+              {active?.section === s.key ? recBar(n.fieldStop) : busy?.section === s.key ? (
+                <div className="dict busy"><span className="spinner" aria-hidden="true" /> <span>{n.fieldBusy}</span></div>
+              ) : editing === s.key && mine && !signing ? (
                 <textarea className="nbox" dir={dir} lang={note.language} autoFocus aria-labelledby={`sec-${s.key}`} rows={Math.max(2, Math.ceil(text.length / 70))} maxLength={4000}
-                  value={text} onChange={(e) => { setSaved(false); setContent({ ...content, [s.key]: e.target.value }); }} onBlur={() => setEditing(null)} />
+                  value={text} onChange={(e) => { setSaved(false); setLast(null); setContent({ ...content, [s.key]: e.target.value }); }} onBlur={() => setEditing(null)} />
               ) : (
-                <div className={`nbox${NOT_MENTIONED.includes(text.trim()) ? " nm" : ""}${mine && !signing ? " editable" : ""}`} dir={dir} lang={note.language}
+                <div className={`nbox${NOT_MENTIONED.includes(text.trim()) ? " nm" : ""}${mine && !signing ? " editable" : ""}${last?.sections.includes(s.key) ? " new" : ""}`} dir={dir} lang={note.language}
                   role={mine && !signing ? "button" : undefined} tabIndex={mine && !signing ? 0 : undefined} aria-labelledby={`sec-${s.key}`}
                   onClick={() => mine && !signing && setEditing(s.key)} onKeyDown={(e) => { if (mine && !signing && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setEditing(s.key); } }}>
                   <SectionText text={text} flags={note.flags.filter((f) => f.section === s.key)} />
                 </div>
               )}
+              {last?.scope === "field" && last.sections[0] === s.key && heardLine(n.heard)}
             </div>
           );
         })}
         {mine && !signing && (
           <div className="signbar">
             <button type="button" className="btn btn-ghost btn-sm" disabled={a.busy || !dirty} onClick={() => void a.run(async () => { onChange(await saveNow()); setSaved(true); })}>{n.saveDraft}</button>
-            <button type="button" className="btn btn-accent btn-sm" disabled={a.busy} onClick={() => { setEditing(null); setSigning(true); setRead(false); }}>{n.reviewSign}</button>
+            <button type="button" className="btn btn-accent btn-sm" disabled={a.busy || !free} onClick={() => { setEditing(null); setLast(null); setSigning(true); setRead(false); }}>{n.reviewSign}</button>
             <span className="hint">{saved && !dirty ? n.saved : n.usedAfterSign}</span>
             <span className="grow" />
             <button type="button" className="btn btn-outline btn-xs" disabled={a.busy} onClick={() => { if (window.confirm(n.confirmDiscard)) void a.run(async () => { await post(`/api/notes/${note.id}/discard`); onDiscarded(); }); }}>{n.discard}</button>
@@ -373,6 +456,63 @@ function Draft({ v, note, onChange, onDiscarded }: { v: Visit; note: Note; onCha
       <Transcript note={note} keepDays={v.settings.keepDays} />
     </div>
   );
+}
+
+// ---------------------------------------------------------------- the microphone for dictation
+// A short recording kept in the browser until Stop, then sent once. Nothing is sent while recording.
+type Target = { scope: "field" | "note"; section?: string };
+type Clip = { stream: MediaStream; rec: MediaRecorder; parts: Blob[]; startedAt: number; audio: AudioContext | null; raf: number; cancelled: boolean };
+const MicIcon = () => (
+  <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" strokeWidth="2" /><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+);
+function useMic() {
+  const [state, setState] = useState<"idle" | "starting" | "recording" | "error">("idle");
+  const [secs, setSecs] = useState(0);
+  const [levels, setLevels] = useState<number[]>(() => Array(10).fill(4));
+  const cur = useRef<Clip | null>(null);
+  const release = (c: Clip) => { c.stream.getTracks().forEach((t) => t.stop()); cancelAnimationFrame(c.raf); void c.audio?.close().catch(() => {}); };
+  const start = async () => {
+    setState("starting"); setSecs(0);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+      const type = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"].find((x) => MediaRecorder.isTypeSupported?.(x));
+      const rec = new MediaRecorder(stream, type ? { mimeType: type, audioBitsPerSecond: 32000 } : undefined);
+      const c: Clip = { stream, rec, parts: [], startedAt: Date.now(), audio: null, raf: 0, cancelled: false };
+      cur.current = c;
+      rec.ondataavailable = (e) => { if (e.data?.size) c.parts.push(e.data); };
+      rec.start(1000);
+      setState("recording");
+      try {
+        const audio = new AudioContext(); c.audio = audio;
+        const an = audio.createAnalyser(); an.fftSize = 32;
+        audio.createMediaStreamSource(stream).connect(an);
+        const buf = new Uint8Array(an.frequencyBinCount);
+        const draw = () => { an.getByteFrequencyData(buf); setLevels(Array.from({ length: 10 }, (_, i) => 4 + Math.round(((buf[i + 1] ?? 0) / 255) * 26))); c.raf = requestAnimationFrame(draw); };
+        draw();
+      } catch { /* no level bars: the recording goes on */ }
+    } catch { setState("error"); }
+  };
+  const stop = () => new Promise<{ blob: Blob; seconds: number } | null>((done) => {
+    const c = cur.current;
+    if (!c) { done(null); return; }
+    c.rec.addEventListener("stop", () => {
+      release(c); cur.current = null; setState("idle");
+      done(c.cancelled ? null : { blob: new Blob(c.parts, { type: c.rec.mimeType || "audio/webm" }), seconds: (Date.now() - c.startedAt) / 1000 });
+    }, { once: true });
+    c.rec.stop();
+  });
+  const cancel = () => {
+    const c = cur.current;
+    if (c) { c.cancelled = true; if (c.rec.state !== "inactive") c.rec.stop(); release(c); cur.current = null; }
+    setState("idle");
+  };
+  useEffect(() => {
+    if (state !== "recording") return;
+    const h = window.setInterval(() => { const c = cur.current; if (c) setSecs((Date.now() - c.startedAt) / 1000); }, 250);
+    return () => window.clearInterval(h);
+  }, [state]);
+  useEffect(() => () => { const c = cur.current; if (c) { c.cancelled = true; if (c.rec.state !== "inactive") c.rec.stop(); release(c); } }, []);
+  return { state, secs, levels, start, stop, cancel };
 }
 
 // ---------------------------------------------------------------- signed: locked, with dated additions (screen 5)

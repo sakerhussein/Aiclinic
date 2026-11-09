@@ -37,6 +37,12 @@ const EN = {
   // patient page
   filter: { "": "All", none: "None yet", unsigned: "Not signed", signed: "Signed" } as Record<string, string>,
   notesTitle: "Visit notes", notesNone: "No visit notes.", date: "Date", doctor: "Doctor", visit: "Visit", note: "Note",
+  // dictation (design: booking/design/dictation.html)
+  dictate: "Dictate", wholeTitle: "Dictate the whole note", wholeHint: "Talk through the visit once; each part goes to its field. Fields you do not mention stay as they are.",
+  wholeStart: "Start", wholeRec: "Recording the whole note", wholeStop: "Stop and fill the fields", wholeBusy: "Sorting what you said into the fields…",
+  fieldStop: "Stop and insert", fieldBusy: "Writing what you said…", heard: "Heard:", undo: "Undo", tidyFailed: "Could not be tidied: inserted exactly as heard.",
+  noMicDictate: "The microphone could not be opened. Allow it in the browser, or type.", standInDictate: "Test mode: dictation puts sample words in, not what you said.",
+  heardWhole: "Heard (whole note):",
 };
 
 const AR: typeof EN = {
@@ -69,6 +75,11 @@ const AR: typeof EN = {
   addedBy: "{name}، {when}",
   filter: { "": "الكل", none: "لا يوجد بعد", unsigned: "غير موقّعة", signed: "موقّعة" },
   notesTitle: "ملاحظات الزيارات", notesNone: "لا توجد ملاحظات زيارات.", date: "التاريخ", doctor: "الطبيب", visit: "الزيارة", note: "الملاحظة",
+  dictate: "إملاء", wholeTitle: "إملاء الملاحظة كاملة", wholeHint: "تحدّث عن الزيارة مرة واحدة، فيذهب كل جزء إلى حقله. الحقول التي لا تذكرها تبقى كما هي.",
+  wholeStart: "ابدأ", wholeRec: "تسجيل الملاحظة كاملة", wholeStop: "إيقاف وتعبئة الحقول", wholeBusy: "نرتّب ما قلته في الحقول…",
+  fieldStop: "إيقاف وإدراج", fieldBusy: "نكتب ما قلته…", heard: "سُمع:", undo: "تراجع", tidyFailed: "تعذّر الترتيب: أُدرج كما سُمع تماماً.",
+  noMicDictate: "تعذّر فتح الميكروفون. اسمح به في المتصفح، أو اكتب.", standInDictate: "وضع الاختبار: الإملاء يضع كلمات تجريبية، لا ما قلته.",
+  heardWhole: "سُمع (الملاحظة كاملة):",
 };
 
 // The visit note's state as a small coloured label (Bookings list, booking page).

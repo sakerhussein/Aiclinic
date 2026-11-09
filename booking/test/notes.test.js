@@ -306,3 +306,91 @@ test("the Bookings list shows each visit note's state, and filters by it", async
   assert.ok(!JSON.stringify((await sec.get(`/api/appointments?from=${TOMORROW}`)).json).includes("Itchy"), "the list never carries the note's words");
   void v;
 });
+
+// ------------------------------------------------------------------ dictation (design: booking/design/dictation.html)
+const dictOn = (extra = "") => t.owner.query(`update scribe_settings set enabled = true, dictation_enabled = true${extra}`);
+async function handNote() {
+  return (await dr.post(`/api/appointments/${appt.id}/note`, { mode: "manual" })).json;
+}
+
+test("dictating one field: off until switched on, the treating doctor only, words added after what is there", async () => {
+  await t.owner.query("update scribe_settings set enabled = true");
+  let n = await handNote();
+  const q = (v, extra = {}) => ({ scope: "field", section: "exam", seconds: 14, expectedVersion: v.rowVersion, ...extra });
+  assert.equal((await t.dictate(dr, n.id, q(n))).json.error, "dictation_off");
+  await dictOn();
+  assert.equal((await dr.get(`/api/appointments/${appt.id}/note`)).json.settings.dictation.enabled, true);
+  assert.equal((await t.dictate(sec, n.id, q(n))).status, 403, "a secretary cannot");
+  assert.equal((await t.dictate(dr, n.id, q(n), Buffer.from("x"), "text/plain")).json.error, "not_audio");
+  assert.equal((await t.dictate(dr, n.id, q(n, { seconds: 200 }))).json.error, "dictation_too_long", "2 minutes a field");
+  assert.equal((await t.dictate(dr, n.id, q(n, { section: "nope" }))).json.error, "unknown_section");
+
+  n = (await dr.patch(`/api/notes/${n.id}`, { content: { exam: "Seen in good light." }, expectedVersion: n.rowVersion })).json;
+  const r = await t.dictate(dr, n.id, q(n));
+  assert.equal(r.status, 200);
+  assert.equal(r.json.note.content.exam, "Seen in good light.\nBoth elbows: dry, scaly patches about 3 × 4 cm. No signs of infection.", "added after, never over");
+  assert.match(r.json.heard, /dry scaly patches/, "what was heard comes back to show under the field");
+  assert.deepEqual(r.json.sections, ["exam"]);
+  assert.equal(t.tidier.calls[0].model, "claude-haiku-5-5");
+  assert.equal(t.tidier.calls[0].translate, true);
+  assert.equal((await t.dictate(dr, n.id, q(n))).json.error, "version_conflict", "a stale screen cannot add");
+
+  const p = await t.dictate(dr, n.id, { scope: "field", section: "plan", seconds: 20, expectedVersion: r.json.note.rowVersion });
+  assert.ok(p.json.note.flags.some((f) => f.section === "plan" && f.kind === "medicine" && f.text === "Mometasone 0.1% cream"), "the medicine is marked");
+  const rows = (await t.owner.query("select scope, section, seconds, model, outcome from visit_note_dictations order by created_at")).rows;
+  assert.deepEqual(rows.map((x) => [x.scope, x.section, x.outcome]), [["field", "exam", "inserted"], ["field", "plan", "inserted"]]);
+  const audit = JSON.stringify((await t.owner.query("select after, before from audit.events where entity = 'visit_note'")).rows);
+  assert.ok(!/elbows|Mometasone/.test(audit), "the audit trail never holds the words");
+});
+
+test("dictating the whole note: each part in its field, fields not mentioned stay as they were", async () => {
+  await dictOn();
+  let n = await handNote();
+  n = (await dr.patch(`/api/notes/${n.id}`, { content: { relevant: "No allergies." }, expectedVersion: n.rowVersion })).json;
+  const r = await t.dictate(dr, n.id, { scope: "note", seconds: 90, expectedVersion: n.rowVersion });
+  assert.equal(r.status, 200);
+  assert.equal(r.json.note.content.reason, "Itchy rash on both elbows for 3 weeks.");
+  assert.equal(r.json.note.content.relevant, "No allergies.", "not mentioned: left alone");
+  assert.ok(!r.json.sections.includes("relevant"));
+  assert.equal(t.tidier.calls[0].scope, "note");
+  assert.equal((await t.dictate(dr, n.id, { scope: "note", seconds: 400, expectedVersion: r.json.note.rowVersion })).json.error, "dictation_too_long", "5 minutes the whole note");
+
+  await t.owner.query("update scribe_settings set dictation_model = 'none'");
+  const v = r.json.note.rowVersion;
+  assert.equal((await t.dictate(dr, n.id, { scope: "note", seconds: 30, expectedVersion: v })).json.error, "whole_note_needs_tidy");
+  const raw = await t.dictate(dr, n.id, { scope: "field", section: "reason", seconds: 5, expectedVersion: v });
+  assert.equal(raw.json.note.content.reason, "Itchy rash on both elbows for 3 weeks.\nعندها حكة عالكوعين من تقريباً ٣ أسابيع", "no model: exactly as heard");
+  assert.equal(t.tidier.calls.length, 1);
+});
+
+test("dictation when tidying fails, and the daily cap", async () => {
+  await dictOn(", dictations_per_doctor_per_day = 2");
+  const n = await handNote();
+  t.tidier.fail = "tidy_service_529";
+  const f = await t.dictate(dr, n.id, { scope: "field", section: "reason", seconds: 5, expectedVersion: n.rowVersion });
+  assert.equal(f.json.tidyFailed, true, "a field still gets the words, as heard");
+  assert.equal(f.json.note.content.reason, "عندها حكة عالكوعين من تقريباً ٣ أسابيع");
+  const w = await t.dictate(dr, n.id, { scope: "note", seconds: 30, expectedVersion: f.json.note.rowVersion });
+  assert.equal(w.json.error, "tidy_failed");
+  assert.match(w.json.heard, /حكة/, "the whole note's words come back so nothing is lost");
+  assert.equal((await t.dictate(dr, n.id, { scope: "field", section: "plan", seconds: 5, expectedVersion: f.json.note.rowVersion })).json.error, "dictation_daily_limit");
+  const out = (await t.owner.query("select outcome from visit_note_dictations order by created_at")).rows.map((x) => x.outcome);
+  assert.deepEqual(out, ["inserted", "failed"]);
+});
+
+test("Settings > AI Scribe > Dictation is saved and validated", async () => {
+  const admin = (await t.login(P.admin, { mfa: P.admin.secret })).b;
+  const cur = (await admin.get("/api/settings")).json.scribe;
+  assert.equal(cur.dictation_enabled, false);
+  const body = { enabled: true, noteLanguage: "en", consentEn: cur.consent_en, consentAr: cur.consent_ar, sections: cur.sections, maxRecordingMinutes: 45,
+    transcriptKeepDays: 30, notesPerDoctorPerDay: 40, speechService: "stand_in", draftModel: "claude-opus-5-5", doctors: [] };
+  const d = { enabled: true, model: "claude-sonnet-5-5", translate: false, fieldSeconds: 60, noteMinutes: 10, perDoctorPerDay: 50 };
+  assert.equal((await admin.patch("/api/settings/scribe", { ...body, dictation: { ...d, fieldSeconds: 45 } })).status, 400);
+  assert.equal((await admin.patch("/api/settings/scribe", { ...body, dictation: { ...d, model: "claude-opus-5-5" } })).status, 400);
+  assert.equal((await admin.patch("/api/settings/scribe", { ...body, dictation: d })).status, 200);
+  const s = (await admin.get("/api/settings")).json.scribe;
+  assert.deepEqual([s.dictation_enabled, s.dictation_model, s.dictation_translate, s.dictation_field_seconds, s.dictation_note_minutes, s.dictations_per_doctor_per_day],
+    [true, "claude-sonnet-5-5", false, 60, 10, 50]);
+  assert.equal((await admin.patch("/api/settings/scribe", body)).status, 200);
+  assert.equal((await admin.get("/api/settings")).json.scribe.dictation_model, "claude-sonnet-5-5", "left out: kept");
+});

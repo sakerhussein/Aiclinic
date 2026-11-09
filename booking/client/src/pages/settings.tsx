@@ -17,7 +17,8 @@ type Doctor = { id: string; name_en: string; name_ar: string; title_en: string |
   slot_minutes: number | null; buffer_minutes: number; service_ids: string[]; hours: Period[]; scribe_enabled: boolean };
 type ScribeSection = { key: string; en: string; ar: string; hint?: string };
 type Scribe = { enabled: boolean; note_language: "en" | "ar"; consent_en: string; consent_ar: string; sections: ScribeSection[]; max_recording_minutes: number;
-  transcript_keep_days: number; notes_per_doctor_per_day: number; speech_service: string; draft_model: string };
+  transcript_keep_days: number; notes_per_doctor_per_day: number; speech_service: string; draft_model: string;
+  dictation_enabled: boolean; dictation_model: string; dictation_translate: boolean; dictation_field_seconds: number; dictation_note_minutes: number; dictations_per_doctor_per_day: number };
 type Service = { id: string; name_en: string; name_ar: string; description_en: string | null; description_ar: string | null; duration_minutes: number; price_jod: string | null; price_is_from: boolean; active: boolean };
 type TimeOff = { id: string; doctor_id: string | null; starts_at: string; ends_at: string; reason: string | null };
 type Faq = { id: string; topic: string; question_en: string; question_ar: string; answer_en: string; answer_ar: string };
@@ -37,7 +38,7 @@ type Online = { enabled: boolean; staff_check: boolean; show_prices: boolean; al
 type OnlineLink = { enabled: boolean; url?: string; qrUrl?: string };
 type Data = { profile: Profile; hours: Period[]; closures: TimeOff[]; doctors: Doctor[]; services: Service[]; faqs: Faq[]; rules: Rule[]; general: General; outside: Outside[];
   online: Online; onlineLink: OnlineLink; scribe: Scribe;
-  options: { slotMinutes: number[]; bufferMinutes: number[]; idleMinutes: number[]; lockMinutes: number[]; reminderMinutes: number[]; recoveryWarnAt: number[] } };
+  options: { slotMinutes: number[]; bufferMinutes: number[]; idleMinutes: number[]; lockMinutes: number[]; reminderMinutes: number[]; recoveryWarnAt: number[]; dictationFieldSeconds: number[]; dictationNoteMinutes: number[] } };
 
 const TABS = ["profile", "hours", "doctors", "services", "rules", "online", "scribe", "reminders", "assistant", "security", "audit"] as const;
 type Tab = (typeof TABS)[number];
@@ -498,7 +499,12 @@ function ScribeTab({ data, reload }: P) {
     maxRecordingMinutes: o.max_recording_minutes, transcriptKeepDays: o.transcript_keep_days, notesPerDoctorPerDay: o.notes_per_doctor_per_day,
     speechService: o.speech_service, draftModel: o.draft_model,
     doctors: active.map((d) => ({ id: d.id, scribeEnabled: d.scribe_enabled })),
+    dictation: { enabled: o.dictation_enabled, model: o.dictation_model, translate: o.dictation_translate, fieldSeconds: o.dictation_field_seconds,
+      noteMinutes: o.dictation_note_minutes, perDoctorPerDay: o.dictations_per_doctor_per_day },
   });
+  // Arabic counts: 1 دقيقة واحدة, 2 دقيقتان, 3 to 10 دقائق, 11 and over دقيقة.
+  const minLabel = (m: number) => (lang === "ar" ? (m === 1 ? "دقيقة واحدة" : m === 2 ? "دقيقتان" : m <= 10 ? `${m} دقائق` : `${m} دقيقة`) : x.minutes.replace("{n}", String(m)).replace(/^1 minutes$/, "1 minute"));
+  const setD = (p: Partial<typeof f.dictation>) => setF({ ...f, dictation: { ...f.dictation, ...p } });
   const { a, ok, submit } = useSave(reload);
   const setSec = (i: number, p: Partial<ScribeSection>) => setF({ ...f, sections: f.sections.map((z, j) => (j === i ? { ...z, ...p } : z)) });
   const move = (i: number, by: number) => { const l = [...f.sections]; const [it] = l.splice(i, 1); l.splice(i + by, 0, it); setF({ ...f, sections: l }); };
@@ -561,6 +567,21 @@ function ScribeTab({ data, reload }: P) {
         <Field label={x.model} hint={x.modelHint}>
           <select value={f.draftModel} onChange={(e) => setF({ ...f, draftModel: e.target.value })}><option value="claude-opus-5-5">{x.opus}</option><option value="claude-sonnet-5-5">{x.sonnet}</option><option value="claude-haiku-5-5">{x.haiku}</option></select>
         </Field>
+      </section>
+      <section className="panel stack">
+        <h2>{x.dictTitle}</h2>
+        <Check checked={f.dictation.enabled} onChange={(v) => setD({ enabled: v })}>{x.dictOn}<br /><small className="hint">{x.dictOnHint}</small></Check>
+        <Field label={x.dictModel} hint={x.dictModelHint}>
+          <select value={f.dictation.model} onChange={(e) => setD({ model: e.target.value })}><option value="claude-haiku-5-5">{x.dictHaiku}</option><option value="claude-sonnet-5-5">{x.dictSonnet}</option><option value="none">{x.dictNone}</option></select>
+        </Field>
+        <Check checked={f.dictation.translate} onChange={(v) => setD({ translate: v })}>{x.dictTranslate}<br /><small className="hint">{x.dictTranslateHint}</small></Check>
+        <div className="grid2">
+          <Field label={x.dictField}><select value={f.dictation.fieldSeconds} onChange={(e) => setD({ fieldSeconds: Number(e.target.value) })}>
+            {data.options.dictationFieldSeconds.map((v) => <option key={v} value={v}>{v % 60 ? x.seconds.replace("{n}", String(v)) : minLabel(v / 60)}</option>)}</select></Field>
+          <Field label={x.dictNote}><select value={f.dictation.noteMinutes} onChange={(e) => setD({ noteMinutes: Number(e.target.value) })}>
+            {data.options.dictationNoteMinutes.map((v) => <option key={v} value={v}>{minLabel(v)}</option>)}</select></Field>
+          <Field label={x.dictPerDay} hint={x.dictPerDayHint}><input type="number" min={1} max={2000} required value={f.dictation.perDoctorPerDay} onChange={(e) => setD({ perDoctorPerDay: Number(e.target.value) })} /></Field>
+        </div>
       </section>
       <Saver a={a} ok={ok} />
     </SForm>

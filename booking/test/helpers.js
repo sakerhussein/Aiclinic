@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { setup as accountsSetup, GOOD } from "../../accounts/test/helpers.js";
 import { ScribeError, createScribe, sampleDrafter } from "../server/scribe.js";
+import { sampleTidier } from "../server/dictation.js";
 import { sha256 } from "../../accounts/server/crypto.js";
 import { createService } from "../server/service.js";
 import { createApp } from "../server/app.js";
@@ -30,7 +31,8 @@ export async function setup() {
   const audioDir = fs.mkdtempSync(path.join(os.tmpdir(), "lc-scribe-test-"));
   const drafter = { fail: null, calls: [], async draft(x) { drafter.calls.push(x); if (drafter.fail) throw new ScribeError(drafter.fail); return sampleDrafter.draft(x); } };
   const scribe = createScribe({ pool, audioDir, drafter, now: () => new Date(a.clock.t), log: { error() {} } });
-  const svc = createService({ pool, auditPool, now: () => new Date(a.clock.t), audioDir });
+  const tidier = { fail: null, calls: [], async tidy(x) { tidier.calls.push(x); if (tidier.fail) throw new ScribeError(tidier.fail); return sampleTidier.tidy(x); } };
+  const svc = createService({ pool, auditPool, now: () => new Date(a.clock.t), audioDir, tidier });
   const app = createApp({ svc, config });
   const server = await new Promise((r) => { const s = app.listen(0, "127.0.0.1", () => r(s)); });
   const base = `http://127.0.0.1:${server.address().port}`;
@@ -104,12 +106,13 @@ export async function setup() {
     fetch(`${base}/api/notes/${noteId}/audio/${seq}`, { method: "PUT", headers: { origin: base, cookie: b.cookie, "content-type": type }, body: buf })
       .then(async (r) => ({ status: r.status, json: await r.json().catch(() => null) }));
 
-  async function reset() { agent.next = []; agent.calls = []; agent.down = false; drafter.fail = null; drafter.calls = [];
+  async function reset() { agent.next = []; agent.calls = []; agent.down = false; drafter.fail = null; drafter.calls = []; tidier.fail = null; tidier.calls = [];
     for (const d of fs.readdirSync(audioDir)) fs.rmSync(path.join(audioDir, d), { recursive: true, force: true });
     await a.owner.query(`delete from web_callbacks; delete from web_chats; delete from appointments; delete from patients; delete from time_off; delete from clinic_hours;
       update doctors set slot_minutes = null, buffer_minutes = 0, active = true, scribe_enabled = false;
       update scribe_settings set enabled = false, note_language = 'en', max_recording_minutes = 45, transcript_keep_days = 30, notes_per_doctor_per_day = 40,
-        speech_service = 'stand_in', draft_model = 'claude-opus-5-5';
+        speech_service = 'stand_in', draft_model = 'claude-opus-5-5', dictation_enabled = false, dictation_model = 'claude-haiku-5-5',
+        dictation_translate = true, dictation_field_seconds = 120, dictation_note_minutes = 5, dictations_per_doctor_per_day = 200;
       update booking_rules set min_notice_minutes = 0, window_days = 365, change_notice_minutes = 0, max_upcoming = null, outside_hours = 'warn', walkin_back_minutes = 120, require_cancel_reason = true where audience = 'staff';
       update booking_rules set min_notice_minutes = 60, window_days = 30, change_notice_minutes = 120, max_upcoming = 3 where audience = 'patient';
       update clinic_settings set idle_timeout_minutes = 60, lock_after_minutes = 10, require_2fa_all = false, audit_retention_months = null, assistant_enabled = true;
@@ -117,6 +120,10 @@ export async function setup() {
       delete from online_booking; insert into online_booking (clinic_id) select id from clinics;
       update clinics set wa_phone_number_id = null;`); publicApp.locals.forget(); await a.reset(); }
   return { ...a, accountsBase: a.base, reset, base, publicBase, pub, agent, forgetPublic: () => publicApp.locals.forget(), bookingJar: jar, login, people, seedIds, pool,
-    audioDir, scribe, drafter, putAudio,
+    audioDir, scribe, drafter, tidier, putAudio,
+    // Dictation, as the browser sends it: the whole recording at once.
+    dictate: (b, noteId, q, buf = Buffer.from("fake-opus-audio"), type = "audio/webm;codecs=opus") =>
+      fetch(`${base}/api/notes/${noteId}/dictate?${new URLSearchParams(q)}`, { method: "POST", headers: { origin: base, cookie: b.cookie, "content-type": type }, body: buf })
+        .then(async (r) => ({ status: r.status, json: await r.json().catch(() => null) })),
     async close() { server.close(); publicServer.close(); await publicPool.end(); await pool.end(); await auditPool.end(); await a.close(); fs.rmSync(audioDir, { recursive: true, force: true }); } };
 }
