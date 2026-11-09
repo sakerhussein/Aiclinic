@@ -21,5 +21,18 @@ export function createMailer(config, { log = console.log } = {}) {
     reset: ({ to, name, link }) => send(to, "Reset your password / إعادة تعيين كلمة المرور",
       `Hello ${name},\n\nUse this link to choose a new password (it works once, for 1 hour). If you did not ask for it, ignore this email.\n${link}\n\n` +
       `مرحباً ${name}،\n\nاستخدم هذا الرابط لاختيار كلمة مرور جديدة (يعمل مرة واحدة ولمدة ساعة). إذا لم تطلبه فتجاهل هذه الرسالة.\n${link}\n`),
+    // After an administrator (or the server command) reset someone's two-step: they learn at once if they did not ask for it.
+    twoStepReset: ({ to, name, by, at, timezone }) => {
+      const when = (locale) => new Intl.DateTimeFormat(locale, { dateStyle: "long", timeStyle: "short", timeZone: timezone }).format(at);
+      return send(to, "Your two-step verification was reset / أُعيد ضبط التحقق بخطوتين لحسابك",
+        `Hello ${name},\n\n${by} reset two-step verification for your Limitsiz Clinic account on ${when("en-GB")} (${timezone}). ` +
+        `Your old authenticator app and recovery codes no longer work, and you were signed out everywhere.\n\n` +
+        `Next time you sign in, you will scan a new code with your authenticator app.\n\n` +
+        `If you did not ask for this, contact your clinic administrator straight away.\n\n` +
+        `مرحباً ${name}،\n\nأعاد ${by} ضبط التحقق بخطوتين لحسابك في Limitsiz Clinic في ${when("ar-JO-u-nu-latn")} (${timezone}). ` +
+        `لم يعد تطبيق المصادقة القديم ولا رموز الاسترداد تعمل، وتم تسجيل خروجك من كل الأجهزة.\n\n` +
+        `في المرة القادمة التي تسجّل فيها الدخول، ستمسح رمزاً جديداً بتطبيق المصادقة.\n\n` +
+        `إن لم تطلب هذا، تواصل مع مدير العيادة فوراً.\n`);
+    },
   };
 }

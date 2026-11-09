@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { I18nProvider } from "./i18n";
 import { SessionProvider, useSession } from "./session";
-import { Accept, ChooseClinic, Forgot, Mfa, MfaSetup, Reset, SignIn, SignOut, Unlock } from "./pages/auth";
+import { Accept, ChooseClinic, Forgot, Mfa, MfaSetup, Reset, SignIn, SignOut, TwoStepCodes, TwoStepMove, Unlock } from "./pages/auth";
 import { Account, Launcher, NoAccess, Users } from "./pages/inside";
 
 // Signed-in pages: the server decides the state (locked, second step, choose a clinic); the page follows it.
@@ -42,6 +42,8 @@ export default function App() {
             <Route path="/" element={<Gate><Launcher /></Gate>} />
             <Route path="/account" element={<Gate><Account /></Gate>} />
             <Route path="/users" element={<Gate><Users /></Gate>} />
+            <Route path="/two-step/codes" element={<Gate><TwoStepCodes /></Gate>} />
+            <Route path="/two-step/move" element={<Gate><TwoStepMove /></Gate>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>

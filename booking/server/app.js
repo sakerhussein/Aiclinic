@@ -282,7 +282,7 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
     }), req.body)));
   }));
   app.patch("/api/settings/general", EDIT, wrap(async (req, res) => res.json(await S.updateGeneral(req.ctx, parse(z.object({
-    idleTimeoutMinutes: pick(15, 30, 60, 120, 240), lockAfterMinutes: pick(0, 5, 10, 15, 30), require2faAll: z.boolean(),
+    idleTimeoutMinutes: pick(15, 30, 60, 120, 240), lockAfterMinutes: pick(0, 5, 10, 15, 30), require2faAll: z.boolean(), recoveryWarnAt: pick(1, 2, 3, 4, 5).optional(),
     conversationVisibility: z.enum(["none", "handoff", "all"]), auditRetentionMonths: z.number().int().min(12).max(240).nullish(),
     remindersEnabled: z.boolean(), reminderOffsetsMinutes: z.array(pick(2880, 1440, 720, 240, 120, 60)).max(2), quietStart: hhmm, quietEnd: hhmm,
     assistantEnabled: z.boolean(), afterHoursMessageEn: z.string().trim().max(500).nullish(), afterHoursMessageAr: z.string().trim().max(500).nullish(),

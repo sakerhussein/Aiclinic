@@ -514,3 +514,113 @@ test("health endpoints", async () => {
   assert.equal((await b.get("/api/health/db")).status, 200);
   assert.equal((await b.get("/api/nothing")).status, 404);
 });
+
+// ------------------------------------------------------------------ two-step recovery (design: booking/design/two-step.html)
+async function withCodes(user, n = 10) {               // gives a test user n recovery codes, the way enabling two-step does
+  const { sha256 } = await import("../server/crypto.js");
+  const codes = Array.from({ length: n }, (_, i) => `aaaa-bbbb-${String(i).padStart(4, "0")}`);
+  for (const c of codes) await t.owner.query("insert into accounts.recovery_codes (user_id, code_hash) values ($1,$2)", [user.id, sha256(c)]);
+  return codes;
+}
+async function signedIn(user) {
+  const { b } = await t.signIn(user);
+  assert.equal((await b.post("/api/mfa/verify", { code: t.code(user.secret) })).status, 200);
+  return b;
+}
+
+test("signing in with a recovery code says how many are left; the page learns the count and when to warn", async () => {
+  const u = await t.makeUser({ email: "rc@clinic.jo", role: "clinic_admin", name: "Rc", mfa: true });
+  const codes = await withCodes(u, 3);
+  const { b } = await t.signIn(u);
+  const v = await b.post("/api/mfa/verify", { recovery: ` ${codes[0].toUpperCase()} ` });
+  assert.deepEqual(v.json, { ok: true, recoveryLeft: 2 }, "spaces and capitals are forgiven");
+  assert.deepEqual((await b.get("/api/me")).json.recovery, { left: 2, warnAt: 3 });
+  await t.owner.query("update clinic_settings set recovery_warn_at = 1 where clinic_id = $1", [t.clinicA]);
+  assert.deepEqual((await b.get("/api/me")).json.recovery, { left: 2, warnAt: 1 }, "the clinic's setting");
+  const app = await signedIn(u);
+  assert.equal((await app.post("/api/mfa/verify", { code: t.code(u.secret) })).status, 409, "after sign-in there is nothing left to verify");
+  const s = await t.makeUser({ email: "nomfa@clinic.jo", name: "NoMfa" });
+  assert.equal((await (await t.signIn(s)).b.get("/api/me")).json.recovery, null, "nothing while two-step is off");
+});
+
+test("new recovery codes need the password; the old codes stop working", async () => {
+  const u = await t.makeUser({ email: "renew@clinic.jo", role: "clinic_admin", name: "Renew", mfa: true });
+  const old = await withCodes(u, 2);
+  const b = await signedIn(u);
+  assert.equal((await b.post("/api/mfa/recovery-codes")).json.error, "password_required");
+  await b.post("/api/confirm-password", { password: u.password });
+  const r = await b.post("/api/mfa/recovery-codes");
+  assert.equal(r.json.recoveryCodes.length, 10);
+  assert.equal((await b.get("/api/me")).json.recovery.left, 10);
+  assert.equal((await (await t.signIn(u)).b.post("/api/mfa/verify", { recovery: old[0] })).status, 401);
+  assert.equal((await (await t.signIn(u)).b.post("/api/mfa/verify", { recovery: r.json.recoveryCodes[0] })).status, 200);
+  assert.ok((await auditActions("user")).includes("recovery_codes_renewed"));
+});
+
+test("moving to a new phone: the old phone works until the new code confirms it, then only the new one", async () => {
+  const u = await t.makeUser({ email: "move@clinic.jo", role: "clinic_admin", name: "Move", mfa: true });
+  const old = await withCodes(u, 1);
+  const b = await signedIn(u);
+  assert.equal((await b.post("/api/mfa/move/start")).json.error, "password_required");
+  await b.post("/api/confirm-password", { password: u.password });
+  const start = (await b.post("/api/mfa/move/start")).json;
+  assert.match(start.otpauth, /^otpauth:\/\/totp\//);
+  assert.equal((await b.post("/api/mfa/move/confirm", { code: t.code(u.secret) })).status, 401, "the old phone's code does not confirm the new one");
+  t.advance(1);
+  assert.equal((await (await t.signIn(u)).b.post("/api/mfa/verify", { code: t.code(u.secret) })).status, 200, "not confirmed yet: the old phone still works");
+  const done = await b.post("/api/mfa/move/confirm", { code: t.code(start.secret) });
+  assert.equal(done.json.recoveryCodes.length, 10);
+  t.advance(1);
+  assert.equal((await (await t.signIn(u)).b.post("/api/mfa/verify", { code: t.code(u.secret) })).status, 401, "the old phone stopped");
+  assert.equal((await (await t.signIn(u)).b.post("/api/mfa/verify", { recovery: old[0] })).status, 401, "and its codes");
+  assert.equal((await (await t.signIn(u)).b.post("/api/mfa/verify", { code: t.code(start.secret) })).status, 200);
+  assert.ok((await auditActions("user")).includes("two_step_moved"));
+
+  await b.post("/api/activity");
+  await b.post("/api/mfa/move/start");
+  t.advance(9); await b.post("/api/activity");
+  t.advance(2); await b.post("/api/activity");
+  assert.equal((await b.post("/api/mfa/move/confirm", { code: t.code(start.secret) })).json.error, "move_expired", "a started move is forgotten after 10 minutes");
+});
+
+test("an administrator resets someone's two-step: their key and codes go, they are signed out and emailed", async () => {
+  const admin = await t.makeUser({ email: "boss@clinic.jo", role: "clinic_admin", name: "Boss", mfa: true });
+  const lina = await t.makeUser({ email: "lina@clinic.jo", role: "clinic_admin", name: "Lina", mfa: true });
+  const sec = await t.makeUser({ email: "sec@clinic.jo", name: "Sec" });
+  const foreign = await t.makeUser({ email: "f@other.jo", role: "clinic_admin", name: "Foreign", clinic: t.clinicB, mfa: true });
+  const linaB = await signedIn(lina);
+
+  const sb = (await t.signIn(sec)).b;
+  await sb.post("/api/confirm-password", { password: sec.password });
+  assert.equal((await sb.post(`/api/users/${lina.id}/reset-two-step`)).status, 403, "a secretary cannot");
+
+  const b = await signedIn(admin);
+  assert.equal((await b.get("/api/users")).json.users.find((x) => x.id === lina.id).codes_left, 0, "the list shows codes left");
+  assert.equal((await b.get("/api/users")).json.users.find((x) => x.id === sec.id).codes_left, null);
+  assert.equal((await b.post(`/api/users/${lina.id}/reset-two-step`)).json.error, "password_required");
+  await b.post("/api/confirm-password", { password: admin.password });
+  assert.equal((await b.post(`/api/users/${admin.id}/reset-two-step`)).json.error, "cannot_change_own_access", "nobody resets their own");
+  assert.equal((await b.post(`/api/users/${foreign.id}/reset-two-step`)).status, 404, "only people of this clinic");
+  assert.equal((await b.post(`/api/users/${sec.id}/reset-two-step`)).json.error, "two_step_off");
+
+  const r = await b.post(`/api/users/${lina.id}/reset-two-step`);
+  assert.deepEqual(r.json, { sessionsEnded: 1, emailed: true });
+  const row = (await t.owner.query("select mfa_enabled, mfa_secret_enc from accounts.users where id = $1", [lina.id])).rows[0];
+  assert.deepEqual(row, { mfa_enabled: false, mfa_secret_enc: null });
+  assert.equal((await linaB.get("/api/me")).status, 401, "signed out everywhere");
+  const m = t.mails.find((x) => x.kind === "two_step_reset");
+  assert.equal(m.to, "lina@clinic.jo"); assert.equal(m.by, "Boss"); assert.equal(m.timezone, "Asia/Amman");
+  const ev = (await t.owner.query("select actor_label from audit.events where action = 'two_step_reset' and entity_id = $1", [lina.id])).rows[0];
+  assert.equal(ev.actor_label, "Boss");
+  assert.equal((await t.signIn(lina)).r.json.state, "mfa_setup_required", "an administrator sets it up again at the next sign-in");
+});
+
+test("the server command resets two-step when nobody else can", async () => {
+  const lone = await t.makeUser({ email: "lone@clinic.jo", role: "clinic_admin", name: "Lone", mfa: true });
+  assert.deepEqual(await t.core.serverResetTwoStep("LONE@clinic.jo"), { sessionsEnded: 0, emailed: true });
+  assert.equal((await t.signIn(lone)).r.json.state, "mfa_setup_required");
+  const ev = (await t.owner.query("select actor_type, actor_label from audit.events where action = 'two_step_reset' and entity_id = $1", [lone.id])).rows[0];
+  assert.deepEqual(ev, { actor_type: "system", actor_label: "Limitsiz owner (server command)" });
+  assert.equal(t.mails.find((x) => x.kind === "two_step_reset").to, "lone@clinic.jo");
+  await assert.rejects(t.core.serverResetTwoStep("nobody@clinic.jo"), /user_not_found/);
+});

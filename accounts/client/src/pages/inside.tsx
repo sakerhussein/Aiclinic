@@ -15,6 +15,7 @@ export function Launcher() {
       <AppBar />
       <main className="wrap page">
         <h1 className="display">{t("hello", { name: me?.user.name || "" })}</h1>
+        <RecoveryReminder />
         {apps && apps.length === 0 && <Banner kind="warn">{t("noApps")}</Banner>}
         <div className="apps">
           {apps?.map((a) => (
@@ -27,6 +28,20 @@ export function Launcher() {
         </div>
       </main>
     </>
+  );
+}
+
+// Shown while the recovery codes left are at or below the clinic's setting (design screen 2), until new ones are made.
+function RecoveryReminder() {
+  const { t } = useI18n();
+  const { me } = useSession();
+  const r = me?.recovery;
+  if (!r || r.left > r.warnAt) return null;
+  return (
+    <div className={`banner ${r.left === 0 ? "bad" : "warn"} row`} role="status" style={{ justifyContent: "space-between" }}>
+      <span><b>{r.left === 0 ? t("noneLeft") : t("lowLeft", { n: r.left })}</b> {t("lowHint")}</span>
+      <Link className="btn btn-ink btn-sm" to="/two-step/codes">{t("makeCodes")}</Link>
+    </div>
   );
 }
 
@@ -73,8 +88,16 @@ export function Account() {
           <h2>{t("twoStep")}</h2>
           <div className="row">
             <span className={`pill ${me?.user.mfaEnabled ? "ok" : "warn"}`}>{me?.user.mfaEnabled ? t("on") : t("off")}</span>
+            {me?.recovery && <span className={`pill ${me.recovery.left === 0 ? "bad" : me.recovery.left <= me.recovery.warnAt ? "warn" : ""}`}>{t("codesLeft", { n: me.recovery.left })}</span>}
             {!me?.user.mfaEnabled && <Link className="btn btn-outline btn-sm" to="/mfa/setup">{t("setUp")}</Link>}
           </div>
+          {me?.user.mfaEnabled && <>
+            <div className="row">
+              <Link className="btn btn-outline btn-sm" to="/two-step/codes">{t("makeNewCodes")}</Link>
+              <Link className="btn btn-outline btn-sm" to="/two-step/move">{t("moveToPhone")}</Link>
+            </div>
+            <p className="hint">{t("twoStepHint")}</p>
+          </>}
         </section>
         <section className="panel">
           <h2>{t("changePassword")}</h2>
@@ -106,7 +129,7 @@ export function Account() {
   );
 }
 
-type U = { id: string; email: string; full_name: string; status: string; mfa_enabled: boolean; last_login_at: string | null; role_key: string; doctor_id: string | null; can_manage_bookings: boolean; active: boolean; open_sessions: number };
+type U = { id: string; email: string; full_name: string; status: string; mfa_enabled: boolean; codes_left: number | null; last_login_at: string | null; role_key: string; doctor_id: string | null; can_manage_bookings: boolean; active: boolean; open_sessions: number };
 type Inv = { id: string; email: string; full_name: string; role_key: string; expires_at: string };
 type Doc = { id: string; name_en: string; name_ar: string };
 
@@ -116,13 +139,16 @@ export function Users() {
   const [data, setData] = useState<{ users: U[]; invites: Inv[] } | null>(null);
   const [doctors, setDoctors] = useState<Doc[]>([]);
   const [note, setNote] = useState("");
-  const [ask, setAsk] = useState<null | (() => Promise<unknown>)>(null);
+  const [ask, setAsk] = useState<null | (() => Promise<void>)>(null);          // retried after the password is confirmed
+  const [resetting, setResetting] = useState<U | null>(null);
   const [form, setForm] = useState({ fullName: "", email: "", roleKey: "secretary", doctorId: "", canManageBookings: false });
   const act = useAction();
   const canInvite = !!me?.permissions.includes("accounts.users.invite");
   const canEdit = !!me?.permissions.includes("accounts.users.edit_role");
   const canDisable = !!me?.permissions.includes("accounts.users.disable");
   const canRevoke = !!me?.permissions.includes("accounts.users.revoke_sessions");
+  const canResetTwoStep = !!me?.permissions.includes("accounts.users.reset_two_step");
+  const warnAt = me?.security.recoveryWarnAt ?? 0;
 
   const load = useCallback(() => {
     get("/api/users").then(setData).catch(() => {});
@@ -131,10 +157,10 @@ export function Users() {
   useEffect(load, [load]);
 
   // Sensitive changes re-ask the password when the last check was over 10 minutes ago, then repeat the change.
-  async function sensitive(fn: () => Promise<unknown>) {
-    try { await fn(); setNote(""); load(); }
+  async function sensitive<T>(fn: () => Promise<T>, done?: (r: T) => string) {
+    try { const r = await fn(); setNote(done ? done(r) : ""); load(); }
     catch (e) {
-      if (e instanceof ApiError && e.code === "password_required") setAsk(() => fn);
+      if (e instanceof ApiError && e.code === "password_required") setAsk(() => () => sensitive(fn, done));
       else await act.run(async () => { throw e; });
     }
   }
@@ -168,7 +194,10 @@ export function Users() {
                         <label className="hint" style={{ display: "block" }}><input type="checkbox" checked={u.can_manage_bookings} onChange={(e) => void sensitive(() => patch(`/api/users/${u.id}`, { canManageBookings: e.target.checked }))} /> {t("canManage")}</label>
                       )}
                     </td>
-                    <td><span className={`pill ${u.mfa_enabled ? "ok" : "warn"}`}>{u.mfa_enabled ? t("on") : t("off")}</span></td>
+                    <td><div className="row" style={{ gap: 4 }}>
+                      <span className={`pill ${u.mfa_enabled ? "ok" : "warn"}`}>{u.mfa_enabled ? t("on") : t("off")}</span>
+                      {u.codes_left !== null && u.codes_left <= warnAt && <span className={`pill ${u.codes_left === 0 ? "bad" : "warn"}`}>{t("leftPill", { n: u.codes_left })}</span>}
+                    </div></td>
                     <td>{when(u.last_login_at)}</td>
                     <td>{u.open_sessions}</td>
                     <td><div className="actions">
@@ -176,6 +205,7 @@ export function Users() {
                       {!self && canDisable && <button className="btn btn-outline btn-sm" onClick={() => void sensitive(() => post(`/api/users/${u.id}/status`, { status: u.status === "active" ? "disabled" : "active" }))}>{u.status === "active" ? t("disable") : t("enable")}</button>}
                       {!self && canRevoke && u.open_sessions > 0 && <button className="btn btn-outline btn-sm" onClick={() => void act.run(async () => { const r = await post(`/api/users/${u.id}/revoke-sessions`); setNote(t("signedOutN", { n: r.revoked })); load(); })}>{t("signOutEverywhere")}</button>}
                       {!self && canEdit && <button className="btn btn-outline btn-sm" onClick={() => void act.run(async () => { const r = await post(`/api/users/${u.id}/send-reset`); setNote(t("resetSent") + (r.link ? ` ${r.link}` : "")); })}>{t("sendReset")}</button>}
+                      {!self && canResetTwoStep && u.mfa_enabled && <button className="btn btn-outline btn-sm btn-warnline" onClick={() => setResetting(u)}>{t("resetTwoStep")}</button>}
                     </div></td>
                   </tr>
                 );
@@ -211,7 +241,19 @@ export function Users() {
           </section>
         )}
       </main>
-      {ask && <ConfirmPassword onDone={async () => { const fn = ask; setAsk(null); await sensitive(fn); }} onCancel={() => setAsk(null)} />}
+      {resetting && (
+        <div className="modal" role="dialog" aria-modal="true">
+          <div className="card">
+            <h1 className="display">{t("resetAsk", { name: resetting.full_name })}</h1>
+            <p className="sub">{t("resetBody")}</p>
+            <p className="hint" style={{ textAlign: "center" }}>{t("resetCheck")}</p>
+            <button className="btn btn-danger btn-block" onClick={() => { const u = resetting; setResetting(null);
+              void sensitive(() => post<{ sessionsEnded: number }>(`/api/users/${u.id}/reset-two-step`), (r) => t("resetDoneN", { name: u.full_name, n: r.sessionsEnded })); }}>{t("resetTwoStep")}</button>
+            <button className="btn btn-outline btn-block" onClick={() => setResetting(null)}>{t("cancel")}</button>
+          </div>
+        </div>
+      )}
+      {ask && <ConfirmPassword onDone={async () => { const retry = ask; setAsk(null); await retry(); }} onCancel={() => setAsk(null)} />}
     </>
   );
 }

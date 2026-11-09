@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Two-step recovery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;500;600&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap">
+<style>
+/* ---- copied from accounts/client/src/styles.css (the live Accounts app) ---- */
+:root{
+  --ink:#0A0F14;--ink-2:#121A21;--ink-3:#1E2A33;--ink-line:#2A3640;--on-ink:#E8EEF0;--on-ink-muted:#93A3AD;
+  --paper:#F2F4F3;--text:#0A0F14;--muted:#4B5863;--rule:#C9D6D2;--rule-soft:#E1E6E4;--field:#8A99A3;
+  --accent:#2EE6B5;--accent-ink:#0B7A64;--accent-tint:#DDF7EE;--amber:#FFB23E;--amber-tint:#FFF0D6;--error:#B42318;--error-tint:#FDE7E4;
+  --font-display:"Unbounded","Geist",system-ui,sans-serif;--font-body:"Geist",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"Geist Mono",ui-monospace,Menlo,monospace;--font-ar:"IBM Plex Sans Arabic","Segoe UI",Tahoma,sans-serif;
+}
+*{box-sizing:border-box}
+html{overflow-x:clip}
+body{margin:0;background:var(--paper);color:var(--text);font:15px/1.5 var(--font-body);overflow-x:clip}
+html[lang="ar"] body,html[lang="ar"] button{font-family:var(--font-ar)}
+h1,h2,h3,p{margin:0}
+.display{font-family:var(--font-display);font-weight:500;letter-spacing:-.01em}
+html[lang="ar"] .display{font-family:var(--font-ar);font-weight:600}
+.mono{font-family:var(--font-mono);direction:ltr;unicode-bidi:isolate}
+a{color:var(--accent-ink)}
+.wrap{max-width:1100px;margin-inline:auto;padding-inline:16px}
+.bar{background:var(--ink);color:var(--on-ink)}
+.bar .in{display:flex;align-items:center;gap:12px;min-height:60px;flex-wrap:wrap;padding:6px 16px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--font-display);font-size:17px;white-space:nowrap;color:inherit;text-decoration:none}
+html[lang="ar"] .brand{font-family:var(--font-ar);font-weight:600}
+.grow{flex:1}
+.bar nav{display:flex;gap:4px;flex-wrap:wrap}
+.bar nav a,.bar .linkbtn{color:var(--on-ink);text-decoration:none;padding:8px 12px;border-radius:999px;font-size:14px}
+.bar nav a.on{background:var(--ink-3)}
+.um{display:inline-flex;align-items:center;gap:8px;color:var(--on-ink);background:var(--ink-3);border-radius:999px;padding:8px 14px;font-size:14px;white-space:nowrap}
+.stage{display:grid;place-items:center;padding:36px 16px;background:var(--ink);color:var(--on-ink)}
+.card{width:100%;max-width:440px;background:#fff;color:var(--text);border-radius:24px;padding:32px 28px;display:flex;flex-direction:column;gap:18px;box-shadow:0 20px 60px #0006}
+.card .brand{color:var(--text);justify-content:center}
+.card h1{font-size:22px;text-align:center}
+.card .sub{color:var(--muted);text-align:center;font-size:14px}
+.page{padding:28px 16px;display:flex;flex-direction:column;gap:20px;max-width:1100px;margin-inline:auto}
+.panel{background:#fff;border:1px solid var(--rule);border-radius:20px;padding:22px;display:flex;flex-direction:column;gap:14px}
+.panel h2{font-size:18px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;padding:0 24px;border-radius:999px;border:1px solid transparent;font:inherit;font-weight:600;cursor:pointer;text-decoration:none;white-space:nowrap}
+.btn-accent{background:var(--accent);color:var(--ink)}
+.btn-ink{background:var(--ink);color:#fff}
+.btn-outline{border-color:var(--text);color:var(--text);background:transparent}
+.btn-danger{background:var(--error);color:#fff}
+.btn-sm{min-height:38px;padding:0 16px;font-size:14px}
+.btn-block{width:100%}
+.link{background:none;border:0;padding:0;color:var(--accent-ink);font:inherit;cursor:pointer;text-decoration:underline}
+.field{display:flex;flex-direction:column;gap:6px;font-size:14px;font-weight:600}
+.fakein{font-weight:400;min-height:48px;padding:0 14px;border:1px solid var(--field);border-radius:12px;background:#fff;display:flex;align-items:center;color:var(--field)}
+.hint{font-weight:400;color:var(--muted);font-size:13px}
+.banner{padding:12px 14px;border-radius:14px;font-size:14px;border:1px solid}
+.banner.bad{background:var(--error-tint);border-color:var(--error);color:#7a1a12}
+.banner.ok{background:var(--accent-tint);border-color:var(--accent-ink);color:var(--accent-ink)}
+.banner.warn{background:var(--amber-tint);border-color:var(--amber);color:#5c3700}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;background:var(--rule-soft);white-space:nowrap}
+.pill.ok{background:var(--accent-tint);color:var(--accent-ink)}.pill.warn{background:var(--amber-tint);color:#8a5200}.pill.bad{background:var(--error-tint);color:var(--error)}
+.codes{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;font-family:var(--font-mono);direction:ltr;background:var(--paper);border-radius:12px;padding:12px;font-size:14px}
+.secret{font-family:var(--font-mono);direction:ltr;word-break:break-all;background:var(--paper);border-radius:10px;padding:8px 12px;font-size:14px}
+.qr{display:block;margin-inline:auto;width:160px;height:160px}
+.apps{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+.app{display:flex;flex-direction:column;gap:6px;padding:22px;background:#fff;border:1px solid var(--rule);border-radius:20px;text-decoration:none;color:var(--text)}
+.app b{font-family:var(--font-display);font-size:18px;font-weight:500}
+html[lang="ar"] .app b{font-family:var(--font-ar);font-weight:600}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:640px}
+th,td{text-align:start;padding:10px 8px;border-bottom:1px solid var(--rule-soft);font-size:14px;vertical-align:middle}
+th{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.actions{display:flex;gap:6px;flex-wrap:wrap}
+.modalbg{background:#0009;display:grid;place-items:center;padding:36px 16px}
+.modalbg .card{max-width:400px}
+
+/* ---- design page frame ---- */
+.topnote{position:sticky;top:0;z-index:40;background:var(--ink);color:var(--on-ink);border-bottom:1px solid var(--ink-3)}
+.topnote .wrap{display:flex;gap:12px;align-items:center;justify-content:space-between;min-height:54px;flex-wrap:wrap;padding-block:6px}
+.topnote span{color:var(--on-ink-muted);font-size:13px}
+.lang-toggle{min-height:38px;padding:0 16px;border-radius:999px;border:1px solid var(--ink-line);background:transparent;color:var(--on-ink);font:inherit;cursor:pointer}
+.idx{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding-block:12px;border-bottom:1px solid var(--rule)}
+.idx b{font-size:12px;color:var(--muted);font-family:var(--font-mono);letter-spacing:.06em;text-transform:uppercase;margin-inline-end:4px}
+.idx a{min-width:30px;height:30px;padding:0 8px;border-radius:999px;border:1px solid var(--rule);background:#fff;color:var(--text);text-decoration:none;display:inline-grid;place-items:center;font:500 13px var(--font-mono)}
+.frame-title{margin-block:44px 6px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-ink);font-family:var(--font-mono);font-weight:500}
+.frame-p{color:var(--muted);max-width:780px;margin-bottom:14px}
+.shot{border-radius:20px;border:1px solid var(--rule);overflow:hidden;background:var(--paper)}
+.scroll{overflow-x:auto}.scroll>.wide{min-width:960px}
+.rules{background:#fff;border:1px solid var(--rule);border-radius:20px;padding:20px 22px;margin-top:16px}
+.rules h2{font-size:17px;margin-bottom:8px}
+.rules ul{margin:0;padding-inline-start:20px;display:flex;flex-direction:column;gap:6px}
+.newbadge{font:600 10px var(--font-mono);background:var(--accent);color:var(--ink);border-radius:999px;padding:1px 6px;margin-inline-start:6px;vertical-align:middle}
+.hl{outline:2px dashed var(--accent-ink);outline-offset:4px;border-radius:12px}
+.mail{max-width:560px;margin:24px auto;background:#fff;border:1px solid var(--rule);border-radius:16px;overflow:hidden}
+.mail .mh{padding:12px 18px;border-bottom:1px solid var(--rule-soft);font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:2px}
+.mail .mb{padding:20px 18px;display:flex;flex-direction:column;gap:12px;font-size:14.5px}
+.sel{font-weight:400;min-height:48px;padding:0 14px;border:1px solid var(--field);border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:space-between;color:var(--text)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.box{width:20px;height:20px;border-radius:6px;border:1.5px solid var(--field);background:#fff;flex:none;display:grid;place-items:center}
+.box.on{background:var(--accent-ink);border-color:var(--accent-ink)}
+.box.on::after{content:"";width:9px;height:5px;border-inline-start:2px solid #fff;border-bottom:2px solid #fff;transform:translateY(-1px) rotate(-45deg)}
+[dir="rtl"] .box.on::after{transform:translateY(-1px) rotate(45deg)}
+.btabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px}
+.btabs span{padding:6px 12px;border-radius:999px;font-size:13px;border:1px solid var(--rule);background:#fff;white-space:nowrap}
+.btabs span.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="loop" viewBox="0 0 40 20"><path d="M20 10 C16.6 5.5 13.2 2 8.8 2 A8 8 0 0 0 8.8 18 C13.2 18 16.6 14.5 20 10 C23.4 5.5 26.8 2 31.2 2 A8 8 0 0 1 38.4 12.9" fill="none" stroke="#2EE6B5" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="33.6" cy="17.2" r="1.8" fill="#2EE6B5"/></symbol>
+  <symbol id="loopink" viewBox="0 0 40 20"><path d="M20 10 C16.6 5.5 13.2 2 8.8 2 A8 8 0 0 0 8.8 18 C13.2 18 16.6 14.5 20 10 C23.4 5.5 26.8 2 31.2 2 A8 8 0 0 1 38.4 12.9" fill="none" stroke="#0B7A64" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="33.6" cy="17.2" r="1.8" fill="#0B7A64"/></symbol>
+</defs></svg>
+
+<div class="topnote"><div class="wrap">
+  <div><b style="font-family:var(--font-display);font-weight:500">Limitsiz Clinic</b> <span data-ar="رموز الاسترداد وإعادة ضبط التحقق بخطوتين · للموافقة">Recovery codes and resetting two-step · for approval</span></div>
+  <button class="lang-toggle" id="lang">العربية</button>
+</div></div>
+
+<main class="wrap" style="padding-bottom:60px">
+  <div class="idx"><b data-ar="الشاشات">Screens</b><a href="#s1">1</a><a href="#s2">2</a><a href="#s3">3</a><a href="#s4">4</a><a href="#s5">5</a><a href="#s6">6</a><a href="#s7">7</a></div>
+  <div id="out"></div>
+</main>
+
+<script>
+(function(){
+  var T=function(en,ar){return '<span data-ar="'+ar.replace(/"/g,'&quot;')+'">'+en+'</span>'};
+  var NEW=function(){return '<span class="newbadge">'+T('new','جديد')+'</span>'};
+  function frame(id,n,h,p,inner,wide){return '<div class="frame-title" id="'+id+'">'+n+' · '+T(h[0],h[1])+'</div><p class="frame-p">'+T(p[0],p[1])+'</p><div class="shot'+(wide?' scroll':'')+'">'+(wide?'<div class="wide">'+inner+'</div>':inner)+'</div>'}
+  function card(title,sub,body){return '<div class="stage"><div class="card"><span class="brand"><svg width="30" height="16"><use href="#loopink"/></svg>'+T('Limitsiz Clinic','Limitsiz Clinic')+'</span><h1 class="display">'+title+'</h1>'+(sub?'<p class="sub">'+sub+'</p>':'')+body+'</div></div>'}
+  function bar(on){return '<div class="bar"><div class="in"><span class="brand"><svg width="30" height="16"><use href="#loop"/></svg>Limitsiz Clinic</span><nav><a class="'+(on==='apps'?'on':'')+'" href="#">'+T('My services','خدماتي')+'</a><a class="'+(on==='users'?'on':'')+'" href="#">'+T('Users','المستخدمين')+'</a></nav><span class="grow"></span><span class="linkbtn">'+T('العربية','English')+'</span><span class="um">'+T('Saqqer','صقر')+' <span aria-hidden="true">▾</span></span></div></div>'}
+  var QR='<svg class="qr" viewBox="0 0 21 21" shape-rendering="crispEdges" aria-hidden="true"><rect width="21" height="21" fill="#fff"/>'+(function(){var s='',seed=7;function r(){seed=(seed*9301+49297)%233280;return seed/233280}
+    function eye(x,y){return '<rect x="'+x+'" y="'+y+'" width="7" height="7"/><rect x="'+(x+1)+'" y="'+(y+1)+'" width="5" height="5" fill="#fff"/><rect x="'+(x+2)+'" y="'+(y+2)+'" width="3" height="3"/>'}
+    for(var y=0;y<21;y++)for(var x=0;x<21;x++){if((x<8&&y<8)||(x>12&&y<8)||(x<8&&y>12))continue;if(r()>.5)s+='<rect x="'+x+'" y="'+y+'" width="1" height="1"/>'}
+    return '<g fill="#0A0F14">'+s+eye(0,0)+eye(14,0)+eye(0,14)+'</g>'})()+'</svg>';
+
+  var rules='<div class="rules"><h2>'+T('What changes','ما الذي يتغيّر')+'</h2><ul>'+
+    '<li>'+T('<b>Each recovery code still works once.</b> What is new: Accounts counts what is left and says so before you run out.','<b>كل رمز استرداد ما زال يعمل مرة واحدة.</b> الجديد: يعدّ النظام ما تبقّى وينبّهك قبل أن تنفد.')+'</li>'+
+    '<li>'+T('<b>When signed in, you fix it yourself</b> (screen 3): make 10 new codes, or move two-step to a new phone. Both ask your password first.','<b>وأنت مسجّل الدخول تصلحها بنفسك</b> (الشاشة 3): أنشئ 10 رموز جديدة، أو انقل التحقق إلى هاتف جديد. كلاهما يطلب كلمة المرور أولاً.')+'</li>'+
+    '<li>'+T('<b>Phone lost and no codes left:</b> another administrator of the clinic resets it (screen 5), or a Limitsiz administrator. Nobody can reset their own; that would let anyone with your password in.','<b>ضاع الهاتف ولم يبقَ رمز:</b> يعيد ضبطه مدير آخر في العيادة (الشاشة 5)، أو مدير Limitsiz. لا أحد يعيد ضبط تحققه بنفسه؛ فهذا يُدخل كل من يعرف كلمة مرورك.')+'</li>'+
+    '<li>'+T('<b>Only administrator left:</b> one command on the server, run by the Limitsiz owner (what I did by hand today): <span class="mono">node server/cli.js reset-2fa --email …</span>','<b>إن كنت المدير الوحيد:</b> أمر واحد على الخادم يشغّله مالك Limitsiz (ما فعلته يدوياً اليوم): <span class="mono">node server/cli.js reset-2fa --email …</span>')+'</li>'+
+    '<li>'+T('A reset signs the person out everywhere, emails them (screen 6), and is written to the audit log with who did it. A new permission "Reset two-step" goes to clinic administrators and Limitsiz administrators only.','إعادة الضبط تُخرج الشخص من كل الأجهزة، وترسل له بريداً (الشاشة 6)، وتُكتب في سجل التدقيق مع اسم من قام بها. صلاحية جديدة «إعادة ضبط التحقق بخطوتين» لمدراء العيادة ومدراء Limitsiz فقط.')+'</li>'+
+    '<li>'+T('When to warn is a setting (screen 7), default 3 codes or fewer.','متى يظهر التنبيه إعداد (الشاشة 7)، والافتراضي 3 رموز أو أقل.')+'</li>'+
+    '</ul></div>';
+
+  var s1=frame('s1',1,['Right after signing in with a recovery code','مباشرة بعد الدخول برمز استرداد'],
+    ['A new step, shown every time a recovery code is used. Two variants: codes still left (left), and the last one used (right, cannot be skipped by mistake: Later is a small link).','خطوة جديدة تظهر في كل مرة يُستخدم فيها رمز استرداد. حالتان: ما زالت هناك رموز (يسار)، واستُخدم آخر رمز (يمين، ولا تُتخطّى خطأً: «لاحقاً» رابط صغير).'],
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));background:var(--ink)">'+
+    card(T('You used a recovery code','استخدمت رمز استرداد'),T('Each code works once.','كل رمز يعمل مرة واحدة.'),
+      '<div class="banner warn">'+T('<b>2 recovery codes left.</b> If your phone is not with you, make new codes now so you are not locked out.','<b>بقي رمزا استرداد.</b> إن لم يكن هاتفك معك، أنشئ رموزاً جديدة الآن كي لا يُغلق حسابك.')+'</div>'+
+      '<a class="btn btn-accent btn-block" href="#">'+T('Make new codes now','أنشئ رموزاً جديدة الآن')+'</a><a class="btn btn-outline btn-block" href="#">'+T('Move to a new phone','انقل إلى هاتف جديد')+'</a><p class="sub"><button class="link">'+T('Later','لاحقاً')+'</button></p>')+
+    card(T('That was your last recovery code','كان هذا آخر رمز استرداد'),'',
+      '<div class="banner bad">'+T('<b>No recovery codes left.</b> If you lose your phone now, only another administrator can let you back in.','<b>لم يبقَ أي رمز استرداد.</b> إن فقدت هاتفك الآن، فلن يُدخلك إلا مدير آخر.')+'</div>'+
+      '<a class="btn btn-accent btn-block" href="#">'+T('Make new codes now','أنشئ رموزاً جديدة الآن')+'</a><a class="btn btn-outline btn-block" href="#">'+T('Move to a new phone','انقل إلى هاتف جديد')+'</a><p class="sub"><button class="link">'+T('Later','لاحقاً')+'</button></p>')+
+    '</div>');
+
+  var s2=frame('s2',2,['My services: the reminder stays until it is fixed','خدماتي: يبقى التنبيه حتى يُصلح'],
+    ['Shown while the codes left are at or below the setting (default 3). It disappears once new codes are made.','يظهر ما دامت الرموز المتبقية عند الحد المحدد أو أقل (الافتراضي 3). ويختفي حين تُنشأ رموز جديدة.'],
+    bar('apps')+'<div class="page"><h1 class="display" style="font-size:28px">'+T('Hello, Saqqer','مرحباً، صقر')+'</h1>'+
+    '<div class="banner warn row" style="justify-content:space-between">'+T('<b>Only 2 recovery codes left.</b> Make new ones before you run out.','<b>بقي رمزا استرداد فقط.</b> أنشئ رموزاً جديدة قبل أن تنفد.')+'<a class="btn btn-ink btn-sm" href="#">'+T('Make new codes','أنشئ رموزاً جديدة')+'</a></div>'+
+    '<div class="apps"><a class="app" href="#"><b>'+T('Booking','المواعيد')+'</b><span class="hint">'+T('Appointments, patients, and the WhatsApp assistant.','المواعيد والمرضى ومساعد واتساب.')+'</span><span class="pill ok" style="align-self:flex-start">'+T('Open','فتح')+'</span></a></div></div>',true);
+
+  var s3=frame('s3',3,['My account › Two-step verification','حسابي › التحقق بخطوتين'],
+    ['Today this panel shows only On or Off. It gains the count and two buttons. Both ask your password first (the same box as other sensitive changes).','تعرض هذه اللوحة اليوم «مفعّل» أو «غير مفعّل» فقط. تُضاف إليها عدد الرموز وزرّان. كلاهما يطلب كلمة المرور أولاً (نفس النافذة المستخدمة للتغييرات الحساسة).'],
+    bar('')+'<div class="page"><h1 class="display" style="font-size:28px">'+T('My account','حسابي')+'</h1>'+
+    '<section class="panel hl"><h2>'+T('Two-step verification','التحقق بخطوتين')+'</h2>'+
+    '<div class="row"><span class="pill ok">'+T('On','مفعّل')+'</span><span class="pill warn">'+T('2 of 10 recovery codes left','بقي 2 من 10 رموز استرداد')+'</span>'+NEW()+'</div>'+
+    '<div class="row"><a class="btn btn-outline btn-sm" href="#">'+T('Make new recovery codes','إنشاء رموز استرداد جديدة')+'</a><a class="btn btn-outline btn-sm" href="#">'+T('Move to a new phone','النقل إلى هاتف جديد')+'</a></div>'+
+    '<p class="hint">'+T('New codes replace all the old ones. Moving to a new phone stops the old phone\'s codes once you confirm on the new one, and gives you 10 new recovery codes.','الرموز الجديدة تحل محل كل الرموز القديمة. والنقل إلى هاتف جديد يوقف رموز الهاتف القديم حين تؤكّد على الجديد، ويمنحك 10 رموز استرداد جديدة.')+'</p></section></div>',true);
+
+  var s4=frame('s4',4,['Move to a new phone','النقل إلى هاتف جديد'],
+    ['After the password box. The old phone keeps working until the new code is confirmed, so a mistake here never locks you out. Then the existing "Save your recovery codes" screen shows 10 new codes.','بعد نافذة كلمة المرور. يبقى الهاتف القديم يعمل حتى يُؤكَّد الرمز الجديد، فلا يُغلق حسابك بسبب خطأ هنا. ثم تظهر شاشة «احفظ رموز الاسترداد» الحالية بـ10 رموز جديدة.'],
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));background:var(--ink)">'+
+    card(T('Move to a new phone','النقل إلى هاتف جديد'),T('Scan the code with the authenticator app on your new phone, then type the 6-digit code it shows.','امسح الرمز بتطبيق المصادقة على هاتفك الجديد، ثم اكتب الرمز المكوّن من 6 أرقام الذي يظهر فيه.'),
+      QR+'<p class="hint">'+T('Or type this key into the app','أو اكتب هذا المفتاح في التطبيق')+'</p><p class="secret">JBSW Y3DP EHPK 3PXP</p>'+
+      '<label class="field">'+T('Code from the new phone','الرمز من الهاتف الجديد')+'<span class="fakein mono">123 456</span></label>'+
+      '<p class="hint">'+T('Your old phone stops working once you confirm.','يتوقف هاتفك القديم حين تؤكّد.')+'</p>'+
+      '<a class="btn btn-accent btn-block" href="#">'+T('Confirm','تأكيد')+'</a><a class="btn btn-outline btn-block" href="#">'+T('Cancel','إلغاء')+'</a>')+
+    card(T('Save your recovery codes','احفظ رموز الاسترداد'),T('Each code works once if you lose your phone. Keep them somewhere safe; they are not shown again.','يعمل كل رمز مرة واحدة إذا فقدت هاتفك. احتفظ بها في مكان آمن؛ لن تظهر مرة أخرى.'),
+      '<div class="codes"><span>3f9a-1c2e-77b0</span><span>a41d-90ce-5f13</span><span>0be2-6d4a-c918</span><span>e7c5-2b81-4a06</span><span>59fd-0a3c-b2e7</span><span>c6a1-8e4f-1d92</span><span>12b8-f7e0-6c35</span><span>8d04-3a9b-e5f1</span><span>b39e-5c62-0a7d</span><span>f150-d8a7-39c4</span></div>'+
+      '<a class="btn btn-outline btn-block" href="#">'+T('Copy all','نسخ الكل')+'</a><a class="btn btn-accent btn-block" href="#">'+T('I saved them','حفظتها')+'</a>')+
+    '</div>');
+
+  function urow(n,e,role,mfa,extra,btn){return '<tr><td><b>'+n+'</b><br><span class="mono hint">'+e+'</span></td><td>'+role+'</td><td><div class="row" style="gap:4px">'+mfa+'</div></td><td>'+extra[0]+'</td><td>'+extra[1]+'</td><td><div class="actions"><span class="pill ok">'+T('Active','نشط')+'</span>'+btn+'</div></td></tr>'}
+  var RESET='<a class="btn btn-outline btn-sm" href="#" style="border-color:var(--error);color:var(--error)">'+T('Reset two-step','إعادة ضبط التحقق')+'</a>';
+  var REST='<a class="btn btn-outline btn-sm" href="#">'+T('Disable','تعطيل')+'</a><a class="btn btn-outline btn-sm" href="#">'+T('Send reset link','إرسال رابط إعادة التعيين')+'</a>';
+  var s5=frame('s5',5,['Users and access: reset someone\'s two-step','المستخدمون والصلاحيات: إعادة ضبط تحقق شخص'],
+    ['The 2-step column also shows codes left when few remain. "Reset two-step" sits with the other actions, for people with two-step on, never on your own row. It asks your password, then this confirmation.','عمود «الخطوتان» يعرض أيضاً الرموز المتبقية حين تقل. زر «إعادة ضبط التحقق» مع بقية الأزرار، للأشخاص المفعّل لديهم التحقق، ولا يظهر أبداً في صفّك. يطلب كلمة مرورك ثم هذا التأكيد.'],
+    bar('users')+'<div class="page"><h1 class="display" style="font-size:28px">'+T('Users and access','المستخدمين والصلاحيات')+'</h1><section class="panel"><div class="tablewrap"><table>'+
+    '<thead><tr><th>'+T('Name','الاسم')+'</th><th>'+T('Role','الدور')+'</th><th>'+T('2-step','الخطوتان')+'</th><th>'+T('Last sign-in','آخر دخول')+'</th><th>'+T('Sessions','الجلسات')+'</th><th></th></tr></thead><tbody>'+
+    urow(T('Saqqer','صقر'),'management@limitsiz.si',T('Clinic administrator','مدير العيادة'),'<span class="pill ok">'+T('On','مفعّل')+'</span>',['09/11/2026, 17:23','1'],'')+
+    urow(T('Dr. Lina Haddad','د. لينا حداد'),'lina@demo.jo',T('Doctor','طبيب'),'<span class="pill ok">'+T('On','مفعّل')+'</span><span class="pill bad">'+T('0 codes left','لا رموز متبقية')+'</span>'+NEW(),['08/11/2026, 09:02','0'],REST+RESET)+
+    urow(T('Sara Secretary','سارة السكرتيرة'),'sec@demo.jo',T('Secretary','سكرتيرة'),'<span class="pill warn">'+T('Off','غير مفعّل')+'</span>',['09/11/2026, 08:15','1'],REST)+
+    '</tbody></table></div></section></div>'+
+    '<div class="modalbg"><div class="card"><h1 class="display">'+T('Reset two-step for Dr. Lina Haddad?','إعادة ضبط التحقق بخطوتين لـ د. لينا حداد؟')+'</h1>'+
+    '<p class="sub">'+T('Her authenticator app and recovery codes stop working, and she is signed out everywhere. At her next sign-in she scans a new code and gets new recovery codes. She is told by email.','يتوقف تطبيق المصادقة ورموز الاسترداد لديها، وتُخرج من كل الأجهزة. وعند دخولها التالي تمسح رمزاً جديداً وتحصل على رموز استرداد جديدة. ويصلها بريد بذلك.')+'</p>'+
+    '<p class="hint" style="text-align:center">'+T('Only do this after checking it is really her, for example by phone or in person.','لا تفعل هذا إلا بعد التأكد أنها هي فعلاً، بالهاتف أو شخصياً مثلاً.')+'</p>'+
+    '<a class="btn btn-danger btn-block" href="#">'+T('Reset two-step','إعادة ضبط التحقق')+'</a><a class="btn btn-outline btn-block" href="#">'+T('Cancel','إلغاء')+'</a></div></div>',true);
+
+  var s6=frame('s6',6,['The email the person receives','البريد الذي يصل الشخص'],
+    ['Sent in their own language right after a reset, by an administrator or by the server command. If they did not ask for it, they know at once.','يُرسل بلغة الشخص مباشرة بعد إعادة الضبط، سواء من مدير أو من أمر الخادم. فإن لم يطلبها يعرف فوراً.'],
+    '<div class="mail"><div class="mh"><span>'+T('From: Limitsiz Clinic','من: Limitsiz Clinic')+'</span><b style="color:var(--text)">'+T('Your two-step verification was reset','أُعيد ضبط التحقق بخطوتين لحسابك')+'</b></div><div class="mb">'+
+    '<p>'+T('Hello Lina,','مرحباً لينا،')+'</p>'+
+    '<p>'+T('Saqqer (clinic administrator) reset two-step verification for your Limitsiz Clinic account on 9 Nov 2026 at 17:40. Your old authenticator app and recovery codes no longer work.','أعاد صقر (مدير العيادة) ضبط التحقق بخطوتين لحسابك في Limitsiz Clinic يوم 9 تشرين الثاني 2026 الساعة 17:40. لم يعد تطبيق المصادقة القديم ولا رموز الاسترداد تعمل.')+'</p>'+
+    '<p>'+T('Next time you sign in, you will scan a new code with your authenticator app.','في المرة القادمة التي تسجّلين فيها الدخول، ستمسحين رمزاً جديداً بتطبيق المصادقة.')+'</p>'+
+    '<div class="banner warn">'+T('If you did not ask for this, contact your clinic administrator straight away.','إن لم تطلبي هذا، تواصلي مع مدير العيادة فوراً.')+'</div></div></div>');
+
+  var s7=frame('s7',7,['Booking › Settings › Security: when to warn','المواعيد › الإعدادات › الأمان: متى يظهر التنبيه'],
+    ['One new choice in the existing Security tab, next to the lock and sign-out times.','خيار جديد واحد في تبويب الأمان الحالي، بجانب وقتي القفل وتسجيل الخروج.'],
+    '<div class="page" style="max-width:820px"><div class="btabs"><span>'+T('Reminders','التذكيرات')+'</span><span>'+T('WhatsApp assistant','مساعد واتساب')+'</span><span class="on">'+T('Security','الأمان')+'</span><span>'+T('Audit','سجل التدقيق')+'</span></div>'+
+    '<section class="panel"><h2>'+T('Security','الأمان')+'</h2><div class="grid2">'+
+    '<label class="field">'+T('Lock the screen after','قفل الشاشة بعد')+'<span class="sel">'+T('10 minutes','10 دقائق')+' <span aria-hidden="true">▾</span></span></label>'+
+    '<label class="field">'+T('Sign out after','تسجيل الخروج بعد')+'<span class="sel">'+T('1 hour','ساعة')+' <span aria-hidden="true">▾</span></span></label>'+
+    '<label class="field hl">'+T('Warn about recovery codes when this many are left','نبّه بشأن رموز الاسترداد حين يبقى منها')+NEW()+'<span class="sel">'+T('3 or fewer','3 أو أقل')+' <span aria-hidden="true">▾</span></span><span class="hint">'+T('Choices: 1 to 5. A warning always shows after a recovery code is used.','الخيارات: من 1 إلى 5. ويظهر تنبيه دائماً بعد استخدام رمز استرداد.')+'</span></label></div>'+
+    '<div class="row" style="gap:10px;align-items:flex-start"><span class="box"></span><span style="font-size:14px">'+T('Require two-step verification for everyone','طلب التحقق بخطوتين من الجميع')+'</span></div><p class="hint">'+T('It is always required for administrators.','مطلوب دائماً من المدراء.')+'</p>'+
+    '<div><a class="btn btn-ink" href="#">'+T('Save','حفظ')+'</a></div></section></div>');
+
+  document.getElementById('out').innerHTML=rules+s1+s2+s3+s4+s5+s6+s7;
+
+  var btn=document.getElementById('lang'),isAr=false;
+  btn.addEventListener('click',function(){
+    isAr=!isAr;
+    document.documentElement.dir=isAr?'rtl':'ltr';document.documentElement.lang=isAr?'ar':'en';
+    document.querySelectorAll('[data-ar]').forEach(function(e){
+      if(e.dataset.en===undefined)e.dataset.en=e.innerHTML;
+      e.innerHTML=isAr?e.dataset.ar:e.dataset.en;
+    });
+    btn.textContent=isAr?'English':'العربية';
+  });
+})();
+</script>
+</body>
+</html>

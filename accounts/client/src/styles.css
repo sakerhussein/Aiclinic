@@ -49,6 +49,7 @@ html[lang="ar"] .brand{font-family:var(--font-ar);font-weight:600}
 .btn-ink{background:var(--ink);color:#fff}
 .btn-outline{border-color:var(--text);color:var(--text);background:transparent}
 .btn-danger{background:var(--error);color:#fff}
+.btn-warnline{border-color:var(--error);color:var(--error)}
 .btn-sm{min-height:38px;padding:0 16px;font-size:14px}
 .btn-block{width:100%}
 .link{background:none;border:0;padding:0;color:var(--accent-ink);font:inherit;cursor:pointer;text-decoration:underline}

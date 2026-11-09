@@ -30,7 +30,7 @@ const common = { trustProxy: "false", secureCookies: false, exposeLinks: true };
 const accConfig = { ...common, siteUrl: "http://localhost:3003", origin: "http://localhost:3003", mfaKey: Buffer.alloc(32, 7).toString("base64"), cookieName: "lc_session" };
 const { createCore } = await import("../../accounts/server/core.js");
 // The tests use a frozen clock; the preview must use the real one (two-step codes, lock after 10 idle minutes, expiry).
-const core = createCore({ pool: t.core.pool, config: accConfig, mail: { invite: async () => {}, reset: async () => {} } });
+const core = createCore({ pool: t.core.pool, config: accConfig, mail: { invite: async () => {}, reset: async () => {}, twoStepReset: async (m) => console.log(`[mail] two-step reset notice to ${m.to}`) } });
 accountsApp({ core, config: accConfig }).listen(3003, "127.0.0.1");
 const pool = new pg.Pool({ connectionString: "postgresql://booking_app:test@localhost:54329/accounts_test", max: 5 });
 const auditPool = new pg.Pool({ connectionString: "postgresql://audit_reader:test@localhost:54329/accounts_test", max: 2 });

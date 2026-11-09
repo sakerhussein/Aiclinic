@@ -5,7 +5,7 @@ import { HttpError, bad, notFound } from "./http.js";
 
 export const OPTIONS = {
   slotMinutes: [5, 10, 15, 20, 30, 60], bufferMinutes: [0, 5, 10, 15],
-  idleMinutes: [15, 30, 60, 120, 240], lockMinutes: [0, 5, 10, 15, 30],
+  idleMinutes: [15, 30, 60, 120, 240], lockMinutes: [0, 5, 10, 15, 30], recoveryWarnAt: [1, 2, 3, 4, 5],
   reminderMinutes: [2880, 1440, 720, 240, 120, 60],
 };
 
@@ -43,7 +43,7 @@ export function createSettings({ pool, tx, now = () => new Date() }) {
       q(`select id, topic, question_en, question_ar, answer_en, answer_ar, sort from clinic_faqs where clinic_id = $1 order by sort`),
       q(`select audience, min_notice_minutes, window_days, change_notice_minutes, max_upcoming, outside_hours, walkin_back_minutes, require_cancel_reason
            from booking_rules where clinic_id = $1 order by audience`),
-      q(`select idle_timeout_minutes, lock_after_minutes, require_2fa_all, conversation_visibility, audit_retention_months, reminders_enabled,
+      q(`select idle_timeout_minutes, lock_after_minutes, require_2fa_all, recovery_warn_at, conversation_visibility, audit_retention_months, reminders_enabled,
                 reminder_offsets_minutes, to_char(quiet_start, 'HH24:MI') as quiet_start, to_char(quiet_end, 'HH24:MI') as quiet_end,
                 assistant_enabled, after_hours_message_en, after_hours_message_ar, handoff_alert_emails
            from clinic_settings where clinic_id = $1`),
@@ -198,10 +198,10 @@ export function createSettings({ pool, tx, now = () => new Date() }) {
     await write(ctx, (c) => c.query(
       `update clinic_settings set idle_timeout_minutes=$2, lock_after_minutes=$3, require_2fa_all=$4, conversation_visibility=$5, audit_retention_months=$6,
          reminders_enabled=$7, reminder_offsets_minutes=$8, quiet_start=$9, quiet_end=$10, assistant_enabled=$11,
-         after_hours_message_en=$12, after_hours_message_ar=$13, handoff_alert_emails=$14 where clinic_id=$1`,
+         after_hours_message_en=$12, after_hours_message_ar=$13, handoff_alert_emails=$14, recovery_warn_at=coalesce($15, recovery_warn_at) where clinic_id=$1`,
       [ctx.clinicId, b.idleTimeoutMinutes, b.lockAfterMinutes, b.require2faAll, b.conversationVisibility, b.auditRetentionMonths ?? null,
        b.remindersEnabled, offsets, b.quietStart, b.quietEnd, b.assistantEnabled,
-       b.afterHoursMessageEn || null, b.afterHoursMessageAr || null, b.handoffAlertEmails]));
+       b.afterHoursMessageEn || null, b.afterHoursMessageAr || null, b.handoffAlertEmails, b.recoveryWarnAt ?? null]));
     return { ok: true };
   }
 

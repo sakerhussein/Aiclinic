@@ -59,11 +59,11 @@ const EN = {
 };
 
 const AR: typeof EN = {
-  brand: "Limitsiz Clinic", product: "الحجوزات", langSwitch: "English",
-  calendar: "التقويم", bookings: "الحجوزات", patients: "المرضى", mySchedule: "جدولي", settings: "الإعدادات", bookAnyway: "احجز رغم ذلك",
+  brand: "Limitsiz Clinic", product: "المواعيد", langSwitch: "English",
+  calendar: "التقويم", bookings: "المواعيد", patients: "المرضى", mySchedule: "جدولي", settings: "الإعدادات", bookAnyway: "احجز رغم ذلك",
   myServices: "خدماتي", switchUser: "تبديل المستخدم", signOut: "تسجيل الخروج",
   notAvailable: "هذا السجل غير متاح.", exportExcel: "تصدير إلى Excel", exporting: "جارٍ تجهيز الملف…", bookThisPatient: "احجز لهذا المريض", today: "اليوم", prev: "اليوم السابق", next: "اليوم التالي", newBooking: "حجز جديد", allDoctors: "كل الأطباء",
-  noBookings: "لا توجد حجوزات.", loading: "جارٍ التحميل…", save: "حفظ", cancel: "إلغاء", back: "رجوع", edit: "تعديل", search: "بحث", clear: "مسح",
+  noBookings: "لا توجد مواعيد.", loading: "جارٍ التحميل…", save: "حفظ", cancel: "إلغاء", back: "رجوع", edit: "تعديل", search: "بحث", clear: "مسح",
   patient: "المريض", service: "الخدمة", doctor: "الطبيب", date: "التاريخ", time: "الوقت", status: "الحالة", source: "طريقة الحجز", note: "ملاحظة داخلية",
   noteHint: "للموظفين فقط. بدون تفاصيل طبية.", phone: "الهاتف", name: "الاسم", language: "اللغة", reminders: "تذكيرات واتساب",
   reminderHint: "وافق المريض على استلام تذكيرات واتساب.", price: "السعر", duration: "المدة", min: "دقيقة", jod: "دينار",
@@ -81,7 +81,7 @@ const AR: typeof EN = {
   actors: { agent: "مساعد واتساب", system: "النظام", database: "وصول مباشر لقاعدة البيانات", patient: "المريض، من الصفحة الإلكترونية" },
   from: "من", to: "إلى", showVoided: "إظهار المُبطلة", allStatuses: "كل الحالات", allSources: "كل الطرق",
   conflictTitle: "شخص آخر غيّر هذا الحجز", conflictBody: "تغيّر في {time} (النسخة {v}). لم يُكتب فوق أي شيء. أعد التحميل لرؤية الأحدث.", reload: "إعادة التحميل",
-  patientBookings: "الحجوزات", newPatientTitle: "مريض جديد", editPatient: "بيانات المريض",
+  patientBookings: "المواعيد", newPatientTitle: "مريض جديد", editPatient: "بيانات المريض",
   lockedNote: "الشاشة مقفلة. افتح القفل من فضلك.",
   warnOutside: "خارج الأوقات المتاحة للطبيب", warnFlag: "خارج الأوقات المتاحة",
   notChecked: "إلكتروني، لم يُراجع", markChecked: "تمّت المراجعة", checkHint: "اتصل أو راسل الرقم للتأكد أن الحجز حقيقي، ثم علّمه كمراجَع.",
@@ -90,7 +90,7 @@ const AR: typeof EN = {
   onlyUnchecked: "الإلكتروني بانتظار العيادة فقط", sendLink: "إرسال رابط الحجز", linkCopied: "نُسخت الرسالة. الصقها في واتساب.",
   errors: {
     slot_taken: "هذا الوقت حُجز للتو. اختر وقتاً آخر.", slot_unavailable: "لا يوجد طبيب متاح في هذا الوقت.",
-    not_a_free_time: "هذا ليس من الأوقات المتاحة.", patient_exists: "يوجد مريض بهذا الرقم بالفعل.", own_bookings_only: "يمكنك التعامل مع حجوزاتك فقط.",
+    not_a_free_time: "هذا ليس من الأوقات المتاحة.", patient_exists: "يوجد مريض بهذا الرقم بالفعل.", own_bookings_only: "يمكنك التعامل مع مواعيدك فقط.",
     patient_already_booked_then: "لدى هذا المريض حجز في هذا الوقت.", invalid_phone: "رقم الهاتف غير صالح.",
     in_the_past: "هذا الوقت مضى.", too_far_ahead: "بعيد جداً في المستقبل.", reason_required: "السبب مطلوب.",
     status_change_not_allowed: "هذا التغيير غير مسموح لهذا الحجز.", not_editable: "لم يعد بالإمكان تعديل هذا الحجز.",
@@ -98,7 +98,7 @@ const AR: typeof EN = {
     invalid_input: "تحقق مما كتبته.", server_error: "حدث خطأ. حاول مرة أخرى.", bad_origin: "أعد تحميل الصفحة.",
     not_voided: "هذا الحجز ليس مُبطلاً.", unknown_service: "اختر الخدمة.", version_conflict: "شخص آخر غيّر هذا الحجز.",
     too_soon: "هذا أقرب من أقل مدة تسمح بها العيادة.", too_late_to_change: "الموعد قريب جداً ولا يمكن تغييره.",
-    over_max_upcoming: "وصل هذا المريض إلى حد الحجوزات القادمة في العيادة.", outside_hours_blocked: "لا تسمح هذه العيادة بالحجز خارج الأوقات المتاحة.",
+    over_max_upcoming: "وصل هذا المريض إلى حد المواعيد القادمة في العيادة.", outside_hours_blocked: "لا تسمح هذه العيادة بالحجز خارج الأوقات المتاحة.",
     hours_overlap: "فترتان متداخلتان في اليوم نفسه.", end_before_start: "يجب أن تكون النهاية بعد البداية.", invalid_timezone: "المنطقة الزمنية غير صالحة.",
     doctor_hours_outside_clinic: "يجب أن تكون ساعات الطبيب ضمن ساعات دوام العيادة.", invalid_value: "إحدى القيم غير مسموحة.",
     nothing_to_check: "هذا الحجز مراجَع بالفعل.",
@@ -128,7 +128,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const [lang, setL] = useState<Lang>(initial);
   useEffect(() => {
     document.documentElement.lang = lang; document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
-    document.title = lang === "ar" ? "Limitsiz Clinic: الحجوزات" : "Limitsiz Clinic: Booking";
+    document.title = lang === "ar" ? "Limitsiz Clinic: المواعيد" : "Limitsiz Clinic: Booking";
   }, [lang]);
   const setLang = (l: Lang) => { setL(l); try { localStorage.setItem("lc_lang", l); } catch { /* ignore */ } };
   const d = DICT[lang];

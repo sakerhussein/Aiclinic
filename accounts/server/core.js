@@ -21,9 +21,10 @@ export function createCore({ pool, config, mail, now = () => new Date(), securit
   // Lock and idle times come from the clinic's Settings. No clinic chosen yet, or a Limitsiz administrator: the defaults.
   const getSecurity = security || (async (clinicId) => {
     const { rows } = clinicId ? await pool.query(
-      "select idle_timeout_minutes, lock_after_minutes, require_2fa_all from public.clinic_settings where clinic_id = $1", [clinicId]) : { rows: [] };
+      "select idle_timeout_minutes, lock_after_minutes, require_2fa_all, recovery_warn_at from public.clinic_settings where clinic_id = $1", [clinicId]) : { rows: [] };
     const r = rows[0];
-    return { lockMinutes: r?.lock_after_minutes ?? 10, idleMinutes: r?.idle_timeout_minutes ?? 60, requireMfaAll: r?.require_2fa_all ?? false };
+    return { lockMinutes: r?.lock_after_minutes ?? 10, idleMinutes: r?.idle_timeout_minutes ?? 60, requireMfaAll: r?.require_2fa_all ?? false,
+             recoveryWarnAt: r?.recovery_warn_at ?? 3 };
   });
 
   // ---------------------------------------------------------------- helpers
@@ -210,12 +211,10 @@ export function createCore({ pool, config, mail, now = () => new Date(), securit
     const secret = await userSecret(session.user_id);
     if (!secret || session.user.mfaEnabled) throw bad("not_in_setup");
     if (verifyTotp(secret, code, now().getTime()) === null) throw new HttpError(401, "invalid_code");
-    const codes = Array.from({ length: 10 }, newRecoveryCode);
-    await tx(userActor(session.user, ctx, session.clinic_id), async (c) => {
+    const codes = await tx(userActor(session.user, ctx, session.clinic_id), async (c) => {
       await c.query("update accounts.users set mfa_enabled = true where id = $1", [session.user_id]);
-      await c.query("delete from accounts.recovery_codes where user_id = $1", [session.user_id]);
-      for (const rc of codes) await c.query("insert into accounts.recovery_codes (user_id, code_hash) values ($1,$2)", [session.user_id, sha256(rc)]);
       await c.query("update accounts.sessions set mfa_at = $2 where id = $1", [session.id, now()]);
+      return writeCodes(c, session.user_id);
     });
     await audit(session.clinic_id, "user", session.user_id, "two_step_on", { actor: who(session.user), ctx });
     return { recoveryCodes: codes };
@@ -238,6 +237,91 @@ export function createCore({ pool, config, mail, now = () => new Date(), securit
     }
     await pool.query("update accounts.sessions set mfa_at = $2 where id = $1", [session.id, now()]);
     await audit(session.clinic_id, "session", session.id, "mfa_ok", { after: { how }, actor: who(session.user), ctx });
+    return how === "recovery" ? { recoveryLeft: await codesLeft(session.user_id) } : {};
+  }
+
+  // ---------------------------------------------------------------- two-step recovery (design: booking/design/two-step.html)
+  async function codesLeft(userId) {
+    const { rows } = await pool.query("select count(*)::int n from accounts.recovery_codes where user_id = $1 and used_at is null", [userId]);
+    return rows[0].n;
+  }
+  // What the page needs to warn: how many codes are left and the clinic's "warn at" setting. Null while two-step is off.
+  async function recoveryState(session) {
+    if (!session.user.mfaEnabled) return null;
+    return { left: await codesLeft(session.user_id), warnAt: session.security.recoveryWarnAt };
+  }
+  // Replaces every recovery code; the old ones stop working.
+  async function writeCodes(c, userId) {
+    const codes = Array.from({ length: 10 }, newRecoveryCode);
+    await c.query("delete from accounts.recovery_codes where user_id = $1", [userId]);
+    for (const rc of codes) await c.query("insert into accounts.recovery_codes (user_id, code_hash) values ($1,$2)", [userId, sha256(rc)]);
+    return codes;
+  }
+  async function renewRecoveryCodes(session, ctx) {
+    if (!session.user.mfaEnabled) throw bad("two_step_off");
+    requireRecentPassword(session);
+    const codes = await tx(userActor(session.user, ctx, session.clinic_id), (c) => writeCodes(c, session.user_id));
+    await audit(session.clinic_id, "user", session.user_id, "recovery_codes_renewed", { actor: who(session.user), ctx });
+    return { recoveryCodes: codes };
+  }
+  // Move to a new phone: a new key is kept here (not in the database) until the new phone's code confirms it, so the old
+  // phone keeps working if the person stops half way. It is forgotten after the same 10 minutes as the password check.
+  const pendingKeys = new Map();
+  async function moveStart(session) {
+    if (!session.user.mfaEnabled) throw bad("two_step_off");
+    requireRecentPassword(session);
+    const secret = newTotpSecret();
+    pendingKeys.set(session.id, { secret, at: now().getTime() });
+    const issuer = "Limitsiz Clinic";
+    return { secret, otpauth: `otpauth://totp/${encodeURIComponent(issuer)}:${encodeURIComponent(session.email)}?secret=${secret}&issuer=${encodeURIComponent(issuer)}&digits=6&period=30` };
+  }
+  async function moveConfirm(session, code, ctx) {
+    const p = pendingKeys.get(session.id);
+    if (!p || now().getTime() - p.at > LIMITS.recentPasswordMs) { pendingKeys.delete(session.id); throw bad("move_expired"); }
+    if (verifyTotp(p.secret, code, now().getTime()) === null) throw new HttpError(401, "invalid_code");
+    const codes = await tx(userActor(session.user, ctx, session.clinic_id), async (c) => {
+      await c.query("update accounts.users set mfa_secret_enc = $2 where id = $1", [session.user_id, encrypt(p.secret, config.mfaKey)]);
+      return writeCodes(c, session.user_id);
+    });
+    pendingKeys.delete(session.id);
+    await audit(session.clinic_id, "user", session.user_id, "two_step_moved", { actor: who(session.user), ctx });
+    return { recoveryCodes: codes };
+  }
+  // Turns two-step off for a person who lost their phone and codes: the key and codes go, every session ends, and they are
+  // told by email. At the next sign-in an administrator sets it up again (it is required for them); others may.
+  async function clearTwoStep(userId, actor, clinicId, ctx) {
+    const { rows } = await pool.query("select id, email, full_name, language, mfa_enabled from accounts.users where id = $1", [userId]);
+    const u = rows[0];
+    if (!u) throw notFound("user_not_found");
+    if (!u.mfa_enabled) throw bad("two_step_off");
+    const ended = await tx({ ...actor, ip: ctx?.ip, ua: ctx?.ua, requestId: ctx?.requestId, clinic: clinicId ?? null }, async (c) => {
+      await c.query("update accounts.users set mfa_enabled = false, mfa_secret_enc = null where id = $1", [userId]);
+      await c.query("delete from accounts.recovery_codes where user_id = $1", [userId]);
+      const r = await c.query("update accounts.sessions set revoked_at = $2, revoked_reason = 'two_step_reset' where user_id = $1 and revoked_at is null", [userId, now()]);
+      return r.rowCount;
+    });
+    await audit(clinicId, "user", userId, "two_step_reset", { after: { sessions_ended: ended }, actor: { type: actor.type, id: actor.id, label: actor.label }, ctx });
+    const { rows: tz } = await pool.query(
+      `select c.timezone from accounts.memberships m join public.clinics c on c.id = m.clinic_id where m.user_id = $1 and m.active order by c.name_en limit 1`, [userId]);
+    // The reset is done by now; a mail problem must not make it look as if it failed. The audit entry is the record.
+    let emailed = true;
+    try { await mail.twoStepReset({ to: u.email, name: u.full_name, by: actor.label, at: now(), timezone: tz[0]?.timezone || "UTC" }); }
+    catch (e) { emailed = false; console.error("two-step reset notice not sent", e.message); }
+    return { sessionsEnded: ended, emailed };
+  }
+  async function adminResetTwoStep(session, userId, clinicId, ctx) {
+    await need(session, "accounts.users.reset_two_step", clinicId);
+    requireRecentPassword(session);
+    if (userId === session.user_id) throw new HttpError(409, "cannot_change_own_access");
+    await membershipOf(userId, clinicId);
+    return clearTwoStep(userId, userActor(session.user, ctx, clinicId), clinicId, ctx);
+  }
+  // For the Limitsiz owner on the server, when nobody else can do it (the only administrator lost their phone and codes).
+  async function serverResetTwoStep(email) {
+    const { rows } = await pool.query("select id from accounts.users where email = $1", [normEmail(email)]);
+    if (!rows[0]) throw notFound("user_not_found");
+    const clinic = (await memberships(rows[0].id)).find((m) => m.clinic_id)?.clinic_id ?? null;
+    return clearTwoStep(rows[0].id, { type: "system", id: "accounts-cli", label: "Limitsiz owner (server command)" }, clinic, null);
   }
 
   // ---------------------------------------------------------------- permissions
@@ -484,6 +568,7 @@ export function createCore({ pool, config, mail, now = () => new Date(), securit
     const { rows } = await pool.query(
       `select u.id, u.email, u.full_name, u.status, u.mfa_enabled, u.last_login_at, m.role_key, m.doctor_id,
               m.can_manage_bookings, m.active,
+              case when u.mfa_enabled then (select count(*)::int from accounts.recovery_codes r where r.user_id = u.id and r.used_at is null) end as codes_left,
               (select count(*)::int from accounts.sessions s where s.user_id = u.id and s.revoked_at is null and s.expires_at > $2) as open_sessions
          from accounts.memberships m join accounts.users u on u.id = m.user_id
         where m.clinic_id is not distinct from $1 order by u.full_name`, [clinicId ?? null, now()]);
@@ -580,7 +665,7 @@ export function createCore({ pool, config, mail, now = () => new Date(), securit
 
   return {
     pool, tx, audit, login, logout, chooseClinic, loadSession, lock, unlock, confirmPassword, requireRecentPassword,
-    mfaSetup, mfaEnable, mfaVerify, permissionsFor, can, need, createInvite, bootstrapInvite, inviteInfo, acceptInvite,
+    mfaSetup, mfaEnable, mfaVerify, recoveryState, renewRecoveryCodes, moveStart, moveConfirm, adminResetTwoStep, serverResetTwoStep, permissionsFor, can, need, createInvite, bootstrapInvite, inviteInfo, acceptInvite,
     forgotPassword, resetPassword, changePassword, startAuthorize, exchangeCode, introspect, peopleNames, appLogout, describe,
     listUsers, listDoctors, updateMembership, setUserStatus, revokeUserSessions, adminSendReset, mySessions, allSessions, revokeMine, updateProfile,
   };

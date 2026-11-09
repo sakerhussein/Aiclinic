@@ -78,7 +78,8 @@ export function createApp({ core, config, now = () => Date.now(), limits = {} })
     clinics: s.memberships.filter((m) => m.clinic_id).map((m) => ({ id: m.clinic_id, nameEn: m.clinic_name_en, nameAr: m.clinic_name_ar, role: m.role_key })),
     role: s.memberships.find((m) => m.clinic_id === s.clinic_id)?.role_key ?? null,
     permissions: s.state === "ok" ? await core.permissionsFor(s) : [],
-    security: { lockMinutes: s.security.lockMinutes, idleMinutes: s.security.idleMinutes },
+    security: { lockMinutes: s.security.lockMinutes, idleMinutes: s.security.idleMinutes, recoveryWarnAt: s.security.recoveryWarnAt },
+    recovery: s.state === "ok" ? await core.recoveryState(s) : null,       // codes left and when to warn; null while two-step is off
   });
 
   // ---------------------------------------------------------------- health
@@ -135,8 +136,15 @@ export function createApp({ core, config, now = () => Date.now(), limits = {} })
   app.post("/api/mfa/verify", session(["mfa_required"]), wrap(async (req, res) => {
     if (!loginLimit(`m:${req.session.user_id}`)) throw tooMany();
     const b = parse(z.object({ code: z.string().regex(/^\d{6}$/).optional(), recovery: z.string().max(40).optional() }).refine((x) => x.code || x.recovery), req.body);
-    await core.mfaVerify(req.session, b, req.ctx);
-    res.json({ ok: true });
+    res.json({ ok: true, ...(await core.mfaVerify(req.session, b, req.ctx)) });
+  }));
+  // Recovery: new codes, or move two-step to a new phone. Both need the password checked in the last 10 minutes.
+  app.post("/api/mfa/recovery-codes", session(OK), wrap(async (req, res) => res.json(await core.renewRecoveryCodes(req.session, req.ctx))));
+  app.post("/api/mfa/move/start", session(OK), wrap(async (req, res) => res.json(await core.moveStart(req.session))));
+  app.post("/api/mfa/move/confirm", session(OK), wrap(async (req, res) => {
+    if (!loginLimit(`v:${req.session.user_id}`)) throw tooMany();
+    const b = parse(z.object({ code: z.string().regex(/^\d{6}$/) }), req.body);
+    res.json(await core.moveConfirm(req.session, b.code, req.ctx));
   }));
 
   // ---------------------------------------------------------------- passwords
@@ -201,6 +209,8 @@ export function createApp({ core, config, now = () => Date.now(), limits = {} })
     const link = await core.adminSendReset(req.session, parse(uuid, req.params.id), clinicOf(req), req.ctx);
     res.json({ ok: true, ...(link ? { link } : {}) });
   }));
+  app.post("/api/users/:id/reset-two-step", session(OK), wrap(async (req, res) =>
+    res.json(await core.adminResetTwoStep(req.session, parse(uuid, req.params.id), clinicOf(req), req.ctx))));
   app.get("/api/sessions/mine", session(OK), wrap(async (req, res) => res.json(await core.mySessions(req.session))));
   app.delete("/api/sessions/:id", session(OK), wrap(async (req, res) => { await core.revokeMine(req.session, parse(uuid, req.params.id)); res.json({ ok: true }); }));
   app.get("/api/sessions", session(OK), wrap(async (req, res) => res.json(await core.allSessions(req.session, clinicOf(req)))));

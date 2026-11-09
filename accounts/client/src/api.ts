@@ -26,5 +26,6 @@ export type Me = {
   clinics: { id: string; nameEn: string; nameAr: string; role: string }[];
   role: string | null;
   permissions: string[];
-  security: { lockMinutes: number; idleMinutes: number };
+  security: { lockMinutes: number; idleMinutes: number; recoveryWarnAt: number };
+  recovery: { left: number; warnAt: number } | null;      // null while two-step is off
 };

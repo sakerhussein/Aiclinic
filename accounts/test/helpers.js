@@ -42,6 +42,7 @@ export async function setup() {
   const mail = {
     invite: async (m) => mails.push({ kind: "invite", ...m }),
     reset: async (m) => mails.push({ kind: "reset", ...m }),
+    twoStepReset: async (m) => mails.push({ kind: "two_step_reset", ...m }),
   };
   const config = { siteUrl: SITE, origin: SITE, mfaKey: MFA_KEY, secureCookies: false, cookieName: "lc_session", trustProxy: "false", exposeLinks: true };
   const core = createCore({ pool, config, mail, now });

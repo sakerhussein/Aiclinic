@@ -31,6 +31,18 @@ test("a password reset reaches the SMTP server", async () => {
   } finally { await s.close(); }
 });
 
+test("the two-step reset notice names who did it and when, in the clinic's time, in English and Arabic", async () => {
+  const s = await fakeSmtp();
+  try {
+    await createMailer(smtp(s.port)).twoStepReset({ to: "lina@demo.jo", name: "Lina", by: "Saqqer", at: new Date("2026-11-09T14:40:00Z"), timezone: "Asia/Amman" });
+    const text = bodyOf(s.mails[0].raw);
+    assert.match(text, /Saqqer reset two-step verification/);
+    assert.match(text, /17:40/, "Amman is UTC+3");
+    assert.match(text, /أعاد Saqqer ضبط التحقق/);
+    assert.match(text, /contact your clinic administrator/);
+  } finally { await s.close(); }
+});
+
 test("a failed send is reported to the caller", async () => {
   const s = await fakeSmtp();
   await s.close();                                  // nothing listens on that port now

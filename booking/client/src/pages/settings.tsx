@@ -22,7 +22,7 @@ type Service = { id: string; name_en: string; name_ar: string; description_en: s
 type TimeOff = { id: string; doctor_id: string | null; starts_at: string; ends_at: string; reason: string | null };
 type Faq = { id: string; topic: string; question_en: string; question_ar: string; answer_en: string; answer_ar: string };
 type Rule = { audience: "patient" | "staff"; min_notice_minutes: number; window_days: number; change_notice_minutes: number; max_upcoming: number | null; outside_hours: string; walkin_back_minutes: number; require_cancel_reason: boolean };
-type General = { idle_timeout_minutes: number; lock_after_minutes: number; require_2fa_all: boolean; conversation_visibility: string; audit_retention_months: number | null;
+type General = { idle_timeout_minutes: number; lock_after_minutes: number; require_2fa_all: boolean; recovery_warn_at: number; conversation_visibility: string; audit_retention_months: number | null;
   reminders_enabled: boolean; reminder_offsets_minutes: number[]; quiet_start: string; quiet_end: string; assistant_enabled: boolean;
   after_hours_message_en: string | null; after_hours_message_ar: string | null; handoff_alert_emails: string[] };
 type Profile = { name_en: string; name_ar: string; phone: string | null; address_en: string | null; address_ar: string | null; maps_url: string | null; timezone: string; default_language: "ar" | "en"; week_start: number; slot_step_minutes: number };
@@ -37,7 +37,7 @@ type Online = { enabled: boolean; staff_check: boolean; show_prices: boolean; al
 type OnlineLink = { enabled: boolean; url?: string; qrUrl?: string };
 type Data = { profile: Profile; hours: Period[]; closures: TimeOff[]; doctors: Doctor[]; services: Service[]; faqs: Faq[]; rules: Rule[]; general: General; outside: Outside[];
   online: Online; onlineLink: OnlineLink; scribe: Scribe;
-  options: { slotMinutes: number[]; bufferMinutes: number[]; idleMinutes: number[]; lockMinutes: number[]; reminderMinutes: number[] } };
+  options: { slotMinutes: number[]; bufferMinutes: number[]; idleMinutes: number[]; lockMinutes: number[]; reminderMinutes: number[]; recoveryWarnAt: number[] } };
 
 const TABS = ["profile", "hours", "doctors", "services", "rules", "online", "scribe", "reminders", "assistant", "security", "audit"] as const;
 type Tab = (typeof TABS)[number];
@@ -421,7 +421,7 @@ function RulesTab({ data, reload }: P) {
 // These pages share one settings row, so each saves the whole row with its own fields changed.
 function useGeneral({ data, reload }: P) {
   const g = data.general;
-  const [f, setF] = useState({ idleTimeoutMinutes: g.idle_timeout_minutes, lockAfterMinutes: g.lock_after_minutes, require2faAll: g.require_2fa_all, conversationVisibility: g.conversation_visibility,
+  const [f, setF] = useState({ idleTimeoutMinutes: g.idle_timeout_minutes, lockAfterMinutes: g.lock_after_minutes, require2faAll: g.require_2fa_all, recoveryWarnAt: g.recovery_warn_at, conversationVisibility: g.conversation_visibility,
     auditRetentionMonths: g.audit_retention_months, remindersEnabled: g.reminders_enabled, reminderOffsetsMinutes: g.reminder_offsets_minutes, quietStart: g.quiet_start, quietEnd: g.quiet_end,
     assistantEnabled: g.assistant_enabled, afterHoursMessageEn: g.after_hours_message_en || "", afterHoursMessageAr: g.after_hours_message_ar || "", handoffAlertEmails: g.handoff_alert_emails });
   const save = useSave(reload);
@@ -476,6 +476,7 @@ function SecurityTab(p: P) {
       <div className="grid2">
         <Field label={s.lockAfter} hint={s.lockHint}><Pick value={f.lockAfterMinutes} onChange={(v) => setF({ ...f, lockAfterMinutes: Number(v) })} options={withCurrent(p.data.options.lockMinutes, f.lockAfterMinutes).map((m) => [m, m ? duration(m, s) : s.offOption])} /></Field>
         <Field label={s.idleAfter}><Pick value={f.idleTimeoutMinutes} onChange={(v) => setF({ ...f, idleTimeoutMinutes: Number(v) })} options={withCurrent(p.data.options.idleMinutes, f.idleTimeoutMinutes).map((m) => [m, duration(m, s)])} /></Field>
+        <Field label={s.recoveryWarn} hint={s.recoveryWarnHint}><Pick value={f.recoveryWarnAt} onChange={(v) => setF({ ...f, recoveryWarnAt: Number(v) })} options={p.data.options.recoveryWarnAt.map((n) => [n, s.orFewer.replace("{n}", String(n))])} /></Field>
       </div>
       <Check checked={f.require2faAll} onChange={(v) => setF({ ...f, require2faAll: v })}>{s.twoStepAll}</Check>
       <p className="hint">{s.twoStepHint}</p>

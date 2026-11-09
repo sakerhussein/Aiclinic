@@ -124,12 +124,17 @@ export function Mfa() {
   const go = useContinue();
   const nav = useNavigate();
   const [code, setCode] = useState(""); const [recovery, setRecovery] = useState(false);
+  const [used, setUsed] = useState<{ left: number; me: Me } | null>(null);
   const a = useAction();
+  if (used) return <RecoveryUsed left={used.left} me={used.me} />;
   return (
     <CardPage title={t("mfaTitle")} sub={t("mfaSub")}>
       <form className="row" style={{ flexDirection: "column", alignItems: "stretch", gap: 14 }} onSubmit={a.submit(async () => {
-        await post("/api/mfa/verify", recovery ? { recovery: code } : { code });
-        const me = await get<Me>("/api/me"); setMe(me); go(me);
+        const r = await post<{ recoveryLeft?: number }>("/api/mfa/verify", recovery ? { recovery: code } : { code });
+        const me = await get<Me>("/api/me");
+        // After a recovery code, say how many are left before carrying on. The session is set only when the person moves on,
+        // because this page (the second step) sends a signed-in person away at once.
+        if (typeof r.recoveryLeft === "number" && me.state === "ok") setUsed({ left: r.recoveryLeft, me }); else { setMe(me); go(me); }
       })}>
         <Field label={recovery ? t("recoveryCode") : t("code")} value={code} onChange={(e) => setCode(e.target.value)} inputMode={recovery ? "text" : "numeric"} autoComplete="one-time-code" required autoFocus />
         {a.err && <Banner>{a.err}</Banner>}
@@ -143,21 +148,13 @@ export function Mfa() {
 
 export function MfaSetup() {
   const { t } = useI18n();
-  const { setMe } = useSession();
-  const go = useContinue();
   const [secret, setSecret] = useState(""); const [qr, setQr] = useState("");
   const [code, setCode] = useState(""); const [codes, setCodes] = useState<string[] | null>(null);
   const a = useAction();
   useEffect(() => {
     post<{ secret: string; otpauth: string }>("/api/mfa/setup").then(async (r) => { setSecret(r.secret); setQr(await QRCode.toDataURL(r.otpauth, { margin: 1, width: 200 })); }).catch(() => {});
   }, []);
-  if (codes) return (
-    <CardPage title={t("recoveryTitle")} sub={t("recoverySub")}>
-      <div className="codes">{codes.map((c) => <span key={c}>{c}</span>)}</div>
-      <button className="btn btn-outline btn-block" type="button" onClick={() => void navigator.clipboard?.writeText(codes.join("\n"))}>{t("copyAll")}</button>
-      <button className="btn btn-accent btn-block" type="button" onClick={async () => { const me = await get<Me>("/api/me"); setMe(me); go(me); }}>{t("recoverySaved")}</button>
-    </CardPage>
-  );
+  if (codes) return <CodesCard codes={codes} />;
   return (
     <CardPage title={t("mfaSetupTitle")} sub={t("mfaSetupSub")}>
       {qr && <img className="qr" src={qr} alt="" />}
@@ -167,6 +164,109 @@ export function MfaSetup() {
         {a.err && <Banner>{a.err}</Banner>}
         <button className="btn btn-accent btn-block" disabled={a.busy}>{t("turnOn")}</button>
       </form>
+    </CardPage>
+  );
+}
+
+// The new recovery codes, shown once. "I saved them" carries on to wherever the person was going.
+function CodesCard({ codes }: { codes: string[] }) {
+  const { t } = useI18n();
+  const { setMe } = useSession();
+  const go = useContinue();
+  return (
+    <CardPage title={t("recoveryTitle")} sub={t("recoverySub")}>
+      <div className="codes">{codes.map((c) => <span key={c}>{c}</span>)}</div>
+      <button className="btn btn-outline btn-block" type="button" onClick={() => void navigator.clipboard?.writeText(codes.join("\n"))}>{t("copyAll")}</button>
+      <button className="btn btn-accent btn-block" type="button" onClick={async () => { const me = await get<Me>("/api/me"); setMe(me); go(me); }}>{t("recoverySaved")}</button>
+    </CardPage>
+  );
+}
+
+// ---------------------------------------------------------------- two-step recovery (design: booking/design/two-step.html)
+// Right after signing in with a recovery code (design screen 1). The last code makes "Later" a small link.
+function RecoveryUsed({ left, me }: { left: number; me: Me }) {
+  const { t } = useI18n();
+  const { setMe } = useSession();
+  const go = useContinue();
+  const nav = useNavigate();
+  const [q] = useSearchParams();
+  const next = q.get("next");
+  const suffix = next ? `?next=${encodeURIComponent(next)}` : "";
+  const none = left === 0;
+  const to = (path: string) => () => { setMe(me); nav(path + suffix, { replace: true }); };
+  return (
+    <CardPage title={none ? t("lastTitle") : t("usedTitle")} sub={none ? undefined : t("usedSub")}>
+      <Banner kind={none ? "bad" : "warn"}><b>{none ? t("noneLeft") : t("usedLeft", { n: left })}</b> {none ? t("noneLeftHint") : t("usedLeftHint")}</Banner>
+      <button className="btn btn-accent btn-block" type="button" onClick={to("/two-step/codes")}>{t("makeCodesNow")}</button>
+      <button className="btn btn-outline btn-block" type="button" onClick={to("/two-step/move")}>{t("moveToPhone")}</button>
+      <p className="sub"><button className="link" type="button" onClick={() => { setMe(me); go(me); }}>{t("later")}</button></p>
+    </CardPage>
+  );
+}
+
+const Back = () => {
+  const { t } = useI18n();
+  const nav = useNavigate();
+  return <button className="btn btn-outline btn-block" type="button" onClick={() => (window.history.length > 1 ? nav(-1) : nav("/"))}>{t("cancel")}</button>;
+};
+
+// New recovery codes: the password first (design screen 3), then the codes once.
+export function TwoStepCodes() {
+  const { t } = useI18n();
+  const [pw, setPw] = useState(""); const [codes, setCodes] = useState<string[] | null>(null);
+  const a = useAction();
+  if (codes) return <CodesCard codes={codes} />;
+  return (
+    <CardPage title={t("codesTitle")} sub={t("codesSub")}>
+      <form className="row" style={{ flexDirection: "column", alignItems: "stretch", gap: 14 }} onSubmit={a.submit(async () => {
+        await post("/api/confirm-password", { password: pw });
+        setCodes((await post<{ recoveryCodes: string[] }>("/api/mfa/recovery-codes")).recoveryCodes);
+      })}>
+        <Field label={t("password")} type="password" autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} required autoFocus />
+        {a.err && <Banner>{a.err}</Banner>}
+        <button className="btn btn-accent btn-block" disabled={a.busy}>{t("makeCodes")}</button>
+      </form>
+      <Back />
+    </CardPage>
+  );
+}
+
+// Move to a new phone (design screen 4): password, then the new phone's QR code and its first code. The old phone keeps
+// working until that code is confirmed; then 10 new recovery codes.
+export function TwoStepMove() {
+  const { t } = useI18n();
+  const [pw, setPw] = useState(""); const [code, setCode] = useState("");
+  const [key, setKey] = useState<{ secret: string; qr: string } | null>(null);
+  const [codes, setCodes] = useState<string[] | null>(null);
+  const a = useAction();
+  if (codes) return <CodesCard codes={codes} />;
+  if (!key) return (
+    <CardPage title={t("moveTitle")} sub={t("moveSub")}>
+      <form className="row" style={{ flexDirection: "column", alignItems: "stretch", gap: 14 }} onSubmit={a.submit(async () => {
+        await post("/api/confirm-password", { password: pw });
+        const r = await post<{ secret: string; otpauth: string }>("/api/mfa/move/start");
+        setKey({ secret: r.secret, qr: await QRCode.toDataURL(r.otpauth, { margin: 1, width: 200 }) });
+      })}>
+        <Field label={t("password")} type="password" autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} required autoFocus />
+        {a.err && <Banner>{a.err}</Banner>}
+        <button className="btn btn-accent btn-block" disabled={a.busy}>{t("next")}</button>
+      </form>
+      <Back />
+    </CardPage>
+  );
+  return (
+    <CardPage title={t("moveTitle")} sub={t("moveScan")}>
+      <img className="qr" src={key.qr} alt="" />
+      <p className="hint">{t("secretKey")}</p><p className="secret">{key.secret}</p>
+      <form className="row" style={{ flexDirection: "column", alignItems: "stretch", gap: 14 }} onSubmit={a.submit(async () => {
+        setCodes((await post<{ recoveryCodes: string[] }>("/api/mfa/move/confirm", { code: code.replace(/\s/g, "") })).recoveryCodes);
+      })}>
+        <Field label={t("moveCode")} value={code} onChange={(e) => setCode(e.target.value)} inputMode="numeric" autoComplete="one-time-code" required autoFocus />
+        <p className="hint">{t("moveNote")}</p>
+        {a.err && <Banner>{a.err}</Banner>}
+        <button className="btn btn-accent btn-block" disabled={a.busy}>{t("confirm")}</button>
+      </form>
+      <Back />
     </CardPage>
   );
 }

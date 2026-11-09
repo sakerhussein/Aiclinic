@@ -86,7 +86,7 @@ test("a name that looks like a formula stays text", async () => {
 
 test("Arabic: headings, values and direction, with phone numbers left to right", async () => {
   const f = await file(adm, "/api/export/bookings?lang=ar");
-  assert.equal(f.ws.name, "الحجوزات");
+  assert.equal(f.ws.name, "المواعيد");
   assert.equal(f.rows[0][2], "المريض");
   assert.equal(f.ws.views[0].rightToLeft, true);
   assert.equal(f.ws.getRow(2).getCell(10).value, "محجوز");

@@ -186,8 +186,12 @@ test("general settings are validated: pick lists, the 12-month audit floor, emai
   assert.equal((await adm.patch("/api/settings/general", { ...base, auditRetentionMonths: 6 })).status, 400);
   assert.equal((await adm.patch("/api/settings/general", { ...base, handoffAlertEmails: ["nope"] })).status, 400);
   assert.equal((await adm.patch("/api/settings/general", { ...base, reminderOffsetsMinutes: [60, 120, 240] })).status, 400);
+  assert.equal((await adm.patch("/api/settings/general", { ...base, recoveryWarnAt: 6 })).status, 400, "recovery-code warning: 1 to 5");
+  assert.equal((await adm.patch("/api/settings/general", { ...base, recoveryWarnAt: 2 })).status, 200);
+  assert.equal((await adm.get("/api/settings")).json.general.recovery_warn_at, 2);
   assert.equal((await adm.patch("/api/settings/general", base)).status, 200);
   const g = (await t.owner.query("select * from clinic_settings where clinic_id = $1", [t.clinicA])).rows[0];
+  assert.equal(g.recovery_warn_at, 2, "left out of the body: kept as it was");
   assert.deepEqual(g.reminder_offsets_minutes, [1440, 120], "kept in order, longest first");
   assert.deepEqual(g.handoff_alert_emails, ["team@clinic.jo"]);
   assert.equal(g.assistant_enabled, false);

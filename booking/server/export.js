@@ -15,7 +15,7 @@ const TEXT = {
     stopped: `Stopped at ${MAX_EXPORT_ROWS} rows: narrow the filters and export again.`,
   },
   ar: {
-    bookings: "الحجوزات", patients: "المرضى",
+    bookings: "المواعيد", patients: "المرضى",
     bookingCols: ["التاريخ", "الوقت", "المريض", "الهاتف", "الخدمة", "المدة (دقيقة)", "السعر (دينار)", "الطبيب", "المصدر", "الحالة", "سبب الإلغاء أو الإبطال"],
     patientCols: ["الاسم", "الهاتف", "اللغة المفضلة", "تذكيرات واتساب", "آخر زيارة"],
     statuses: { booked: "محجوز", confirmed: "مؤكد", completed: "مكتمل", no_show: "لم يحضر", cancelled: "ملغى", voided: "مُبطل" },
