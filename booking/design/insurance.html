@@ -1,0 +1,518 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Insurance in Records</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;500;600&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap">
+<style>
+/* ---- copied from records/client/src/styles.css (the live Records app) ---- */
+:root{
+  --ink:#0A0F14;--ink-2:#121A21;--ink-3:#1E2A33;--ink-line:#2A3640;--on-ink:#E8EEF0;--on-ink-muted:#93A3AD;
+  --paper:#F2F4F3;--text:#0A0F14;--muted:#4B5863;--rule:#C9D6D2;--rule-soft:#E1E6E4;--field:#8A99A3;
+  --accent:#2EE6B5;--accent-ink:#0B7A64;--accent-tint:#DDF7EE;--amber:#FFB23E;--amber-tint:#FFF0D6;--error:#B42318;--error-tint:#FDE7E4;
+  --font-display:"Unbounded","Geist",system-ui,sans-serif;--font-body:"Geist",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"Geist Mono",ui-monospace,Menlo,monospace;--font-ar:"IBM Plex Sans Arabic","Segoe UI",Tahoma,sans-serif;
+}
+*{box-sizing:border-box}
+html{overflow-x:clip;overflow-anchor:auto}
+body{margin:0;background:var(--paper);color:var(--text);font:15px/1.5 var(--font-body);overflow-x:clip;min-height:100vh}
+html[lang="ar"] body,html[lang="ar"] button,html[lang="ar"] input,html[lang="ar"] select{font-family:var(--font-ar)}
+h1,h2,h3,p{margin:0}
+.display{font-family:var(--font-display);font-weight:500;letter-spacing:-.01em}
+html[lang="ar"] .display{font-family:var(--font-ar);font-weight:600}
+.mono{font-family:var(--font-mono);direction:ltr;unicode-bidi:isolate}
+a{color:var(--accent-ink)}
+.wrap{max-width:1100px;margin-inline:auto;padding-inline:16px}
+
+/* app bar */
+.bar{background:var(--ink);color:var(--on-ink)}
+.bar .wrap{display:flex;align-items:center;gap:12px;min-height:60px;flex-wrap:wrap;padding-block:6px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--font-display);font-size:17px;white-space:nowrap;color:inherit;text-decoration:none}
+html[lang="ar"] .brand{font-family:var(--font-ar);font-weight:600}
+.brand img{width:30px;height:auto}
+.grow{flex:1}
+.bar nav{display:flex;gap:4px;flex-wrap:wrap}
+.bar nav a,.bar .linkbtn{color:var(--on-ink);text-decoration:none;padding:8px 12px;border-radius:999px;font-size:14px;background:none;border:0;cursor:pointer;font:inherit}
+.bar nav a[aria-current="page"]{background:var(--ink-3)}
+.bar nav a:hover,.bar .linkbtn:hover{background:var(--ink-2)}
+.bar .iconbtn{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:999px;color:var(--on-ink)}
+.bar .iconbtn:hover{background:var(--ink-2)}
+.bar .iconbtn.on{background:var(--ink-3)}
+
+/* centered card pages */
+.stage{min-height:100vh;display:grid;place-items:center;padding:24px 16px;background:var(--ink);color:var(--on-ink)}
+.card{width:100%;max-width:440px;background:#fff;color:var(--text);border-radius:24px;padding:32px 28px;display:flex;flex-direction:column;gap:18px;box-shadow:0 20px 60px #0006}
+.card .brand{color:var(--text);justify-content:center}
+.card h1{font-size:22px;text-align:center}
+.card .sub{color:var(--muted);text-align:center;font-size:14px}
+.page{padding-block:28px;display:flex;flex-direction:column;gap:20px}
+.panel{background:#fff;border:1px solid var(--rule);border-radius:20px;padding:22px;display:flex;flex-direction:column;gap:14px}
+.panel h2{font-size:18px}
+.langbar{position:fixed;top:12px;inset-inline-end:12px;z-index:30}
+.langbtn{min-height:38px;padding:0 16px;border-radius:999px;border:1px solid var(--ink-line);background:var(--ink-2);color:var(--on-ink);font:inherit;cursor:pointer}
+
+/* form parts */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;padding:0 24px;border-radius:999px;border:1px solid transparent;font:inherit;font-weight:600;cursor:pointer;text-decoration:none}
+.btn:disabled{opacity:.55;cursor:default}
+.btn-accent{background:var(--accent);color:var(--ink)}
+.btn-ink{background:var(--ink);color:#fff}
+.btn-outline{border-color:var(--text);color:var(--text);background:transparent}
+.btn-danger{background:var(--error);color:#fff}
+.btn-sm{min-height:38px;padding:0 16px;font-size:14px}
+.btn-block{width:100%}
+.link{background:none;border:0;padding:0;color:var(--accent-ink);font:inherit;cursor:pointer;text-decoration:underline}
+.field{display:flex;flex-direction:column;gap:6px;font-size:14px;font-weight:600}
+.field input,.field select{font:inherit;font-weight:400;min-height:48px;padding:0 14px;border:1px solid var(--field);border-radius:12px;background:#fff;color:var(--text);width:100%}
+.field input:focus,.field select:focus{border-color:var(--accent-ink);outline:none;box-shadow:0 0 0 3px var(--accent-tint)}
+.hint{font-weight:400;color:var(--muted);font-size:13px}
+.banner{padding:12px 14px;border-radius:14px;font-size:14px;border:1px solid}
+.banner.bad{background:var(--error-tint);border-color:var(--error);color:#7a1a12}
+.banner.ok{background:var(--accent-tint);border-color:var(--accent-ink);color:var(--accent-ink)}
+.banner.warn{background:var(--amber-tint);border-color:var(--amber);color:#5c3700}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;background:var(--rule-soft);white-space:nowrap}
+.pill.ok{background:var(--accent-tint);color:var(--accent-ink)}.pill.warn{background:var(--amber-tint);color:#8a5200}.pill.bad{background:var(--error-tint);color:var(--error)}
+.codes{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;font-family:var(--font-mono);direction:ltr;background:var(--paper);border-radius:12px;padding:12px;font-size:14px}
+.secret{font-family:var(--font-mono);direction:ltr;word-break:break-all;background:var(--paper);border-radius:10px;padding:8px 12px;font-size:14px}
+.qr{display:block;margin-inline:auto;width:200px;height:200px}
+
+/* launcher */
+.apps{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+.app{display:flex;flex-direction:column;gap:6px;padding:22px;background:#fff;border:1px solid var(--rule);border-radius:20px;text-decoration:none;color:var(--text)}
+.app:hover{border-color:var(--accent-ink);box-shadow:0 0 0 3px var(--accent-tint)}
+.app b{font-family:var(--font-display);font-size:18px;font-weight:500}
+html[lang="ar"] .app b{font-family:var(--font-ar);font-weight:600}
+
+/* tables */
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:640px}
+th,td{text-align:start;padding:10px 8px;border-bottom:1px solid var(--rule-soft);font-size:14px;vertical-align:middle}
+th{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);font-weight:600}
+td select{font:inherit;min-height:36px;border:1px solid var(--field);border-radius:10px;padding:0 8px;background:#fff}
+.actions{display:flex;gap:6px;flex-wrap:wrap}
+
+/* lock overlay */
+.modal{position:fixed;inset:0;background:#0009;display:grid;place-items:center;padding:16px;z-index:20}
+.modal .card{max-width:380px}
+@media (prefers-reduced-motion:no-preference){.card{animation:rise .35s ease both}}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* ---- booking */
+.clinic{color:var(--on-ink-muted);font-size:13px}
+.row.between{justify-content:space-between}
+.h1small{font-size:18px}
+.dateinput{font:inherit;min-height:38px;border:1px solid var(--field);border-radius:10px;padding:0 10px;background:#fff}
+.stack{display:flex;flex-direction:column;gap:12px}
+.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.formgrid h2{font-size:16px;margin-bottom:8px}
+.formfoot{grid-column:1/-1;display:flex;flex-direction:column;gap:10px}
+@media (max-width:820px){.formgrid{grid-template-columns:1fr}}
+.field input,.field select,.stack>input,.panel>input,.stack input[type=time]{font:inherit;font-weight:400;min-height:46px;padding:0 14px;border:1px solid var(--field);border-radius:12px;background:#fff;color:var(--text);width:100%}
+.ta{font:inherit;font-weight:400;padding:10px 14px;border:1px solid var(--field);border-radius:12px;width:100%;resize:vertical}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:14px}
+.check input{width:20px;height:20px;min-height:0;margin-top:3px}
+.pick{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;text-align:start;font:inherit;padding:10px 14px;border:1px solid var(--rule);border-radius:12px;background:#fff;cursor:pointer}
+.pick:hover{border-color:var(--accent-ink)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-block:8px}
+.chip{font:inherit;font-size:14px;padding:6px 14px;border-radius:999px;border:1px solid var(--rule);background:#fff;cursor:pointer;min-height:38px}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.lbl{font-size:14px}
+.filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;align-items:end}
+.filter-checks{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;column-gap:28px;row-gap:8px}
+.filter-checks .check{align-items:center}.filter-checks .check input{margin-top:0}
+.facts{display:grid;grid-template-columns:max-content 1fr;gap:8px 20px;margin:0}
+.facts dt{color:var(--muted);font-size:13px}.facts dd{margin:0}
+.hist{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;gap:6px}
+
+/* calendar */
+.cal{background:#fff;border:1px solid var(--rule);border-radius:20px;overflow:hidden}
+.cal-head,.cal-body{display:grid;grid-template-columns:56px repeat(var(--cols),minmax(0,1fr))}
+.cal-head{border-bottom:1px solid var(--rule);background:var(--paper)}
+.cal-head b{padding:10px 8px;font-size:14px;border-inline-start:1px solid var(--rule)}
+.cal-body{position:relative}
+.cal-gutter{position:relative}
+.cal-gutter span{position:absolute;inset-inline-end:6px;transform:translateY(-8px);font:12px var(--font-mono);color:var(--muted)}
+.cal-col{position:relative;border-inline-start:1px solid var(--rule);cursor:pointer}
+.cal-line{position:absolute;inset-inline:0;border-top:1px solid var(--rule-soft);pointer-events:auto}
+.cal-off{position:absolute;inset-inline:0;background:repeating-linear-gradient(135deg,#e9edec,#e9edec 6px,#f4f6f5 6px,#f4f6f5 12px)}
+.cal-card{position:absolute;inset-inline:3px;overflow:hidden;border-radius:10px;padding:3px 8px;font-size:12.5px;line-height:1.3;text-decoration:none;color:var(--text);background:var(--accent-tint);border:1px solid var(--accent-ink);display:flex;flex-direction:column}
+.cal-card b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cal-card span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-card em{font-style:normal;font-size:11px;color:var(--muted)}
+.cal-card.st-confirmed{background:#c7f3e3}
+.cal-card.st-completed{background:#e1e6e4;border-color:var(--field)}
+.cal-card.st-no_show{background:var(--amber-tint);border-color:var(--amber)}
+.cal-card.st-voided{display:none}
+.cal-card.src-whatsapp{border-inline-start:5px solid #25D366}
+.cal-card.unchecked{border-inline-start:5px solid var(--amber);background:var(--amber-tint)}
+
+/* short cards (15-30 min) show everything on one line; tall cards stack it */
+.cal-card.short{flex-direction:row;align-items:center;gap:8px;padding-block:0;white-space:nowrap}
+.cal-card.short b{flex:0 1 auto;min-width:0}
+.cal-card.short span{flex:1 1 0;min-width:0;color:var(--muted)}
+.cal-card.short em{flex:none}
+.cal-card.tall{padding-block:5px;gap:2px}
+
+/* user menu */
+.um{position:relative}
+.um>button{display:inline-flex;align-items:center;gap:8px;color:var(--on-ink);background:var(--ink-3);border:0;border-radius:999px;padding:8px 14px;font:inherit;font-size:14px;cursor:pointer}
+.um>button:hover{background:var(--ink-line)}
+.um-list{position:absolute;inset-inline-end:0;top:calc(100% + 6px);min-width:210px;max-width:calc(100vw - 16px);background:#fff;color:var(--text);border-radius:14px;border:1px solid var(--rule);box-shadow:0 12px 32px #0004;padding:6px;display:flex;flex-direction:column;z-index:40}
+.um-list a,.um-list button{display:block;text-align:start;font:inherit;font-size:14px;padding:10px 12px;border:0;background:none;border-radius:10px;cursor:pointer;color:var(--text);text-decoration:none}
+.um-list a:hover,.um-list button:hover{background:var(--paper)}
+.um-list .who{padding:8px 12px;color:var(--muted);font-size:12px;border-bottom:1px solid var(--rule-soft);margin-bottom:4px}
+
+/* settings */
+.setwrap{display:grid;grid-template-columns:210px minmax(0,1fr);gap:20px;align-items:start}
+.settabs{display:flex;flex-direction:column;gap:2px;background:#fff;border:1px solid var(--rule);border-radius:16px;padding:8px;position:sticky;top:12px}
+.settabs button{display:flex;align-items:center;gap:8px;font:inherit;font-size:14px;text-align:start;padding:10px 12px;border:0;background:none;border-radius:10px;cursor:pointer;color:var(--text)}
+.settabs button:hover{background:var(--paper)}
+.settabs button.on{background:var(--ink);color:#fff}
+.setbody{display:flex;flex-direction:column;gap:14px;min-width:0}
+.plain{display:contents}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:end}
+.grid3 .full{grid-column:1/-1;display:flex;flex-direction:column;gap:10px}
+.tight{margin:6px 0 0;padding-inline-start:18px}
+.faqrow{display:flex;justify-content:space-between;gap:14px;align-items:baseline;padding-block:8px;border-bottom:1px solid var(--rule-soft);font-size:14px}
+.week{display:flex;flex-direction:column}
+.weekrow{display:grid;grid-template-columns:110px minmax(0,1fr);gap:12px;align-items:center;padding-block:8px;border-bottom:1px solid var(--rule-soft);font-size:14px}
+.periods{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
+.period{display:inline-flex;align-items:center;gap:6px}
+.period input{font:inherit;min-height:38px;padding:0 8px;border:1px solid var(--field);border-radius:10px;background:#fff;direction:ltr}
+.cal-away{display:block;padding:6px 8px;font-style:normal;font-size:12px;color:var(--muted);overflow:hidden;background:repeating-linear-gradient(135deg,#ffe9c7,#ffe9c7 6px,#fff5e3 6px,#fff5e3 12px)}
+@media (max-width:820px){.setwrap{grid-template-columns:1fr}.settabs{flex-direction:row;overflow-x:auto;position:static}.settabs button{white-space:nowrap}.grid2,.grid3{grid-template-columns:1fr}}
+
+/* audit log */
+.integrity{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;background:#fff;border:1px solid var(--rule);border-radius:16px;padding:12px 16px;font-size:14px}
+.integrity.good strong{color:var(--accent-ink)}
+.integrity.bad{border-color:var(--error);background:var(--error-tint)}
+.integrity.bad strong{color:var(--error)}
+.auditt{min-width:900px}
+.nowrap{white-space:nowrap}
+.clickrow{cursor:pointer}
+.clickrow:hover td{background:var(--paper)}
+.diff{font-size:13px;max-width:280px;overflow-wrap:anywhere}
+.diff del{color:var(--error);text-decoration:line-through}
+.diff ins{color:var(--accent-ink);text-decoration:none;font-weight:500}
+.detailrow td{background:var(--paper)}
+.detailrow pre{background:#fff;border:1px solid var(--rule-soft);border-radius:10px;padding:10px;font:12px var(--font-mono);overflow:auto;max-height:280px;margin:6px 0 0;text-align:left}
+.wrapany{overflow-wrap:anywhere}
+
+/* Online booking link */
+.btn-wa{background:#25D366;color:#0A0F14}
+.btn-wa:hover{filter:brightness(.95)}
+.warntext{color:#8a5200}
+.qrbox{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.qrbox canvas{border:1px solid var(--rule);border-radius:12px;background:#fff;padding:8px;width:132px;height:132px}
+.linkbox{font-family:var(--font-mono);direction:ltr;background:#fff;border:1px solid var(--rule);border-radius:10px;padding:8px 12px;font-size:14px;word-break:break-all}
+.brochures{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.brochure{border:1px solid var(--rule);border-radius:14px;padding:12px;background:#fff;display:flex;flex-direction:column;gap:6px}
+.brochure .size{display:grid;place-items:center;height:72px;border-radius:10px;background:var(--paper);color:var(--muted);font-size:13px}
+.brochure .btn{margin-top:auto;white-space:normal}
+.swatches{display:flex;gap:10px;flex-wrap:wrap}
+.swatch{width:30px;height:30px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px var(--rule);cursor:pointer;padding:0}
+.swatch.on{box-shadow:0 0 0 2px var(--ink)}
+.swatch:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+@media (max-width:820px){.brochures{grid-template-columns:1fr 1fr}}
+/* phones: one brochure per row, the size beside its name, the button across the card */
+@media (max-width:560px){.brochures{grid-template-columns:1fr}
+  .brochure{display:grid;grid-template-columns:100px minmax(0,1fr);column-gap:12px;row-gap:4px;align-items:center}
+  .brochure .size{grid-row:span 2;height:56px}
+  .brochure>:last-child{grid-column:1/-1;margin-top:6px}}
+.newtag{flex:none;font-size:10.5px;line-height:1.6;background:var(--accent);color:var(--ink);border-radius:999px;padding:0 7px;margin-inline-start:auto}
+.field textarea{font:inherit;font-weight:400;padding:10px 14px;border:1px solid var(--field);border-radius:12px;background:#fff;color:var(--text);width:100%;resize:vertical;min-height:72px}
+html[lang="ar"] textarea{font-family:var(--font-ar)}
+
+/* ---- visit notes (AI Scribe, design: booking/design/ai-scribe.html) */
+.btn-ghost{background:transparent;color:var(--accent-ink);border-color:var(--rule)}
+.btn-xs{min-height:32px;padding:0 12px;font-size:13px}
+.row.center{justify-content:center}
+.note-card{max-width:760px}
+.consent{font-size:15px;line-height:1.7;padding:12px 14px;border-radius:14px;background:var(--accent-tint);border:1px solid var(--accent-ink);color:var(--text)}
+.rec-card{align-items:center;text-align:center;padding-block:30px}
+.rec{display:inline-flex;align-items:center;gap:8px;font:600 13px var(--font-mono);color:var(--error);background:var(--error-tint);border:1px solid #F3B4AB;border-radius:999px;padding:4px 12px}
+html[lang="ar"] .rec{font-family:var(--font-ar)}
+.rec i{width:10px;height:10px;border-radius:50%;background:#D92D20;display:inline-block}
+.rec.off{color:var(--muted);background:var(--rule-soft);border-color:var(--rule)}
+.rec.off i{background:var(--field)}
+@media (prefers-reduced-motion:no-preference){.rec:not(.off) i{animation:blink 1.2s ease-in-out infinite}.spinner{animation:spin .8s linear infinite}}
+@keyframes blink{50%{opacity:.25}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.timer{font-size:54px;font-weight:500;letter-spacing:.02em;direction:ltr}
+.level{display:flex;gap:3px;align-items:center;height:46px;direction:ltr}
+.level span{width:6px;border-radius:3px;background:var(--accent-ink)}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--rule);border-top-color:var(--accent-ink);border-radius:50%;vertical-align:-2px}
+.note{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:900px){.note{grid-template-columns:1fr}}
+.sec-h{font:500 12px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent-ink);margin-bottom:4px}
+html[lang="ar"] .sec-h{font-family:var(--font-ar);font-weight:600;letter-spacing:0;font-size:13px}
+.nbox{display:block;width:100%;border:1px solid var(--field);border-radius:12px;padding:10px 12px;background:#fff;font:inherit;font-size:14px;line-height:1.55;min-height:42px;color:var(--text);white-space:pre-wrap;text-align:start}
+.nbox.nm{color:var(--muted);font-style:italic;background:var(--paper)}
+.nbox.editable{cursor:text}
+.nbox.editable:hover{border-color:var(--accent-ink)}
+.nbox:focus-visible,textarea.nbox:focus{outline:none;border-color:var(--accent-ink);box-shadow:0 0 0 3px var(--accent-tint)}
+textarea.nbox{resize:vertical}
+html[lang="ar"] .nbox[lang="en"]{font-family:var(--font-body)}
+mark.u{background:var(--amber-tint);border-bottom:2px solid var(--amber);padding:0 2px;border-radius:3px;color:inherit}
+mark.d{background:#E8F0FF;border-bottom:2px solid #3B6FD8;padding:0 2px;border-radius:3px;color:inherit}
+.legend2{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);align-items:center}
+.tx{background:#fff;border:1px solid var(--rule);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px;max-height:640px;overflow:auto;position:sticky;top:12px}
+@media (max-width:900px){.tx{position:static;max-height:none}}
+.tl{display:grid;grid-template-columns:52px 1fr;gap:8px;font-size:13.5px;line-height:1.5}
+.tl .t{font-size:11.5px;color:var(--muted);padding-top:2px}
+.tl b{font-size:12px;color:var(--muted);display:block}
+.tl.dr b{color:var(--accent-ink)}
+/* dictation (design: booking/design/dictation.html) */
+.sec-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}
+.sec-row .sec-h{margin-bottom:0}
+.mic{display:inline-flex;align-items:center;gap:6px;min-height:30px;padding:0 10px;border-radius:999px;border:1px solid var(--rule);background:#fff;color:var(--accent-ink);font:600 12.5px var(--font-body);cursor:pointer;white-space:nowrap}
+html[lang="ar"] .mic{font-family:var(--font-ar)}
+.mic:hover:not(:disabled){border-color:var(--accent-ink)}
+.mic:disabled{opacity:.45;cursor:default}
+.dict{border:1.5px solid var(--error);border-radius:12px;background:#FFF8F7;padding:10px 12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.dict.busy{border-color:var(--accent-ink);background:#F6FDFA}
+.level.small{height:30px}.level.small span{width:5px}
+.heard{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-top:4px}
+.heard q{font-style:normal;quotes:none}
+.nbox.new{border-color:var(--accent-ink);box-shadow:0 0 0 3px var(--accent-tint)}
+.whole{border:1px dashed var(--accent-ink);border-radius:16px;background:#F6FDFA;padding:14px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.whole b{display:block}
+.whole .grow{min-width:200px}
+.whole .ic{width:38px;height:38px;border-radius:12px;background:var(--accent-tint);color:var(--accent-ink);display:grid;place-items:center;flex:none}
+.signbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:14px;border:1px solid var(--rule);border-radius:16px;background:#fff}
+.sign-card{border-color:var(--accent-ink)}
+.locked{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:14px;background:var(--accent-tint);border:1px solid var(--accent-ink);color:var(--accent-ink);font-size:14px}
+.locked svg{flex:none;margin-top:2px}
+.addition{border-inline-start:3px solid var(--rule);padding-inline-start:12px;display:flex;flex-direction:column;gap:2px;font-size:14px;white-space:pre-wrap}
+.sec-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.sec-item{border:1px solid var(--rule);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.cal-note{font-style:normal}
+.notelink{text-decoration:none}
+.notelink .pill{box-shadow:0 0 0 1px var(--accent-ink)}
+.notelink:hover .pill{box-shadow:0 0 0 2px var(--accent-ink)}
+/* Phone numbers, codes and links keep their left-to-right order, but in Arabic they start at the right like every other field. */
+html[dir="rtl"] input.mono{text-align:right}
+
+/* ---- records: the patient's chart (design: booking/design/emr.html) */
+.chead{display:flex;gap:16px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+.chead h1{font-size:30px}
+.cfacts{display:flex;gap:6px 14px;flex-wrap:wrap;color:var(--muted);font-size:14px;margin-top:4px}
+.alerts{display:flex;gap:8px;flex-wrap:wrap}
+.alert{display:inline-flex;align-items:center;gap:8px;border-radius:12px;padding:7px 12px;font-size:13.5px;font-weight:600;border:1px solid}
+.alert.red{background:var(--error-tint);border-color:#F3B4AB;color:#7a1a12}
+.alert.amb{background:var(--amber-tint);border-color:var(--amber);color:#5c3700}
+.alert .k{font:600 11px var(--font-mono);text-transform:uppercase;letter-spacing:.06em;opacity:.8}
+html[lang="ar"] .alert .k{font-family:var(--font-ar);letter-spacing:0;text-transform:none;font-size:12px}
+.ctabs{display:flex;gap:4px;border-bottom:1px solid var(--rule);overflow-x:auto}
+.ctabs button{font:inherit;padding:10px 14px;font-size:14px;color:var(--muted);background:none;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;cursor:pointer}
+.ctabs button.on{color:var(--text);border-bottom-color:var(--accent-ink);font-weight:600}
+.cgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;align-items:start}
+.ccard{background:#fff;border:1px solid var(--rule);border-radius:18px;padding:16px 18px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.ccard h3{font-size:15px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.li{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding-block:8px;border-top:1px solid var(--rule-soft);font-size:14px}
+.ccard h3+.li,.ccard h3+div>.li:first-child{border-top:0}
+.li .s{color:var(--muted);font-size:12.5px}
+.li .end{display:flex;flex-direction:column;align-items:flex-end;gap:2px;text-align:end;flex:none;max-width:45%}
+.li s{color:var(--muted)}
+.pr{font-size:12px;font-weight:600;color:#8a5200;background:var(--amber-tint);border-radius:999px;padding:1px 8px}
+.efrm{display:flex;flex-direction:column;gap:10px;border:1px solid var(--rule);border-radius:14px;padding:12px;background:var(--paper)}
+.efrm input,.efrm select,.efrm textarea{font:inherit;min-height:42px;padding:0 12px;border:1px solid var(--field);border-radius:10px;background:#fff;width:100%}
+.efrm textarea{padding:8px 12px;min-height:64px;resize:vertical}
+.tl{display:flex;flex-direction:column}
+.tli{display:grid;grid-template-columns:120px 26px minmax(0,1fr);gap:10px;align-items:start}
+.tli .when{font:500 12.5px var(--font-mono);color:var(--muted);padding-top:12px;text-align:end}
+html[lang="ar"] .tli .when{font-family:var(--font-ar);font-size:13px}
+.tli .rail{position:relative;align-self:stretch;display:flex;justify-content:center}
+.tli .rail::before{content:"";position:absolute;inset-block:0;width:2px;background:var(--rule)}
+.tli .rail b{position:relative;margin-top:12px;width:26px;height:26px;border-radius:50%;background:#fff;border:2px solid var(--accent-ink);display:grid;place-items:center;font-size:12px}
+.tli .rail b.bad{border-color:var(--error);color:var(--error)}
+.tli .what{background:#fff;border:1px solid var(--rule);border-radius:14px;padding:10px 14px;margin-block:4px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.lock{display:flex;gap:12px;align-items:center;border:1px dashed var(--rule);border-radius:16px;padding:16px;background:#fff;color:var(--muted)}
+.dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.sfield{border:1px solid var(--rule);border-radius:14px;padding:12px;display:grid;grid-template-columns:1fr 1fr 150px auto;gap:10px;align-items:end}
+.sfield .full{grid-column:1/-1}
+@media (max-width:820px){.tli{grid-template-columns:78px 22px minmax(0,1fr)}.sfield{grid-template-columns:1fr}.li .end{max-width:55%}}
+
+/* ---- design page only ---- */
+html[lang="en"] [data-ar], html[lang="ar"] [data-en]{display:none}
+.doc{max-width:1100px;margin-inline:auto;padding-inline:16px;padding-block:28px;display:flex;flex-direction:column;gap:18px}
+.doc h1{font-size:28px}.doc h2.s{font-size:20px;margin-top:18px}
+.doc ul{margin:0;padding-inline-start:20px;display:flex;flex-direction:column;gap:6px}
+.frame{border:1px solid var(--rule);border-radius:22px;overflow:hidden;background:var(--paper);box-shadow:0 10px 30px #0001}
+.frame .page{padding-block:22px}
+.tag{display:inline-block;font:600 11px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--accent-ink);background:var(--accent-tint);border-radius:999px;padding:3px 10px}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+.ins{border:1px solid var(--rule);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px;background:#fff}
+.ins h3{font-size:15px}
+.new{outline:2px dashed var(--accent-ink);outline-offset:4px;border-radius:16px}
+.corow{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;border:1px solid var(--rule);border-radius:14px;padding:12px 14px}
+.corow.off{opacity:.6}
+.cocard{border:1px solid var(--accent-ink);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px;background:#fff}
+.cosec{font:600 11px var(--font-mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border-top:1px solid var(--rule-soft);padding-top:10px}
+.dgrid .full{grid-column:1/-1}
+.pop{border:1px solid var(--rule);border-radius:16px;padding:14px;box-shadow:0 12px 32px #0002;background:#fff;display:flex;flex-direction:column;gap:8px;max-width:420px}
+.pop dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0;font-size:14px}
+.pop dt{color:var(--muted)}.pop dd{margin:0}
+.pop .note-s{background:var(--amber-tint);border-radius:10px;padding:8px 10px;font-size:13.5px}
+.cmp th,.cmp td{text-align:start;padding:8px 10px;border-bottom:1px solid var(--rule-soft);vertical-align:top;font-size:14px}
+.cmp{border-collapse:collapse;width:100%;min-width:640px}
+.cmp th{font-size:12px;color:var(--muted);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.04em}
+</style>
+</head>
+<body>
+<main class="doc">
+  <div><span class="tag"><span data-en>Design · for your approval</span><span data-ar>تصميم · للموافقة</span></span></div>
+  <h1 class="display"><span data-en>Insurance in Records</span><span data-ar>التأمين في السجلات الطبية</span></h1>
+  <p><span data-en>Today the Details tab has one free-text box called “Insurance”. This design <b>replaces that box</b>; it is not added next to it. Anything already typed in the box is kept (see the end of the page).</span><span data-ar>اليوم في تبويب «البيانات» خانة نصية واحدة اسمها «التأمين». هذا التصميم <b>يستبدل هذه الخانة</b> ولا يضيف خانة بجانبها. ما كُتب فيها سابقاً يُحفظ (انظر آخر الصفحة).</span></p>
+
+  <section class="panel">
+    <h2><span data-en>Why not keep the free-text box?</span><span data-ar>لماذا لا نُبقي الخانة النصية؟</span></h2>
+    <div class="tablewrap"><table class="cmp">
+      <thead><tr><th></th><th><span data-en>Free-text box (today)</span><span data-ar>الخانة النصية (اليوم)</span></th><th><span data-en>This design</span><span data-ar>هذا التصميم</span></th></tr></thead>
+      <tbody>
+        <tr><td><b><span data-en>Empty box</span><span data-ar>خانة فارغة</span></b></td><td><span data-en>Could mean “no insurance” or “nobody asked”</span><span data-ar>قد تعني «بدون تأمين» أو «لم يسأل أحد»</span></td><td><span data-en>Three clear answers: not asked yet, no insurance, insured</span><span data-ar>ثلاث إجابات واضحة: لم يُسأل بعد، بدون تأمين، مؤمَّن</span></td></tr>
+        <tr><td><b><span data-en>Company name</span><span data-ar>اسم الشركة</span></b></td><td><span data-en>“MedNet”, “mednet”, “ميدنت”, “Med Net gold”: four spellings of one company</span><span data-ar>«MedNet» و«mednet» و«ميدنت» و«Med Net gold»: أربع كتابات لشركة واحدة</span></td><td><span data-en>Picked from the clinic's own list, same name every time, in English and Arabic</span><span data-ar>تُختار من قائمة العيادة نفسها، بالاسم نفسه دائماً، بالعربية والإنجليزية</span></td></tr>
+        <tr><td><b><span data-en>What it makes possible</span><span data-ar>ماذا يتيح</span></b></td><td><span data-en>Nothing beyond reading it</span><span data-ar>لا شيء غير قراءتها</span></td><td><span data-en>The secretary sees at a glance who must bring the insurance card; later, a list of a company's patients for the monthly claim; the insurance-verification agent knows which company to check</span><span data-ar>ترى السكرتيرة فوراً من عليه إحضار بطاقة التأمين؛ ولاحقاً قائمة مرضى كل شركة للمطالبة الشهرية؛ ويعرف وكيل التحقق من التأمين أي شركة يتحقق منها</span></td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <h2 class="display s"><span data-en>1 · Details tab: the patient's insurance</span><span data-ar>١ · تبويب البيانات: تأمين المريض</span></h2>
+  <p class="hint"><span data-en>Secretary, doctor or administrator, as today. Only the insurance part changes (dashed outline).</span><span data-ar>السكرتيرة أو الطبيب أو المدير، كما اليوم. يتغير جزء التأمين فقط (الإطار المنقّط).</span></p>
+  <div class="frame">
+<header class="bar"><div class="wrap">
+  <span class="brand"><svg width="30" height="16" viewBox="0 0 60 32" aria-hidden="true"><path d="M16 4C8 4 4 10 4 16s4 12 12 12c10 0 18-24 28-24 8 0 12 6 12 12s-4 12-12 12" fill="none" stroke="#2EE6B5" stroke-width="5" stroke-linecap="round"/></svg>Limitsiz Clinic · <span data-en>Records</span><span data-ar>السجلات الطبية</span></span>
+  <nav><a href="#"><span data-en>Today's patients</span><span data-ar>مرضى اليوم</span></a><a href="#" aria-current="page"><span data-en>Patients</span><span data-ar>المرضى</span></a></nav>
+  <span class="grow"></span>
+  <span class="clinic"><span data-en>Limitsiz Demo Dermatology</span><span data-ar>عيادة Limitsiz التجريبية للجلدية</span></span>
+  <button class="linkbtn" type="button" onclick="flip()"><span data-en>العربية</span><span data-ar>English</span></button>
+  <div class="um"><button type="button"><span data-en>Sara Secretary</span><span data-ar>سارة السكرتيرة</span> <span aria-hidden="true">▾</span></button></div>
+</div></header>
+    <div class="wrap page">
+<div class="chead"><div>
+  <h1 class="display"><span data-en>Huda Al-Khatib</span><span data-ar>هدى الخطيب</span></h1>
+  <div class="cfacts"><span><span data-en>File</span><span data-ar>ملف</span> <b class="mono">00412</b></span><span><span data-en>Female, 34 years</span><span data-ar>أنثى، 34 سنة</span></span><bdi dir="ltr" class="mono">+962791234567</bdi><span class="pill ok"><span data-en>Insured · MedNet</span><span data-ar>مؤمَّن · MedNet</span></span></div>
+</div><a class="btn btn-outline btn-sm" href="#"><span data-en>Open in Booking</span><span data-ar>فتح في المواعيد</span></a></div>
+<div class="alerts"><span class="alert red"><span class="k"><span data-en>Allergy</span><span data-ar>حساسية</span></span><span><span data-en>Penicillin: rash</span><span data-ar>بنسلين: طفح جلدي</span></span></span></div>
+<div class="ctabs" role="tablist"><button><span data-en>Summary</span><span data-ar>الملخص</span></button><button><span data-en>Timeline</span><span data-ar>السجل الزمني</span></button><button class="on"><span data-en>Details</span><span data-ar>البيانات</span></button></div>
+      <div class="note"><form class="panel" onsubmit="return false">
+        <h2><span data-en>Details</span><span data-ar>البيانات</span></h2>
+        <div class="dgrid">
+  <label class="field"><span><span data-en>Date of birth</span><span data-ar>تاريخ الميلاد</span> <span class="hint"><span data-en>(optional)</span><span data-ar>(اختياري)</span></span></span><input type="text" class="mono" value="1992-03-14" disabled></label>
+  <label class="field"><span><span data-en>Gender</span><span data-ar>الجنس</span></span><select disabled><option>Female / أنثى</option></select></label></div>
+        <div class="ins new">
+          <h3><span data-en>Insurance</span><span data-ar>التأمين</span></h3>
+          <div class="chips" role="radiogroup"><button type="button" class="chip" role="radio" aria-checked="false"><span data-en>Not asked yet</span><span data-ar>لم يُسأل بعد</span></button><button type="button" class="chip" role="radio" aria-checked="false"><span data-en>No insurance</span><span data-ar>بدون تأمين</span></button><button type="button" class="chip on" role="radio" aria-checked="true"><span data-en>Insured</span><span data-ar>مؤمَّن</span></button></div>
+          <div class="dgrid">
+            <label class="field"><span><span data-en>Company</span><span data-ar>الشركة</span></span><select><option>—</option><option selected>MedNet</option><option>NatHealth</option><option>GlobeMed</option><option>Other (not on the list) / أخرى (غير موجودة في القائمة)</option></select></label>
+          </div>
+        </div>
+        <div><button class="btn btn-accent btn-sm"><span data-en>Save</span><span data-ar>حفظ</span></button></div>
+      </form></div>
+    </div>
+  </div>
+
+  <div class="two">
+    <div class="ins"><h3><span data-en>Not asked yet (the starting answer)</span><span data-ar>لم يُسأل بعد (الإجابة الأولى)</span></h3><div class="chips" role="radiogroup"><button type="button" class="chip on" role="radio" aria-checked="true"><span data-en>Not asked yet</span><span data-ar>لم يُسأل بعد</span></button><button type="button" class="chip" role="radio" aria-checked="false"><span data-en>No insurance</span><span data-ar>بدون تأمين</span></button><button type="button" class="chip" role="radio" aria-checked="false"><span data-en>Insured</span><span data-ar>مؤمَّن</span></button></div><p class="hint"><span data-en>Every patient starts here. Nothing shows under the name.</span><span data-ar>كل مريض يبدأ هنا. لا يظهر شيء تحت الاسم.</span></p></div>
+    <div class="ins"><h3><span data-en>No insurance</span><span data-ar>بدون تأمين</span></h3><div class="chips" role="radiogroup"><button type="button" class="chip" role="radio" aria-checked="false"><span data-en>Not asked yet</span><span data-ar>لم يُسأل بعد</span></button><button type="button" class="chip on" role="radio" aria-checked="true"><span data-en>No insurance</span><span data-ar>بدون تأمين</span></button><button type="button" class="chip" role="radio" aria-checked="false"><span data-en>Insured</span><span data-ar>مؤمَّن</span></button></div><p class="hint"><span data-en>Under the name: <span class="pill">No insurance</span></span><span data-ar>تحت الاسم: <span class="pill">بدون تأمين</span></span></p></div>
+    <div class="ins"><h3><span data-en>Insured, company not on the list</span><span data-ar>مؤمَّن، والشركة غير موجودة في القائمة</span></h3><div class="chips" role="radiogroup"><button type="button" class="chip" role="radio" aria-checked="false"><span data-en>Not asked yet</span><span data-ar>لم يُسأل بعد</span></button><button type="button" class="chip" role="radio" aria-checked="false"><span data-en>No insurance</span><span data-ar>بدون تأمين</span></button><button type="button" class="chip on" role="radio" aria-checked="true"><span data-en>Insured</span><span data-ar>مؤمَّن</span></button></div>
+      <label class="field"><span><span data-en>Company</span><span data-ar>الشركة</span></span><select><option selected>Other (not on the list) / أخرى</option></select></label>
+      <label class="field"><span><span data-en>Company name</span><span data-ar>اسم الشركة</span></span><input dir="auto" value="Jordan Health Plus"></label>
+      <p class="hint"><span data-en>Saved as written. The administrator sees it in Settings and can add it to the list with one click.</span><span data-ar>يُحفظ كما كُتب. يراه المدير في الإعدادات ويستطيع إضافته إلى القائمة بنقرة واحدة.</span></p></div>
+  </div>
+
+  <h2 class="display s"><span data-en>2 · Where the secretary sees it</span><span data-ar>٢ · أين تراه السكرتيرة</span></h2>
+  <div class="two">
+    <div class="panel"><h3><span data-en>Records: under the patient's name, on every tab</span><span data-ar>السجلات الطبية: تحت اسم المريض، في كل تبويب</span></h3>
+      <div class="cfacts"><span><span data-en>File</span><span data-ar>ملف</span> <b class="mono">00412</b></span><span><span data-en>Female, 34 years</span><span data-ar>أنثى، 34 سنة</span></span><span class="pill ok"><span data-en>Insured · MedNet</span><span data-ar>مؤمَّن · MedNet</span></span></div>
+      <p class="hint"><span data-en>Green pill for insured, grey for no insurance, nothing while not asked.</span><span data-ar>شارة خضراء للمؤمَّن، ورمادية لغير المؤمَّن، ولا شيء ما دام لم يُسأل.</span></p></div>
+    <div class="panel new"><h3><span data-en>Booking: the booking page and the patient page</span><span data-ar>المواعيد: صفحة الحجز وصفحة المريض</span></h3>
+      <p><span data-en>Insurance: <b>MedNet</b></span><span data-ar>التأمين: <b>MedNet</b></span> <span class="pill ok"><span data-en>Insured</span><span data-ar>مؤمَّن</span></span></p>
+      <p class="hint"><span data-en>So at check-in the secretary knows to ask for the card, without opening Records. Booking would read only these two things (answer and company), nothing else from the record. The administrator can switch this line off in Settings (on at the start).</span><span data-ar>فتعرف السكرتيرة عند الاستقبال أن تطلب البطاقة دون فتح السجلات الطبية. تقرأ «المواعيد» هذين الأمرين فقط (الإجابة والشركة)، ولا شيء آخر من الملف. يستطيع المدير إيقاف هذا السطر من الإعدادات (يبدأ مفعّلاً).</span></p></div>
+  </div>
+  <div class="two">
+    <div class="pop new">
+      <div class="row between"><b>MedNet</b><span class="hint"><span data-en>tap the company name to open</span><span data-ar>اضغط اسم الشركة لفتحها</span></span></div>
+      <dl>
+        <dt><span data-en>Telephone</span><span data-ar>الهاتف</span></dt><dd><a href="#" class="mono" dir="ltr">+962 6 555 0101</a></dd>
+        <dt><span data-en>Contact</span><span data-ar>المسؤول</span></dt><dd>Rana Haddad · <span data-en>Medical approvals</span><span data-ar>الموافقات الطبية</span><br><a href="#" class="mono" dir="ltr">+962 79 555 0199</a> · <a href="#"><span data-en>WhatsApp</span><span data-ar>واتساب</span></a></dd>
+        <dt><span data-en>Email</span><span data-ar>البريد</span></dt><dd><a href="#" dir="ltr">approvals@example.jo</a></dd>
+        <dt><span data-en>Address</span><span data-ar>العنوان</span></dt><dd dir="auto">Amman, Shmeisani, Abdul Hamid Sharaf St., building 12</dd>
+      </dl>
+      <div class="note-s">Approval needed before laser sessions. Patient brings the card at every visit.</div>
+    </div>
+    <div class="panel"><h3><span data-en>The company's details, where staff need them</span><span data-ar>بيانات الشركة حيث يحتاجها الموظفون</span></h3>
+      <p class="hint"><span data-en>Tapping the company name, in Records or in Booking, opens its card: the numbers are tap-to-call on a phone, the contact person can be messaged on WhatsApp, and the clinic's notes for that company (for example what needs an approval) are shown in amber. Everyone who can see the patient's insurance can see this card; only the administrator can change it.</span><span data-ar>الضغط على اسم الشركة في السجلات الطبية أو المواعيد يفتح بطاقتها: الأرقام قابلة للاتصال مباشرة من الهاتف، ويمكن مراسلة المسؤول على واتساب، وتظهر ملاحظات العيادة عن هذه الشركة (مثلاً ما يحتاج موافقة) باللون الكهرماني. كل من يرى تأمين المريض يرى هذه البطاقة؛ والمدير وحده يعدّلها.</span></p></div>
+  </div>
+
+  <h2 class="display s"><span data-en>3 · Settings › Chart: the clinic's insurance companies</span><span data-ar>٣ · الإعدادات › الملف: شركات التأمين لدى العيادة</span></h2>
+  <p class="hint"><span data-en>Clinic administrator only. Each clinic keeps its own list; no company names are built into the product.</span><span data-ar>لمدير العيادة فقط. لكل عيادة قائمتها الخاصة؛ لا توجد أسماء شركات مكتوبة في النظام.</span></p>
+  <div class="frame">
+<header class="bar"><div class="wrap">
+  <span class="brand"><svg width="30" height="16" viewBox="0 0 60 32" aria-hidden="true"><path d="M16 4C8 4 4 10 4 16s4 12 12 12c10 0 18-24 28-24 8 0 12 6 12 12s-4 12-12 12" fill="none" stroke="#2EE6B5" stroke-width="5" stroke-linecap="round"/></svg>Limitsiz Clinic · <span data-en>Records</span><span data-ar>السجلات الطبية</span></span>
+  <nav><a href="#"><span data-en>Today's patients</span><span data-ar>مرضى اليوم</span></a><a href="#" aria-current="page"><span data-en>Patients</span><span data-ar>المرضى</span></a></nav>
+  <span class="grow"></span>
+  <span class="clinic"><span data-en>Limitsiz Demo Dermatology</span><span data-ar>عيادة Limitsiz التجريبية للجلدية</span></span>
+  <button class="linkbtn" type="button" onclick="flip()"><span data-en>العربية</span><span data-ar>English</span></button>
+  <div class="um"><button type="button"><span data-en>Layla Admin</span><span data-ar>ليلى المديرة</span> <span aria-hidden="true">▾</span></button></div>
+</div></header>
+    <div class="wrap page"><section class="panel new">
+      <h2><span data-en>Insurance companies</span><span data-ar>شركات التأمين</span></h2>
+      <div class="corow"><b>NatHealth</b><span class="hint">نات هيلث</span><bdi dir="ltr" class="mono hint">+962 6 555 0102</bdi><span class="grow"></span><span class="hint"><span data-en>14 patients</span><span data-ar>14 مريضاً</span></span><button type="button" class="link"><span data-en>Edit</span><span data-ar>تعديل</span></button></div>
+      <div class="cocard">
+        <div class="row between"><b><span data-en>MedNet (open for editing)</span><span data-ar>MedNet (مفتوحة للتعديل)</span></b><span class="hint"><span data-en>31 patients</span><span data-ar>31 مريضاً</span></span></div>
+        <div class="cosec"><span data-en>Company</span><span data-ar>الشركة</span></div>
+        <div class="dgrid">
+          <label class="field"><span><span data-en>Name in English</span><span data-ar>الاسم بالإنجليزية</span></span><input dir="ltr" value="MedNet"></label>
+          <label class="field"><span><span data-en>Name in Arabic</span><span data-ar>الاسم بالعربية</span></span><input dir="rtl" value="ميدنت"></label>
+          <label class="field"><span><span data-en>Telephone</span><span data-ar>الهاتف</span></span><input dir="ltr" class="mono" value="+962 6 555 0101"></label>
+          <label class="field"><span><span data-en>Email</span><span data-ar>البريد الإلكتروني</span> <span class="hint"><span data-en>(optional)</span><span data-ar>(اختياري)</span></span></span><input dir="ltr" value="approvals@example.jo"></label>
+          <label class="field full"><span><span data-en>Address</span><span data-ar>العنوان</span> <span class="hint"><span data-en>(optional)</span><span data-ar>(اختياري)</span></span></span><input dir="auto" value="Amman, Shmeisani, Abdul Hamid Sharaf St., building 12"></label>
+        </div>
+        <div class="cosec"><span data-en>Contact person at the company</span><span data-ar>الشخص المسؤول لدى الشركة</span></div>
+        <div class="dgrid">
+          <label class="field"><span><span data-en>Name</span><span data-ar>الاسم</span></span><input dir="auto" value="Rana Haddad"></label>
+          <label class="field"><span><span data-en>Job title</span><span data-ar>المسمى الوظيفي</span> <span class="hint"><span data-en>(optional)</span><span data-ar>(اختياري)</span></span></span><input dir="auto" value="Medical approvals"></label>
+          <label class="field"><span><span data-en>Mobile or WhatsApp</span><span data-ar>الجوال أو واتساب</span></span><input dir="ltr" class="mono" value="+962 79 555 0199"></label>
+          <label class="field"><span><span data-en>Email</span><span data-ar>البريد الإلكتروني</span> <span class="hint"><span data-en>(optional)</span><span data-ar>(اختياري)</span></span></span><input dir="ltr" value="rana@example.jo"></label>
+        </div>
+        <label class="field"><span><span data-en>Notes for staff</span><span data-ar>ملاحظات للموظفين</span> <span class="hint"><span data-en>(optional)</span><span data-ar>(اختياري)</span></span></span><textarea class="ta" dir="auto" rows="2">Approval needed before laser sessions. Patient brings the card at every visit.</textarea></label>
+        <div class="row between"><button type="button" class="btn btn-accent btn-sm"><span data-en>Save</span><span data-ar>حفظ</span></button><button type="button" class="link"><span data-en>Hide this company</span><span data-ar>إخفاء هذه الشركة</span></button></div>
+      </div>
+      <div class="corow off"><b>Old Insurer</b><span class="hint">شركة قديمة</span><span class="pill"><span data-en>Hidden</span><span data-ar>مخفية</span></span><span class="grow"></span><span class="hint"><span data-en>3 patients</span><span data-ar>3 مرضى</span></span><button type="button" class="link"><span data-en>Show again</span><span data-ar>إظهار</span></button></div>
+      <p class="hint"><span data-en>A company is hidden, never deleted: patients who had it keep it; it just can't be picked for new ones.</span><span data-ar>تُخفى الشركة ولا تُحذف: المرضى المسجلون عليها يبقون عليها، لكن لا يمكن اختيارها لمرضى جدد.</span></p>
+      <div><button type="button" class="btn btn-outline btn-sm"><span data-en>Add a company</span><span data-ar>إضافة شركة</span></button></div>
+      <div class="banner warn"><span data-en>Typed by staff, not on the list: <b>Jordan Health Plus</b> (2 patients) <button type="button" class="link">Add to the list</button></span><span data-ar>كتبها الموظفون وليست في القائمة: <b>Jordan Health Plus</b> (مريضان) <button type="button" class="link">إضافة إلى القائمة</button></span></div>
+      <div class="cosec"><span data-en>Insurance questions</span><span data-ar>أسئلة التأمين</span></div>
+      <label class="check"><input type="checkbox" checked> <span><span data-en>Show the insurance line in Booking (booking page and patient page) <span class="hint">On at the start</span></span><span data-ar>إظهار سطر التأمين في «المواعيد» (صفحة الحجز وصفحة المريض) <span class="hint">مفعّل في البداية</span></span></span></label>
+      <label class="check"><input type="checkbox"> <span><span data-en>Insurance must be answered before a patient's details can be saved (no “Not asked yet”) <span class="hint">Off at the start</span></span><span data-ar>يجب الإجابة عن التأمين قبل حفظ بيانات المريض (لا «لم يُسأل بعد») <span class="hint">غير مفعّل في البداية</span></span></span></label>
+    </section></div>
+  </div>
+
+  <section class="panel">
+    <h2><span data-en>What happens to what's already typed</span><span data-ar>ماذا يحدث لما كُتب سابقاً</span></h2>
+    <ul>
+      <li><span data-en>Box empty → <b>Not asked yet</b>.</span><span data-ar>خانة فارغة ← <b>لم يُسأل بعد</b>.</span></li>
+      <li><span data-en>Box has text → <b>Insured</b>, with that text as the company name (“Other”). The administrator then sees it in Settings and can add it to the list.</span><span data-ar>في الخانة نص ← <b>مؤمَّن</b>، والنص اسماً للشركة («أخرى»). ثم يراه المدير في الإعدادات ويستطيع إضافته إلى القائمة.</span></li>
+      <li><span data-en>Nothing is lost, and the audit trail records the change.</span><span data-ar>لا يضيع شيء، ويسجّل سجل التدقيق التغيير.</span></li>
+    </ul>
+  </section>
+
+  <section class="panel">
+    <h2><span data-en>Not in this design (your call, later)</span><span data-ar>خارج هذا التصميم (بقرارك، لاحقاً)</span></h2>
+    <ul>
+      <li><span data-en>Member or card number, expiry date, coverage percentage.</span><span data-ar>رقم العضوية أو البطاقة، وتاريخ الانتهاء، ونسبة التغطية.</span></li>
+      <li><span data-en>Approvals, claims and invoices (the design keeps these for a later phase).</span><span data-ar>الموافقات والمطالبات والفواتير (مؤجلة لمرحلة لاحقة).</span></li>
+      <li><span data-en>Different insurance per visit (here it belongs to the patient).</span><span data-ar>تأمين مختلف لكل زيارة (هنا التأمين للمريض).</span></li>
+    </ul>
+  </section>
+</main>
+<script>
+function flip(){var h=document.documentElement,ar=h.lang==="en";h.lang=ar?"ar":"en";h.dir=ar?"rtl":"ltr";try{localStorage.setItem("lc_design_lang",h.lang)}catch(e){}}
+try{if(localStorage.getItem("lc_design_lang")==="ar")flip()}catch(e){}
+</script>
+</body>
+</html>

@@ -37,14 +37,33 @@ export type Field = { key: string; en: string; ar: string; kind: "yesno" | "choi
 export type Settings = {
   doctorsScope: "all" | "treated"; show: Record<Kind, boolean>; specialtyFields: Field[];
   fileNumbers: "auto" | "manual"; nextFileNo: number; fileNoDigits: number; requiredDetails: string[];
+  insuranceInBooking: boolean; insuranceRequired: boolean;
+  relations: Named[]; photoAreas: Named[]; docKinds: DocKind[]; photoConsentRequired: boolean; maxFileMb: number; linkMinutes: number; phoneMinutes: number;
 };
+export type Named = { key: string; en: string; ar: string };
+export type DocKind = Named & { secretary: boolean; review: boolean };
+/** A photo or a document (never its content: that comes through a link that expires). */
+export type FileRow = { id: string; patient_id: string; kind: "photo" | "document"; area_key: string | null; doc_kind: string | null; title: string | null;
+  doc_date: string | null; mime: string; size_bytes: number; source: "upload" | "phone"; created_at: string; created_by_name: string; created_by_role: string | null;
+  reviewed_at: string | null; reviewed_by_name: string | null; error_at: string | null; error_by_name: string | null; error_reason: string | null; row_version: number };
+export type Consent = { photo_consent: "record" | "teaching" | "refused"; photo_consent_at: string; photo_consent_by_name: string };
+export type FilesList = { photos: FileRow[] | null; documents: FileRow[]; othersCount: number; consent: Consent | null;
+  rules: { consentRequired: boolean; maxFileMb: number; areas: Named[]; docKinds: DocKind[] } };
+export type InsStatus = "unknown" | "none" | "insured";
+export type CompanyName = { id: string; name_en: string; name_ar: string; hidden: boolean };
+/** An insurance company's card: what staff see when they tap its name. */
+export type Company = CompanyName & { phone: string | null; email: string | null; address: string | null; contact_name: string | null;
+  contact_title: string | null; contact_phone: string | null; contact_email: string | null; notes: string | null };
+export type CompanyRow = Company & { row_version: number; patients: number };
 export type Lookups = { clinic: { id: string; name_en: string; name_ar: string; timezone: string }; doctors: { id: string; name_en: string; name_ar: string }[]; settings: Settings };
 export type PatientRow = { id: string; full_name: string | null; phone_e164: string | null; file_no: string | null; birth_date: string | null; sex: string | null;
   last_visit: string | null; next_visit: string | null };
 export type TodayRow = { id: string; starts_at: string; status: string; patient_id: string; doctor_id: string; full_name: string | null; file_no: string | null;
-  birth_date: string | null; sex: string | null; service_en: string; service_ar: string; doctor_en: string; doctor_ar: string; alerts: number };
+  birth_date: string | null; sex: string | null; service_en: string; service_ar: string; doctor_en: string; doctor_ar: string; alerts: number; to_review: number };
 export type Details = { patient_id: string; file_no: string | null; birth_date: string | null; sex: "female" | "male" | null; national_id: string | null;
-  insurance: string | null; emergency_contact: string | null; updated_at: string; updated_by_name: string | null; row_version: number };
+  insurance: string | null; insurance_status: InsStatus; insurance_company_id: string | null;
+  emergency_name: string | null; emergency_relation: string | null; emergency_phone: string | null;
+  updated_at: string; updated_by_name: string | null; row_version: number };
 export type Entry = { id: string; kind: Kind; title: string; detail: string | null; status: "active" | "past"; alert: boolean; source: "staff" | "patient";
   confirmed_at: string | null; confirmed_by_name: string | null; created_at: string; created_by_name: string; updated_at: string; updated_by_name: string | null;
   error_at: string | null; error_by_name: string | null; error_reason: string | null; row_version: number };
@@ -53,10 +72,12 @@ export type Item =
   | { type: "visit"; at: string; id: string; status: string; doctor_id: string; service_en: string; service_ar: string; doctor_en: string; doctor_ar: string;
       note_id: string | null; note_status: string | null; ai_drafted: boolean | null; signed_name: string | null; note_doctor_id: string | null }
   | { type: "entry"; at: string; id: string; kind: Kind; title: string; by: string; source: string }
-  | { type: "error"; at: string; id: string; kind: Kind; title: string; by: string; reason: string };
+  | { type: "error"; at: string; id: string; kind: Kind; title: string; by: string; reason: string }
+  | { type: "photos"; at: string; id: string; area: string; count: number; by: string }
+  | { type: "document"; at: string; id: string; docKind: string; title: string; by: string };
 export type Chart = {
   patient: { id: string; full_name: string | null; phone_e164: string | null; preferred_language: "ar" | "en" | null };
-  details: Details | null; settings: Settings;
+  details: Details | null; settings: Settings; companies: CompanyName[]; insurer: Company | null;
   chart: { entries: Entry[]; answers: Answer[]; timeline: Item[] } | null;
 };
 

@@ -290,3 +290,36 @@ html[dir="rtl"] input.mono{text-align:right}
 .chartalert{display:inline-flex;gap:6px;align-items:center;border-radius:10px;padding:5px 10px;font-size:13px;border:1px solid}
 .chartalert.red{background:var(--error-tint);border-color:#F3B4AB;color:#7a1a12}
 .chartalert.amb{background:var(--amber-tint);border-color:var(--amber);color:#5c3700}
+
+/* insurance line from Records (design: booking/design/insurance.html) */
+.inswrap{position:relative;display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
+.linkish{font:inherit;background:none;border:0;padding:0;cursor:pointer;color:var(--accent-ink)}
+.insline{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px}
+.pop{position:absolute;top:calc(100% + 6px);inset-inline-start:0;z-index:30;width:min(380px,calc(100vw - 32px));border:1px solid var(--rule);border-radius:16px;padding:14px;
+  box-shadow:0 12px 32px #0002;background:#fff;color:var(--text);display:flex;flex-direction:column;gap:8px;font-size:14px}
+.pop dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0}
+.pop dt{color:var(--muted)}.pop dd{margin:0;overflow-wrap:anywhere}
+.popnote{background:var(--amber-tint);border-radius:10px;padding:8px 10px;font-size:13.5px;white-space:pre-wrap}
+
+/* calendar: the Day / Week switch, the week view and the "today" line (design: booking/design/week-view.html) */
+.seg{display:inline-flex;border:1px solid var(--text);border-radius:999px;overflow:hidden}
+.seg button{font:inherit;font-size:14px;padding:0 16px;min-height:38px;border:0;background:transparent;cursor:pointer;color:var(--text)}
+.seg button.on{background:var(--ink);color:#fff}
+.todayline{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;background:#fff;border:1px solid var(--rule);border-radius:14px;padding:10px 14px;font-size:14px}
+.todayline a{color:var(--text);text-decoration:none;border-bottom:1px dotted var(--field)}
+.todayline .tl-warn{color:#8a5200}
+.wk .cal-head b{display:flex;flex-direction:column;gap:2px}
+.wk .cal-head b small{font-weight:400;color:var(--muted);font-size:12px}
+.wk .cal-head b.today{background:var(--accent-tint)}
+.wk .cal-col.today{background:#f6fdfa}
+.wk .cal-card.short b{flex:none}
+.wk-closed{position:absolute;top:8px;inset-inline:0;text-align:center;font-style:normal;font-size:12px;color:var(--muted);pointer-events:none}
+.agenda{display:none;flex-direction:column;gap:10px}
+.ag-day{background:#fff;border:1px solid var(--rule);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:6px}
+.ag-day.today{border-color:var(--accent-ink)}
+.ag-row{display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:10px;background:var(--accent-tint);border:1px solid var(--accent-ink);color:var(--text);text-decoration:none;font-size:14px}
+.ag-row .hint{margin-inline-start:auto}
+.ag-row.st-completed{background:#e1e6e4;border-color:var(--field)}
+.ag-row.st-no_show,.ag-row.unchecked{background:var(--amber-tint);border-color:var(--amber)}
+.ag-row.src-whatsapp{border-inline-start:5px solid #25D366}
+@media (max-width:720px){.cal.wk{display:none}.agenda{display:flex}}

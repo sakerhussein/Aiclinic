@@ -1,0 +1,720 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Records phase B</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;500;600&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap">
+<style>
+/* ---- copied from records/client/src/styles.css (the live Records app) ---- */
+:root{
+  --ink:#0A0F14;--ink-2:#121A21;--ink-3:#1E2A33;--ink-line:#2A3640;--on-ink:#E8EEF0;--on-ink-muted:#93A3AD;
+  --paper:#F2F4F3;--text:#0A0F14;--muted:#4B5863;--rule:#C9D6D2;--rule-soft:#E1E6E4;--field:#8A99A3;
+  --accent:#2EE6B5;--accent-ink:#0B7A64;--accent-tint:#DDF7EE;--amber:#FFB23E;--amber-tint:#FFF0D6;--error:#B42318;--error-tint:#FDE7E4;
+  --font-display:"Unbounded","Geist",system-ui,sans-serif;--font-body:"Geist",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"Geist Mono",ui-monospace,Menlo,monospace;--font-ar:"IBM Plex Sans Arabic","Segoe UI",Tahoma,sans-serif;
+}
+*{box-sizing:border-box}
+html{overflow-x:clip;overflow-anchor:auto}
+body{margin:0;background:var(--paper);color:var(--text);font:15px/1.5 var(--font-body);overflow-x:clip;min-height:100vh}
+html[lang="ar"] body,html[lang="ar"] button,html[lang="ar"] input,html[lang="ar"] select{font-family:var(--font-ar)}
+h1,h2,h3,p{margin:0}
+.display{font-family:var(--font-display);font-weight:500;letter-spacing:-.01em}
+html[lang="ar"] .display{font-family:var(--font-ar);font-weight:600}
+.mono{font-family:var(--font-mono);direction:ltr;unicode-bidi:isolate}
+a{color:var(--accent-ink)}
+.wrap{max-width:1100px;margin-inline:auto;padding-inline:16px}
+
+/* app bar */
+.bar{background:var(--ink);color:var(--on-ink)}
+.bar .wrap{display:flex;align-items:center;gap:12px;min-height:60px;flex-wrap:wrap;padding-block:6px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--font-display);font-size:17px;white-space:nowrap;color:inherit;text-decoration:none}
+html[lang="ar"] .brand{font-family:var(--font-ar);font-weight:600}
+.brand img{width:30px;height:auto}
+.grow{flex:1}
+.bar nav{display:flex;gap:4px;flex-wrap:wrap}
+.bar nav a,.bar .linkbtn{color:var(--on-ink);text-decoration:none;padding:8px 12px;border-radius:999px;font-size:14px;background:none;border:0;cursor:pointer;font:inherit}
+.bar nav a[aria-current="page"]{background:var(--ink-3)}
+.bar nav a:hover,.bar .linkbtn:hover{background:var(--ink-2)}
+.bar .iconbtn{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:999px;color:var(--on-ink)}
+.bar .iconbtn:hover{background:var(--ink-2)}
+.bar .iconbtn.on{background:var(--ink-3)}
+
+/* centered card pages */
+.stage{min-height:100vh;display:grid;place-items:center;padding:24px 16px;background:var(--ink);color:var(--on-ink)}
+.card{width:100%;max-width:440px;background:#fff;color:var(--text);border-radius:24px;padding:32px 28px;display:flex;flex-direction:column;gap:18px;box-shadow:0 20px 60px #0006}
+.card .brand{color:var(--text);justify-content:center}
+.card h1{font-size:22px;text-align:center}
+.card .sub{color:var(--muted);text-align:center;font-size:14px}
+.page{padding-block:28px;display:flex;flex-direction:column;gap:20px}
+.panel{background:#fff;border:1px solid var(--rule);border-radius:20px;padding:22px;display:flex;flex-direction:column;gap:14px}
+.panel h2{font-size:18px}
+.langbar{position:fixed;top:12px;inset-inline-end:12px;z-index:30}
+.langbtn{min-height:38px;padding:0 16px;border-radius:999px;border:1px solid var(--ink-line);background:var(--ink-2);color:var(--on-ink);font:inherit;cursor:pointer}
+
+/* form parts */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;padding:0 24px;border-radius:999px;border:1px solid transparent;font:inherit;font-weight:600;cursor:pointer;text-decoration:none}
+.btn:disabled{opacity:.55;cursor:default}
+.btn-accent{background:var(--accent);color:var(--ink)}
+.btn-ink{background:var(--ink);color:#fff}
+.btn-outline{border-color:var(--text);color:var(--text);background:transparent}
+.btn-danger{background:var(--error);color:#fff}
+.btn-sm{min-height:38px;padding:0 16px;font-size:14px}
+.btn-block{width:100%}
+.link{background:none;border:0;padding:0;color:var(--accent-ink);font:inherit;cursor:pointer;text-decoration:underline}
+.field{display:flex;flex-direction:column;gap:6px;font-size:14px;font-weight:600}
+.field input,.field select{font:inherit;font-weight:400;min-height:48px;padding:0 14px;border:1px solid var(--field);border-radius:12px;background:#fff;color:var(--text);width:100%}
+.field input:focus,.field select:focus{border-color:var(--accent-ink);outline:none;box-shadow:0 0 0 3px var(--accent-tint)}
+.hint{font-weight:400;color:var(--muted);font-size:13px}
+.banner{padding:12px 14px;border-radius:14px;font-size:14px;border:1px solid}
+.banner.bad{background:var(--error-tint);border-color:var(--error);color:#7a1a12}
+.banner.ok{background:var(--accent-tint);border-color:var(--accent-ink);color:var(--accent-ink)}
+.banner.warn{background:var(--amber-tint);border-color:var(--amber);color:#5c3700}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;background:var(--rule-soft);white-space:nowrap}
+.pill.ok{background:var(--accent-tint);color:var(--accent-ink)}.pill.warn{background:var(--amber-tint);color:#8a5200}.pill.bad{background:var(--error-tint);color:var(--error)}
+.codes{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;font-family:var(--font-mono);direction:ltr;background:var(--paper);border-radius:12px;padding:12px;font-size:14px}
+.secret{font-family:var(--font-mono);direction:ltr;word-break:break-all;background:var(--paper);border-radius:10px;padding:8px 12px;font-size:14px}
+.qr{display:block;margin-inline:auto;width:200px;height:200px}
+
+/* launcher */
+.apps{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+.app{display:flex;flex-direction:column;gap:6px;padding:22px;background:#fff;border:1px solid var(--rule);border-radius:20px;text-decoration:none;color:var(--text)}
+.app:hover{border-color:var(--accent-ink);box-shadow:0 0 0 3px var(--accent-tint)}
+.app b{font-family:var(--font-display);font-size:18px;font-weight:500}
+html[lang="ar"] .app b{font-family:var(--font-ar);font-weight:600}
+
+/* tables */
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:640px}
+th,td{text-align:start;padding:10px 8px;border-bottom:1px solid var(--rule-soft);font-size:14px;vertical-align:middle}
+th{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);font-weight:600}
+td select{font:inherit;min-height:36px;border:1px solid var(--field);border-radius:10px;padding:0 8px;background:#fff}
+.actions{display:flex;gap:6px;flex-wrap:wrap}
+
+/* lock overlay */
+.modal{position:fixed;inset:0;background:#0009;display:grid;place-items:center;padding:16px;z-index:20}
+.modal .card{max-width:380px}
+@media (prefers-reduced-motion:no-preference){.card{animation:rise .35s ease both}}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* ---- booking */
+.clinic{color:var(--on-ink-muted);font-size:13px}
+.row.between{justify-content:space-between}
+.h1small{font-size:18px}
+.dateinput{font:inherit;min-height:38px;border:1px solid var(--field);border-radius:10px;padding:0 10px;background:#fff}
+.stack{display:flex;flex-direction:column;gap:12px}
+.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.formgrid h2{font-size:16px;margin-bottom:8px}
+.formfoot{grid-column:1/-1;display:flex;flex-direction:column;gap:10px}
+@media (max-width:820px){.formgrid{grid-template-columns:1fr}}
+.field input,.field select,.stack>input,.panel>input,.stack input[type=time]{font:inherit;font-weight:400;min-height:46px;padding:0 14px;border:1px solid var(--field);border-radius:12px;background:#fff;color:var(--text);width:100%}
+.ta{font:inherit;font-weight:400;padding:10px 14px;border:1px solid var(--field);border-radius:12px;width:100%;resize:vertical}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:14px}
+.check input{width:20px;height:20px;min-height:0;margin-top:3px}
+.pick{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;text-align:start;font:inherit;padding:10px 14px;border:1px solid var(--rule);border-radius:12px;background:#fff;cursor:pointer}
+.pick:hover{border-color:var(--accent-ink)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-block:8px}
+.chip{font:inherit;font-size:14px;padding:6px 14px;border-radius:999px;border:1px solid var(--rule);background:#fff;cursor:pointer;min-height:38px}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.lbl{font-size:14px}
+.filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;align-items:end}
+.filter-checks{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;column-gap:28px;row-gap:8px}
+.filter-checks .check{align-items:center}.filter-checks .check input{margin-top:0}
+.facts{display:grid;grid-template-columns:max-content 1fr;gap:8px 20px;margin:0}
+.facts dt{color:var(--muted);font-size:13px}.facts dd{margin:0}
+.hist{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;gap:6px}
+
+/* calendar */
+.cal{background:#fff;border:1px solid var(--rule);border-radius:20px;overflow:hidden}
+.cal-head,.cal-body{display:grid;grid-template-columns:56px repeat(var(--cols),minmax(0,1fr))}
+.cal-head{border-bottom:1px solid var(--rule);background:var(--paper)}
+.cal-head b{padding:10px 8px;font-size:14px;border-inline-start:1px solid var(--rule)}
+.cal-body{position:relative}
+.cal-gutter{position:relative}
+.cal-gutter span{position:absolute;inset-inline-end:6px;transform:translateY(-8px);font:12px var(--font-mono);color:var(--muted)}
+.cal-col{position:relative;border-inline-start:1px solid var(--rule);cursor:pointer}
+.cal-line{position:absolute;inset-inline:0;border-top:1px solid var(--rule-soft);pointer-events:auto}
+.cal-off{position:absolute;inset-inline:0;background:repeating-linear-gradient(135deg,#e9edec,#e9edec 6px,#f4f6f5 6px,#f4f6f5 12px)}
+.cal-card{position:absolute;inset-inline:3px;overflow:hidden;border-radius:10px;padding:3px 8px;font-size:12.5px;line-height:1.3;text-decoration:none;color:var(--text);background:var(--accent-tint);border:1px solid var(--accent-ink);display:flex;flex-direction:column}
+.cal-card b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cal-card span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-card em{font-style:normal;font-size:11px;color:var(--muted)}
+.cal-card.st-confirmed{background:#c7f3e3}
+.cal-card.st-completed{background:#e1e6e4;border-color:var(--field)}
+.cal-card.st-no_show{background:var(--amber-tint);border-color:var(--amber)}
+.cal-card.st-voided{display:none}
+.cal-card.src-whatsapp{border-inline-start:5px solid #25D366}
+.cal-card.unchecked{border-inline-start:5px solid var(--amber);background:var(--amber-tint)}
+
+/* short cards (15-30 min) show everything on one line; tall cards stack it */
+.cal-card.short{flex-direction:row;align-items:center;gap:8px;padding-block:0;white-space:nowrap}
+.cal-card.short b{flex:0 1 auto;min-width:0}
+.cal-card.short span{flex:1 1 0;min-width:0;color:var(--muted)}
+.cal-card.short em{flex:none}
+.cal-card.tall{padding-block:5px;gap:2px}
+
+/* user menu */
+.um{position:relative}
+.um>button{display:inline-flex;align-items:center;gap:8px;color:var(--on-ink);background:var(--ink-3);border:0;border-radius:999px;padding:8px 14px;font:inherit;font-size:14px;cursor:pointer}
+.um>button:hover{background:var(--ink-line)}
+.um-list{position:absolute;inset-inline-end:0;top:calc(100% + 6px);min-width:210px;max-width:calc(100vw - 16px);background:#fff;color:var(--text);border-radius:14px;border:1px solid var(--rule);box-shadow:0 12px 32px #0004;padding:6px;display:flex;flex-direction:column;z-index:40}
+.um-list a,.um-list button{display:block;text-align:start;font:inherit;font-size:14px;padding:10px 12px;border:0;background:none;border-radius:10px;cursor:pointer;color:var(--text);text-decoration:none}
+.um-list a:hover,.um-list button:hover{background:var(--paper)}
+.um-list .who{padding:8px 12px;color:var(--muted);font-size:12px;border-bottom:1px solid var(--rule-soft);margin-bottom:4px}
+
+/* settings */
+.setwrap{display:grid;grid-template-columns:210px minmax(0,1fr);gap:20px;align-items:start}
+.settabs{display:flex;flex-direction:column;gap:2px;background:#fff;border:1px solid var(--rule);border-radius:16px;padding:8px;position:sticky;top:12px}
+.settabs button{display:flex;align-items:center;gap:8px;font:inherit;font-size:14px;text-align:start;padding:10px 12px;border:0;background:none;border-radius:10px;cursor:pointer;color:var(--text)}
+.settabs button:hover{background:var(--paper)}
+.settabs button.on{background:var(--ink);color:#fff}
+.setbody{display:flex;flex-direction:column;gap:14px;min-width:0}
+.plain{display:contents}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:end}
+.grid3 .full{grid-column:1/-1;display:flex;flex-direction:column;gap:10px}
+.tight{margin:6px 0 0;padding-inline-start:18px}
+.faqrow{display:flex;justify-content:space-between;gap:14px;align-items:baseline;padding-block:8px;border-bottom:1px solid var(--rule-soft);font-size:14px}
+.week{display:flex;flex-direction:column}
+.weekrow{display:grid;grid-template-columns:110px minmax(0,1fr);gap:12px;align-items:center;padding-block:8px;border-bottom:1px solid var(--rule-soft);font-size:14px}
+.periods{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
+.period{display:inline-flex;align-items:center;gap:6px}
+.period input{font:inherit;min-height:38px;padding:0 8px;border:1px solid var(--field);border-radius:10px;background:#fff;direction:ltr}
+.cal-away{display:block;padding:6px 8px;font-style:normal;font-size:12px;color:var(--muted);overflow:hidden;background:repeating-linear-gradient(135deg,#ffe9c7,#ffe9c7 6px,#fff5e3 6px,#fff5e3 12px)}
+@media (max-width:820px){.setwrap{grid-template-columns:1fr}.settabs{flex-direction:row;overflow-x:auto;position:static}.settabs button{white-space:nowrap}.grid2,.grid3{grid-template-columns:1fr}}
+
+/* audit log */
+.integrity{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;background:#fff;border:1px solid var(--rule);border-radius:16px;padding:12px 16px;font-size:14px}
+.integrity.good strong{color:var(--accent-ink)}
+.integrity.bad{border-color:var(--error);background:var(--error-tint)}
+.integrity.bad strong{color:var(--error)}
+.auditt{min-width:900px}
+.nowrap{white-space:nowrap}
+.clickrow{cursor:pointer}
+.clickrow:hover td{background:var(--paper)}
+.diff{font-size:13px;max-width:280px;overflow-wrap:anywhere}
+.diff del{color:var(--error);text-decoration:line-through}
+.diff ins{color:var(--accent-ink);text-decoration:none;font-weight:500}
+.detailrow td{background:var(--paper)}
+.detailrow pre{background:#fff;border:1px solid var(--rule-soft);border-radius:10px;padding:10px;font:12px var(--font-mono);overflow:auto;max-height:280px;margin:6px 0 0;text-align:left}
+.wrapany{overflow-wrap:anywhere}
+
+/* Online booking link */
+.btn-wa{background:#25D366;color:#0A0F14}
+.btn-wa:hover{filter:brightness(.95)}
+.warntext{color:#8a5200}
+.qrbox{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.qrbox canvas{border:1px solid var(--rule);border-radius:12px;background:#fff;padding:8px;width:132px;height:132px}
+.linkbox{font-family:var(--font-mono);direction:ltr;background:#fff;border:1px solid var(--rule);border-radius:10px;padding:8px 12px;font-size:14px;word-break:break-all}
+.brochures{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.brochure{border:1px solid var(--rule);border-radius:14px;padding:12px;background:#fff;display:flex;flex-direction:column;gap:6px}
+.brochure .size{display:grid;place-items:center;height:72px;border-radius:10px;background:var(--paper);color:var(--muted);font-size:13px}
+.brochure .btn{margin-top:auto;white-space:normal}
+.swatches{display:flex;gap:10px;flex-wrap:wrap}
+.swatch{width:30px;height:30px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px var(--rule);cursor:pointer;padding:0}
+.swatch.on{box-shadow:0 0 0 2px var(--ink)}
+.swatch:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+@media (max-width:820px){.brochures{grid-template-columns:1fr 1fr}}
+/* phones: one brochure per row, the size beside its name, the button across the card */
+@media (max-width:560px){.brochures{grid-template-columns:1fr}
+  .brochure{display:grid;grid-template-columns:100px minmax(0,1fr);column-gap:12px;row-gap:4px;align-items:center}
+  .brochure .size{grid-row:span 2;height:56px}
+  .brochure>:last-child{grid-column:1/-1;margin-top:6px}}
+.newtag{flex:none;font-size:10.5px;line-height:1.6;background:var(--accent);color:var(--ink);border-radius:999px;padding:0 7px;margin-inline-start:auto}
+.field textarea{font:inherit;font-weight:400;padding:10px 14px;border:1px solid var(--field);border-radius:12px;background:#fff;color:var(--text);width:100%;resize:vertical;min-height:72px}
+html[lang="ar"] textarea{font-family:var(--font-ar)}
+
+/* ---- visit notes (AI Scribe, design: booking/design/ai-scribe.html) */
+.btn-ghost{background:transparent;color:var(--accent-ink);border-color:var(--rule)}
+.btn-xs{min-height:32px;padding:0 12px;font-size:13px}
+.row.center{justify-content:center}
+.note-card{max-width:760px}
+.consent{font-size:15px;line-height:1.7;padding:12px 14px;border-radius:14px;background:var(--accent-tint);border:1px solid var(--accent-ink);color:var(--text)}
+.rec-card{align-items:center;text-align:center;padding-block:30px}
+.rec{display:inline-flex;align-items:center;gap:8px;font:600 13px var(--font-mono);color:var(--error);background:var(--error-tint);border:1px solid #F3B4AB;border-radius:999px;padding:4px 12px}
+html[lang="ar"] .rec{font-family:var(--font-ar)}
+.rec i{width:10px;height:10px;border-radius:50%;background:#D92D20;display:inline-block}
+.rec.off{color:var(--muted);background:var(--rule-soft);border-color:var(--rule)}
+.rec.off i{background:var(--field)}
+@media (prefers-reduced-motion:no-preference){.rec:not(.off) i{animation:blink 1.2s ease-in-out infinite}.spinner{animation:spin .8s linear infinite}}
+@keyframes blink{50%{opacity:.25}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.timer{font-size:54px;font-weight:500;letter-spacing:.02em;direction:ltr}
+.level{display:flex;gap:3px;align-items:center;height:46px;direction:ltr}
+.level span{width:6px;border-radius:3px;background:var(--accent-ink)}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--rule);border-top-color:var(--accent-ink);border-radius:50%;vertical-align:-2px}
+.note{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:900px){.note{grid-template-columns:1fr}}
+.sec-h{font:500 12px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent-ink);margin-bottom:4px}
+html[lang="ar"] .sec-h{font-family:var(--font-ar);font-weight:600;letter-spacing:0;font-size:13px}
+.nbox{display:block;width:100%;border:1px solid var(--field);border-radius:12px;padding:10px 12px;background:#fff;font:inherit;font-size:14px;line-height:1.55;min-height:42px;color:var(--text);white-space:pre-wrap;text-align:start}
+.nbox.nm{color:var(--muted);font-style:italic;background:var(--paper)}
+.nbox.editable{cursor:text}
+.nbox.editable:hover{border-color:var(--accent-ink)}
+.nbox:focus-visible,textarea.nbox:focus{outline:none;border-color:var(--accent-ink);box-shadow:0 0 0 3px var(--accent-tint)}
+textarea.nbox{resize:vertical}
+html[lang="ar"] .nbox[lang="en"]{font-family:var(--font-body)}
+mark.u{background:var(--amber-tint);border-bottom:2px solid var(--amber);padding:0 2px;border-radius:3px;color:inherit}
+mark.d{background:#E8F0FF;border-bottom:2px solid #3B6FD8;padding:0 2px;border-radius:3px;color:inherit}
+.legend2{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);align-items:center}
+.tx{background:#fff;border:1px solid var(--rule);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px;max-height:640px;overflow:auto;position:sticky;top:12px}
+@media (max-width:900px){.tx{position:static;max-height:none}}
+.tl{display:grid;grid-template-columns:52px 1fr;gap:8px;font-size:13.5px;line-height:1.5}
+.tl .t{font-size:11.5px;color:var(--muted);padding-top:2px}
+.tl b{font-size:12px;color:var(--muted);display:block}
+.tl.dr b{color:var(--accent-ink)}
+/* dictation (design: booking/design/dictation.html) */
+.sec-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}
+.sec-row .sec-h{margin-bottom:0}
+.mic{display:inline-flex;align-items:center;gap:6px;min-height:30px;padding:0 10px;border-radius:999px;border:1px solid var(--rule);background:#fff;color:var(--accent-ink);font:600 12.5px var(--font-body);cursor:pointer;white-space:nowrap}
+html[lang="ar"] .mic{font-family:var(--font-ar)}
+.mic:hover:not(:disabled){border-color:var(--accent-ink)}
+.mic:disabled{opacity:.45;cursor:default}
+.dict{border:1.5px solid var(--error);border-radius:12px;background:#FFF8F7;padding:10px 12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.dict.busy{border-color:var(--accent-ink);background:#F6FDFA}
+.level.small{height:30px}.level.small span{width:5px}
+.heard{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-top:4px}
+.heard q{font-style:normal;quotes:none}
+.nbox.new{border-color:var(--accent-ink);box-shadow:0 0 0 3px var(--accent-tint)}
+.whole{border:1px dashed var(--accent-ink);border-radius:16px;background:#F6FDFA;padding:14px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.whole b{display:block}
+.whole .grow{min-width:200px}
+.whole .ic{width:38px;height:38px;border-radius:12px;background:var(--accent-tint);color:var(--accent-ink);display:grid;place-items:center;flex:none}
+.signbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:14px;border:1px solid var(--rule);border-radius:16px;background:#fff}
+.sign-card{border-color:var(--accent-ink)}
+.locked{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:14px;background:var(--accent-tint);border:1px solid var(--accent-ink);color:var(--accent-ink);font-size:14px}
+.locked svg{flex:none;margin-top:2px}
+.addition{border-inline-start:3px solid var(--rule);padding-inline-start:12px;display:flex;flex-direction:column;gap:2px;font-size:14px;white-space:pre-wrap}
+.sec-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.sec-item{border:1px solid var(--rule);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.cal-note{font-style:normal}
+.notelink{text-decoration:none}
+.notelink .pill{box-shadow:0 0 0 1px var(--accent-ink)}
+.notelink:hover .pill{box-shadow:0 0 0 2px var(--accent-ink)}
+/* Phone numbers, codes and links keep their left-to-right order, but in Arabic they start at the right like every other field. */
+html[dir="rtl"] input.mono{text-align:right}
+
+/* ---- records: the patient's chart (design: booking/design/emr.html) */
+.chead{display:flex;gap:16px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+.chead h1{font-size:30px}
+.cfacts{display:flex;gap:6px 14px;flex-wrap:wrap;color:var(--muted);font-size:14px;margin-top:4px}
+.alerts{display:flex;gap:8px;flex-wrap:wrap}
+.alert{display:inline-flex;align-items:center;gap:8px;border-radius:12px;padding:7px 12px;font-size:13.5px;font-weight:600;border:1px solid}
+.alert.red{background:var(--error-tint);border-color:#F3B4AB;color:#7a1a12}
+.alert.amb{background:var(--amber-tint);border-color:var(--amber);color:#5c3700}
+.alert .k{font:600 11px var(--font-mono);text-transform:uppercase;letter-spacing:.06em;opacity:.8}
+html[lang="ar"] .alert .k{font-family:var(--font-ar);letter-spacing:0;text-transform:none;font-size:12px}
+.ctabs{display:flex;gap:4px;border-bottom:1px solid var(--rule);overflow-x:auto}
+.ctabs button{font:inherit;padding:10px 14px;font-size:14px;color:var(--muted);background:none;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;cursor:pointer}
+.ctabs button.on{color:var(--text);border-bottom-color:var(--accent-ink);font-weight:600}
+.cgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;align-items:start}
+.ccard{background:#fff;border:1px solid var(--rule);border-radius:18px;padding:16px 18px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.ccard h3{font-size:15px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.li{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding-block:8px;border-top:1px solid var(--rule-soft);font-size:14px}
+.ccard h3+.li,.ccard h3+div>.li:first-child{border-top:0}
+.li .s{color:var(--muted);font-size:12.5px}
+.li .end{display:flex;flex-direction:column;align-items:flex-end;gap:2px;text-align:end;flex:none;max-width:45%}
+.li s{color:var(--muted)}
+.pr{font-size:12px;font-weight:600;color:#8a5200;background:var(--amber-tint);border-radius:999px;padding:1px 8px}
+.efrm{display:flex;flex-direction:column;gap:10px;border:1px solid var(--rule);border-radius:14px;padding:12px;background:var(--paper)}
+.efrm input,.efrm select,.efrm textarea{font:inherit;min-height:42px;padding:0 12px;border:1px solid var(--field);border-radius:10px;background:#fff;width:100%}
+.efrm textarea{padding:8px 12px;min-height:64px;resize:vertical}
+.tl{display:flex;flex-direction:column}
+.tli{display:grid;grid-template-columns:120px 26px minmax(0,1fr);gap:10px;align-items:start}
+.tli .when{font:500 12.5px var(--font-mono);color:var(--muted);padding-top:12px;text-align:end}
+html[lang="ar"] .tli .when{font-family:var(--font-ar);font-size:13px}
+.tli .rail{position:relative;align-self:stretch;display:flex;justify-content:center}
+.tli .rail::before{content:"";position:absolute;inset-block:0;width:2px;background:var(--rule)}
+.tli .rail b{position:relative;margin-top:12px;width:26px;height:26px;border-radius:50%;background:#fff;border:2px solid var(--accent-ink);display:grid;place-items:center;font-size:12px}
+.tli .rail b.bad{border-color:var(--error);color:var(--error)}
+.tli .what{background:#fff;border:1px solid var(--rule);border-radius:14px;padding:10px 14px;margin-block:4px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.lock{display:flex;gap:12px;align-items:center;border:1px dashed var(--rule);border-radius:16px;padding:16px;background:#fff;color:var(--muted)}
+.dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.sfield{border:1px solid var(--rule);border-radius:14px;padding:12px;display:grid;grid-template-columns:1fr 1fr 150px auto;gap:10px;align-items:end}
+.sfield .full{grid-column:1/-1}
+@media (max-width:820px){.tli{grid-template-columns:78px 22px minmax(0,1fr)}.sfield{grid-template-columns:1fr}.li .end{max-width:55%}}
+
+/* insurance (design: booking/design/insurance.html) */
+.insbox{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--rule-soft);padding-top:12px}
+.inswrap{position:relative;display:inline-flex}
+.pillbtn{border:0;cursor:pointer;font:inherit;font-size:12px;font-weight:600}
+.pop{position:absolute;top:calc(100% + 6px);inset-inline-start:0;z-index:30;width:min(380px,calc(100vw - 32px));border:1px solid var(--rule);border-radius:16px;padding:14px;
+  box-shadow:0 12px 32px #0002;background:#fff;color:var(--text);display:flex;flex-direction:column;gap:8px;font-size:14px}
+.pop dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0}
+.pop dt{color:var(--muted)}.pop dd{margin:0;overflow-wrap:anywhere}
+.popnote{background:var(--amber-tint);border-radius:10px;padding:8px 10px;font-size:13.5px;white-space:pre-wrap}
+.corow{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;border:1px solid var(--rule);border-radius:14px;padding:12px 14px}
+.corow.off{opacity:.65}
+.cocard{border:1px solid var(--accent-ink);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px;background:#fff}
+.cosec{font:600 11px var(--font-mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border-top:1px solid var(--rule-soft);padding-top:10px}
+.cocard .cosec:first-child{border-top:0;padding-top:0}
+.dgrid .full{grid-column:1/-1}
+.typed{margin:6px 0 0;padding-inline-start:18px;display:flex;flex-direction:column;gap:4px}
+
+/* ---- new in this design ---- */
+.ctabs button.newtab{outline:2px dashed var(--accent-ink);outline-offset:-4px;border-radius:10px 10px 0 0}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}
+.pht{margin:0;position:relative;aspect-ratio:3/4;border-radius:12px;background:linear-gradient(160deg,var(--tone),#f3e9e1);overflow:hidden;border:2px solid transparent;cursor:pointer}
+.pht svg{position:absolute;inset:12% 18% 22%;width:64%;height:auto}
+.pht figcaption{position:absolute;inset-inline:0;bottom:0;display:flex;justify-content:space-between;gap:6px;padding:6px 8px;background:#0a0f14b3;color:#fff;font-size:11.5px}
+.pht.sel{border-color:var(--accent-ink);box-shadow:0 0 0 3px var(--accent-tint)}
+.pht.sel::after{content:"✓";position:absolute;top:6px;inset-inline-end:6px;width:22px;height:22px;border-radius:50%;background:var(--accent);color:var(--ink);display:grid;place-items:center;font-weight:700;font-size:13px}
+.cmp2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.qrbox{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.qr{width:150px;height:150px;fill:#0A0F14;border:8px solid #fff;border-radius:12px;box-shadow:0 0 0 1px var(--rule)}
+.phone{max-width:360px;margin-inline:auto;border-radius:34px;border:10px solid #0A0F14;overflow:hidden;background:#0A0F14;color:#fff}
+.cam{position:relative;aspect-ratio:3/4;background:linear-gradient(160deg,#c9ab95,#efe1d6)}
+.cam .ghost{position:absolute;inset:10% 15%;opacity:.35}
+.cam .ghost svg{width:100%;height:100%}
+.cam .frame-guide{position:absolute;inset:8% 12%;border:2px dashed #fff9;border-radius:40% 40% 30% 30%}
+.camtop{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;font-size:13px}
+.cambar{display:flex;justify-content:space-between;align-items:center;padding:14px 18px}
+.shutter{width:64px;height:64px;border-radius:50%;background:#fff;box-shadow:0 0 0 5px #0A0F14,0 0 0 8px #fff}
+.thumbs{display:flex;gap:6px}.thumbs span{width:34px;height:44px;border-radius:6px;background:linear-gradient(160deg,#d9bba6,#f3e9e1)}
+.camchips{display:flex;gap:6px;overflow-x:auto;padding:0 14px 10px}
+.camchips span{font-size:12.5px;padding:5px 12px;border-radius:999px;border:1px solid #fff6;white-space:nowrap}
+.camchips span.on{background:#fff;color:#0A0F14}
+.fileic{flex:none;width:38px;height:46px;border-radius:8px;background:var(--paper);border:1px solid var(--rule);display:grid;place-items:center;font:600 10px var(--font-mono);color:var(--muted)}
+.dl.err{opacity:.6}
+.drop{border:2px dashed var(--field);border-radius:16px;padding:18px;text-align:center;color:var(--muted);background:#fff}
+.lockrow{display:flex;align-items:center;gap:10px;color:var(--muted)}
+.nights td:first-child{white-space:nowrap}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.kpi{background:#fff;border:1px solid var(--rule);border-radius:14px;padding:12px 14px}
+.kpi b{display:block;font-size:20px;font-family:var(--font-display)}
+.co{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;border:1px solid var(--rule);border-radius:14px;padding:10px}
+@media (max-width:640px){.co{grid-template-columns:1fr}.cmp2{grid-template-columns:1fr 1fr}}
+/* ---- design page only ---- */
+html[lang="en"] [data-ar], html[lang="ar"] [data-en]{display:none}
+.doc{max-width:1100px;margin-inline:auto;padding-inline:16px;padding-block:28px;display:flex;flex-direction:column;gap:18px}
+.doc>h1{font-size:28px}.doc h2.s{font-size:20px;margin-top:18px}
+.doc ul{margin:0;padding-inline-start:20px;display:flex;flex-direction:column;gap:6px}
+.frame{border:1px solid var(--rule);border-radius:22px;overflow:hidden;background:var(--paper);box-shadow:0 10px 30px #0001}
+.frame .page{padding-block:22px}
+.tag{display:inline-block;font:600 11px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--accent-ink);background:var(--accent-tint);border-radius:999px;padding:3px 10px}
+.new{outline:2px dashed var(--accent-ink);outline-offset:4px;border-radius:16px}
+.toc{display:flex;flex-wrap:wrap;gap:6px}.toc a{font-size:13px;padding:5px 12px;border-radius:999px;border:1px solid var(--rule);background:#fff;text-decoration:none;color:var(--text)}
+</style>
+</head>
+<body>
+<main class="doc">
+  <div><span class="tag"><span data-en>Design · for your approval</span><span data-ar>تصميم · للموافقة</span></span></div>
+  <h1 class="display"><span data-en>Records, phase B: photos, documents, backups</span><span data-ar>السجلات الطبية، المرحلة ب: الصور والمستندات والنسخ الاحتياطي</span></h1>
+  <p><span data-en>This turns the plan you approved (a private Supabase Storage bucket with links that expire in minutes, plus a nightly encrypted copy on the VPS) into screens. It also has the emergency contact split into name and phone, from your reference photos. New parts have a dashed outline.</span><span data-ar>يحوّل هذا الخطة التي وافقت عليها (مخزن خاص في Supabase بروابط تنتهي خلال دقائق، ونسخة ليلية مشفّرة على الخادم) إلى شاشات. ويتضمن فصل جهة اتصال الطوارئ إلى اسم وهاتف، من صورك المرجعية. الأجزاء الجديدة بإطار منقّط.</span></p>
+  <nav class="toc">
+    <a href="#s1"><span data-en>1 Photos</span><span data-ar>١ الصور</span></a><a href="#s2"><span data-en>2 Photos by phone</span><span data-ar>٢ التصوير بالهاتف</span></a><a href="#s3"><span data-en>3 Documents</span><span data-ar>٣ المستندات</span></a>
+    <a href="#s4"><span data-en>4 Secretary</span><span data-ar>٤ السكرتيرة</span></a><a href="#s5"><span data-en>5 Emergency contact</span><span data-ar>٥ جهة الطوارئ</span></a><a href="#s6"><span data-en>6 Settings: photos and documents</span><span data-ar>٦ إعدادات الصور والمستندات</span></a>
+    <a href="#s7"><span data-en>7 Settings: backups</span><span data-ar>٧ إعدادات النسخ</span></a><a href="#s8"><span data-en>8 How it is kept safe</span><span data-ar>٨ كيف تُحفظ بأمان</span></a><a href="#s9"><span data-en>9 Server setup</span><span data-ar>٩ إعداد الخادم</span></a>
+  </nav>
+
+  <h2 class="display s" id="s1"><span data-en>1 · Photos tab (doctors only)</span><span data-ar>١ · تبويب الصور (للأطباء فقط)</span></h2>
+  <div class="frame">
+<header class="bar"><div class="wrap">
+  <span class="brand"><svg width="30" height="16" viewBox="0 0 60 32" aria-hidden="true"><path d="M16 4C8 4 4 10 4 16s4 12 12 12c10 0 18-24 28-24 8 0 12 6 12 12s-4 12-12 12" fill="none" stroke="#2EE6B5" stroke-width="5" stroke-linecap="round"/></svg>Limitsiz Clinic · <span data-en>Records</span><span data-ar>السجلات الطبية</span></span>
+  <nav><a href="#"><span data-en>Today's patients</span><span data-ar>مرضى اليوم</span></a><a href="#" aria-current="page"><span data-en>Patients</span><span data-ar>المرضى</span></a></nav>
+  <span class="grow"></span>
+  <span class="clinic"><span data-en>Limitsiz Demo Dermatology</span><span data-ar>عيادة Limitsiz التجريبية للجلدية</span></span>
+  
+  <button class="linkbtn" type="button" onclick="flip()"><span data-en>العربية</span><span data-ar>English</span></button>
+  <div class="um"><button type="button"><span data-en>Dr. Omar Khalil</span><span data-ar>د. عمر خليل</span> <span aria-hidden="true">▾</span></button></div>
+</div></header>
+    <div class="wrap page">
+<div class="chead"><div>
+  <h1 class="display"><span data-en>Huda Al-Khatib</span><span data-ar>هدى الخطيب</span></h1>
+  <div class="cfacts"><span><span data-en>File</span><span data-ar>ملف</span> <b class="mono">00412</b></span><span><span data-en>Female, 34 years</span><span data-ar>أنثى، 34 سنة</span></span><bdi dir="ltr" class="mono">+962791234567</bdi><span class="pill ok"><span data-en>Insured · MedNet</span><span data-ar>مؤمَّن · ميدنت</span></span></div>
+</div><a class="btn btn-outline btn-sm" href="#"><span data-en>Open in Booking ↗</span><span data-ar>فتح في المواعيد ↗</span></a></div>
+<div class="alerts"><span class="alert red"><span class="k"><span data-en>Allergy</span><span data-ar>حساسية</span></span><span><span data-en>Penicillin: hives</span><span data-ar>بنسلين: شرى</span></span></span><span class="alert amb"><span class="k"><span data-en>Medicine</span><span data-ar>دواء</span></span><span><span data-en>Isotretinoin 20 mg</span><span data-ar>إيزوتريتينوين 20 ملغ</span></span></span></div>
+<div class="ctabs" role="tablist"><button class=""><span data-en>Summary</span><span data-ar>الملخص</span></button><button class=""><span data-en>Timeline</span><span data-ar>السجل الزمني</span></button><button class="on newtab"><span data-en>Photos</span><span data-ar>الصور</span></button><button class=" newtab"><span data-en>Documents</span><span data-ar>المستندات</span></button><button class=""><span data-en>Details</span><span data-ar>البيانات</span></button></div>
+      <div class="row between new">
+        <div class="chips" style="margin:0"><button class="chip on"><span data-en>Face · 8</span><span data-ar>الوجه · 8</span></button><button class="chip"><span data-en>Underarms · 4</span><span data-ar>تحت الإبط · 4</span></button><button class="chip"><span data-en>All · 12</span><span data-ar>الكل · 12</span></button></div>
+        <div class="row"><span class="pill ok"><span data-en>Photo consent: for the record only</span><span data-ar>موافقة التصوير: للملف فقط</span></span><button class="btn btn-outline btn-sm"><span data-en>Upload from this computer</span><span data-ar>رفع من هذا الجهاز</span></button><button class="btn btn-accent btn-sm"><span data-en>Take photos with a phone</span><span data-ar>التصوير بالهاتف</span></button></div>
+      </div>
+      <div class="note">
+        <section class="ccard new"><h3><span><span data-en>Compare: face, front</span><span data-ar>مقارنة: الوجه، أمامي</span></span><span class="hint"><span data-en>3 months apart</span><span data-ar>بفارق 3 أشهر</span></span></h3>
+          <div class="cmp2"><figure class="pht" style="--tone:#e9d6c8">
+  <svg viewBox="0 0 60 80" aria-hidden="true"><ellipse cx="30" cy="34" rx="17" ry="22" fill="none" stroke="#0002" stroke-width="2"/><path d="M14 78c2-12 9-18 16-18s14 6 16 18" fill="none" stroke="#0002" stroke-width="2"/></svg>
+  <figcaption><span><span data-en>Before</span><span data-ar>قبل</span></span><span class="mono">12-08-2026</span></figcaption></figure><figure class="pht" style="--tone:#d9bba6">
+  <svg viewBox="0 0 60 80" aria-hidden="true"><ellipse cx="30" cy="34" rx="17" ry="22" fill="none" stroke="#0002" stroke-width="2"/><path d="M14 78c2-12 9-18 16-18s14 6 16 18" fill="none" stroke="#0002" stroke-width="2"/></svg>
+  <figcaption><span><span data-en>Now</span><span data-ar>الآن</span></span><span class="mono">10-11-2026</span></figcaption></figure></div>
+          <p class="hint"><span data-en>Pick any two photos to put them side by side.</span><span data-ar>اختر أي صورتين لوضعهما جنباً إلى جنب.</span></p></section>
+        <section class="ccard new"><h3><span><span data-en>Face</span><span data-ar>الوجه</span></span><span class="hint"><span data-en>newest first</span><span data-ar>الأحدث أولاً</span></span></h3>
+          <div class="pgrid"><figure class="pht sel" style="--tone:#d9bba6">
+  <svg viewBox="0 0 60 80" aria-hidden="true"><ellipse cx="30" cy="34" rx="17" ry="22" fill="none" stroke="#0002" stroke-width="2"/><path d="M14 78c2-12 9-18 16-18s14 6 16 18" fill="none" stroke="#0002" stroke-width="2"/></svg>
+  <figcaption><span><span data-en>Front</span><span data-ar>أمامي</span></span><span class="mono">10-11</span></figcaption></figure><figure class="pht" style="--tone:#e2c7b4">
+  <svg viewBox="0 0 60 80" aria-hidden="true"><ellipse cx="30" cy="34" rx="17" ry="22" fill="none" stroke="#0002" stroke-width="2"/><path d="M14 78c2-12 9-18 16-18s14 6 16 18" fill="none" stroke="#0002" stroke-width="2"/></svg>
+  <figcaption><span><span data-en>Left</span><span data-ar>أيسر</span></span><span class="mono">10-11</span></figcaption></figure><figure class="pht" style="--tone:#e2c7b4">
+  <svg viewBox="0 0 60 80" aria-hidden="true"><ellipse cx="30" cy="34" rx="17" ry="22" fill="none" stroke="#0002" stroke-width="2"/><path d="M14 78c2-12 9-18 16-18s14 6 16 18" fill="none" stroke="#0002" stroke-width="2"/></svg>
+  <figcaption><span><span data-en>Right</span><span data-ar>أيمن</span></span><span class="mono">10-11</span></figcaption></figure><figure class="pht sel" style="--tone:#e9d6c8">
+  <svg viewBox="0 0 60 80" aria-hidden="true"><ellipse cx="30" cy="34" rx="17" ry="22" fill="none" stroke="#0002" stroke-width="2"/><path d="M14 78c2-12 9-18 16-18s14 6 16 18" fill="none" stroke="#0002" stroke-width="2"/></svg>
+  <figcaption><span><span data-en>Front</span><span data-ar>أمامي</span></span><span class="mono">12-08</span></figcaption></figure><figure class="pht" style="--tone:#e9d6c8">
+  <svg viewBox="0 0 60 80" aria-hidden="true"><ellipse cx="30" cy="34" rx="17" ry="22" fill="none" stroke="#0002" stroke-width="2"/><path d="M14 78c2-12 9-18 16-18s14 6 16 18" fill="none" stroke="#0002" stroke-width="2"/></svg>
+  <figcaption><span><span data-en>Left</span><span data-ar>أيسر</span></span><span class="mono">12-08</span></figcaption></figure><figure class="pht" style="--tone:#e9d6c8">
+  <svg viewBox="0 0 60 80" aria-hidden="true"><ellipse cx="30" cy="34" rx="17" ry="22" fill="none" stroke="#0002" stroke-width="2"/><path d="M14 78c2-12 9-18 16-18s14 6 16 18" fill="none" stroke="#0002" stroke-width="2"/></svg>
+  <figcaption><span><span data-en>Right</span><span data-ar>أيمن</span></span><span class="mono">12-08</span></figcaption></figure></div></section>
+      </div>
+    </div>
+  </div>
+  <ul>
+    <li><span data-en>Photos are grouped by <b>body area</b> (the clinic's own list) and date. Opening one shows it large, with who took it and when; every opening is recorded in “Who opened this record”.</span><span data-ar>الصور مجمّعة حسب <b>منطقة الجسم</b> (قائمة العيادة الخاصة) والتاريخ. فتح صورة يعرضها كبيرة، مع من التقطها ومتى؛ وكل فتح يُسجَّل في «من فتح هذا الملف».</span></li>
+    <li><span data-en><b>Consent first</b>: until the patient's photo consent is recorded (for the record only, or also for teaching), the buttons ask for it. The answer is kept with the date and the name of the person who asked.</span><span data-ar><b>الموافقة أولاً</b>: حتى تُسجَّل موافقة المريض على التصوير (للملف فقط، أو للتعليم أيضاً)، تطلبها الأزرار. وتُحفظ الإجابة مع التاريخ واسم من سأل.</span></li>
+    <li><span data-en>A photo is never deleted: a wrong one is <b>marked as entered in error</b> with a reason, and hidden from the grid (kept for the record).</span><span data-ar>لا تُحذف صورة أبداً: الصورة الخاطئة <b>تُعلَّم كمُدخلة خطأً</b> مع السبب، وتُخفى من الشبكة (وتبقى في الملف).</span></li>
+    <li><span data-en>Only doctors see photos (they are part of the clinical record). Secretaries and administrators don't.</span><span data-ar>الصور للأطباء فقط (جزء من الملف السريري). السكرتيرة والمدير لا يرونها.</span></li>
+  </ul>
+
+  <h2 class="display s" id="s2"><span data-en>2 · Taking photos with a phone</span><span data-ar>٢ · التصوير بالهاتف</span></h2>
+  <div class="two-col" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;align-items:start">
+    <section class="panel new">
+      <h2><span data-en>Scan with the clinic phone</span><span data-ar>امسح بهاتف العيادة</span></h2>
+      <div class="qrbox"><svg class="qr" viewBox="0 0 29 29" aria-label="QR code" shape-rendering="crispEdges"><rect width="29" height="29" fill="#fff"/><rect x="9" y="0" width="1" height="1"/><rect x="15" y="0" width="1" height="1"/><rect x="16" y="0" width="1" height="1"/><rect x="19" y="0" width="1" height="1"/><rect x="20" y="0" width="1" height="1"/><rect x="11" y="1" width="1" height="1"/><rect x="13" y="1" width="1" height="1"/><rect x="17" y="1" width="1" height="1"/><rect x="18" y="1" width="1" height="1"/><rect x="8" y="2" width="1" height="1"/><rect x="11" y="2" width="1" height="1"/><rect x="12" y="2" width="1" height="1"/><rect x="15" y="2" width="1" height="1"/><rect x="8" y="3" width="1" height="1"/><rect x="12" y="3" width="1" height="1"/><rect x="14" y="3" width="1" height="1"/><rect x="17" y="3" width="1" height="1"/><rect x="19" y="3" width="1" height="1"/><rect x="20" y="3" width="1" height="1"/><rect x="14" y="4" width="1" height="1"/><rect x="15" y="4" width="1" height="1"/><rect x="16" y="4" width="1" height="1"/><rect x="8" y="5" width="1" height="1"/><rect x="13" y="5" width="1" height="1"/><rect x="16" y="5" width="1" height="1"/><rect x="17" y="5" width="1" height="1"/><rect x="18" y="5" width="1" height="1"/><rect x="19" y="5" width="1" height="1"/><rect x="20" y="5" width="1" height="1"/><rect x="8" y="6" width="1" height="1"/><rect x="9" y="6" width="1" height="1"/><rect x="10" y="6" width="1" height="1"/><rect x="16" y="6" width="1" height="1"/><rect x="17" y="6" width="1" height="1"/><rect x="19" y="6" width="1" height="1"/><rect x="9" y="7" width="1" height="1"/><rect x="12" y="7" width="1" height="1"/><rect x="14" y="7" width="1" height="1"/><rect x="15" y="7" width="1" height="1"/><rect x="18" y="7" width="1" height="1"/><rect x="19" y="7" width="1" height="1"/><rect x="2" y="8" width="1" height="1"/><rect x="3" y="8" width="1" height="1"/><rect x="4" y="8" width="1" height="1"/><rect x="5" y="8" width="1" height="1"/><rect x="7" y="8" width="1" height="1"/><rect x="13" y="8" width="1" height="1"/><rect x="14" y="8" width="1" height="1"/><rect x="24" y="8" width="1" height="1"/><rect x="28" y="8" width="1" height="1"/><rect x="6" y="9" width="1" height="1"/><rect x="8" y="9" width="1" height="1"/><rect x="10" y="9" width="1" height="1"/><rect x="11" y="9" width="1" height="1"/><rect x="12" y="9" width="1" height="1"/><rect x="16" y="9" width="1" height="1"/><rect x="22" y="9" width="1" height="1"/><rect x="26" y="9" width="1" height="1"/><rect x="1" y="10" width="1" height="1"/><rect x="2" y="10" width="1" height="1"/><rect x="4" y="10" width="1" height="1"/><rect x="5" y="10" width="1" height="1"/><rect x="7" y="10" width="1" height="1"/><rect x="8" y="10" width="1" height="1"/><rect x="11" y="10" width="1" height="1"/><rect x="12" y="10" width="1" height="1"/><rect x="13" y="10" width="1" height="1"/><rect x="15" y="10" width="1" height="1"/><rect x="16" y="10" width="1" height="1"/><rect x="17" y="10" width="1" height="1"/><rect x="20" y="10" width="1" height="1"/><rect x="21" y="10" width="1" height="1"/><rect x="22" y="10" width="1" height="1"/><rect x="24" y="10" width="1" height="1"/><rect x="25" y="10" width="1" height="1"/><rect x="28" y="10" width="1" height="1"/><rect x="0" y="11" width="1" height="1"/><rect x="4" y="11" width="1" height="1"/><rect x="5" y="11" width="1" height="1"/><rect x="7" y="11" width="1" height="1"/><rect x="13" y="11" width="1" height="1"/><rect x="18" y="11" width="1" height="1"/><rect x="20" y="11" width="1" height="1"/><rect x="22" y="11" width="1" height="1"/><rect x="23" y="11" width="1" height="1"/><rect x="25" y="11" width="1" height="1"/><rect x="0" y="12" width="1" height="1"/><rect x="1" y="12" width="1" height="1"/><rect x="11" y="12" width="1" height="1"/><rect x="13" y="12" width="1" height="1"/><rect x="14" y="12" width="1" height="1"/><rect x="21" y="12" width="1" height="1"/><rect x="22" y="12" width="1" height="1"/><rect x="28" y="12" width="1" height="1"/><rect x="2" y="13" width="1" height="1"/><rect x="3" y="13" width="1" height="1"/><rect x="4" y="13" width="1" height="1"/><rect x="6" y="13" width="1" height="1"/><rect x="7" y="13" width="1" height="1"/><rect x="12" y="13" width="1" height="1"/><rect x="13" y="13" width="1" height="1"/><rect x="14" y="13" width="1" height="1"/><rect x="19" y="13" width="1" height="1"/><rect x="20" y="13" width="1" height="1"/><rect x="21" y="13" width="1" height="1"/><rect x="22" y="13" width="1" height="1"/><rect x="24" y="13" width="1" height="1"/><rect x="26" y="13" width="1" height="1"/><rect x="27" y="13" width="1" height="1"/><rect x="28" y="13" width="1" height="1"/><rect x="2" y="14" width="1" height="1"/><rect x="3" y="14" width="1" height="1"/><rect x="6" y="14" width="1" height="1"/><rect x="7" y="14" width="1" height="1"/><rect x="10" y="14" width="1" height="1"/><rect x="15" y="14" width="1" height="1"/><rect x="16" y="14" width="1" height="1"/><rect x="17" y="14" width="1" height="1"/><rect x="19" y="14" width="1" height="1"/><rect x="22" y="14" width="1" height="1"/><rect x="0" y="15" width="1" height="1"/><rect x="1" y="15" width="1" height="1"/><rect x="2" y="15" width="1" height="1"/><rect x="11" y="15" width="1" height="1"/><rect x="13" y="15" width="1" height="1"/><rect x="14" y="15" width="1" height="1"/><rect x="21" y="15" width="1" height="1"/><rect x="26" y="15" width="1" height="1"/><rect x="27" y="15" width="1" height="1"/><rect x="28" y="15" width="1" height="1"/><rect x="2" y="16" width="1" height="1"/><rect x="3" y="16" width="1" height="1"/><rect x="4" y="16" width="1" height="1"/><rect x="5" y="16" width="1" height="1"/><rect x="6" y="16" width="1" height="1"/><rect x="7" y="16" width="1" height="1"/><rect x="10" y="16" width="1" height="1"/><rect x="12" y="16" width="1" height="1"/><rect x="15" y="16" width="1" height="1"/><rect x="16" y="16" width="1" height="1"/><rect x="18" y="16" width="1" height="1"/><rect x="19" y="16" width="1" height="1"/><rect x="0" y="17" width="1" height="1"/><rect x="12" y="17" width="1" height="1"/><rect x="15" y="17" width="1" height="1"/><rect x="16" y="17" width="1" height="1"/><rect x="18" y="17" width="1" height="1"/><rect x="21" y="17" width="1" height="1"/><rect x="23" y="17" width="1" height="1"/><rect x="26" y="17" width="1" height="1"/><rect x="2" y="18" width="1" height="1"/><rect x="3" y="18" width="1" height="1"/><rect x="5" y="18" width="1" height="1"/><rect x="8" y="18" width="1" height="1"/><rect x="14" y="18" width="1" height="1"/><rect x="21" y="18" width="1" height="1"/><rect x="23" y="18" width="1" height="1"/><rect x="24" y="18" width="1" height="1"/><rect x="26" y="18" width="1" height="1"/><rect x="27" y="18" width="1" height="1"/><rect x="28" y="18" width="1" height="1"/><rect x="3" y="19" width="1" height="1"/><rect x="4" y="19" width="1" height="1"/><rect x="5" y="19" width="1" height="1"/><rect x="8" y="19" width="1" height="1"/><rect x="10" y="19" width="1" height="1"/><rect x="11" y="19" width="1" height="1"/><rect x="12" y="19" width="1" height="1"/><rect x="14" y="19" width="1" height="1"/><rect x="22" y="19" width="1" height="1"/><rect x="23" y="19" width="1" height="1"/><rect x="26" y="19" width="1" height="1"/><rect x="28" y="19" width="1" height="1"/><rect x="0" y="20" width="1" height="1"/><rect x="2" y="20" width="1" height="1"/><rect x="6" y="20" width="1" height="1"/><rect x="7" y="20" width="1" height="1"/><rect x="8" y="20" width="1" height="1"/><rect x="13" y="20" width="1" height="1"/><rect x="17" y="20" width="1" height="1"/><rect x="18" y="20" width="1" height="1"/><rect x="25" y="20" width="1" height="1"/><rect x="26" y="20" width="1" height="1"/><rect x="27" y="20" width="1" height="1"/><rect x="28" y="20" width="1" height="1"/><rect x="9" y="21" width="1" height="1"/><rect x="10" y="21" width="1" height="1"/><rect x="11" y="21" width="1" height="1"/><rect x="16" y="21" width="1" height="1"/><rect x="17" y="21" width="1" height="1"/><rect x="18" y="21" width="1" height="1"/><rect x="19" y="21" width="1" height="1"/><rect x="20" y="21" width="1" height="1"/><rect x="23" y="21" width="1" height="1"/><rect x="25" y="21" width="1" height="1"/><rect x="9" y="22" width="1" height="1"/><rect x="10" y="22" width="1" height="1"/><rect x="14" y="22" width="1" height="1"/><rect x="15" y="22" width="1" height="1"/><rect x="16" y="22" width="1" height="1"/><rect x="19" y="22" width="1" height="1"/><rect x="20" y="22" width="1" height="1"/><rect x="21" y="22" width="1" height="1"/><rect x="22" y="22" width="1" height="1"/><rect x="24" y="22" width="1" height="1"/><rect x="25" y="22" width="1" height="1"/><rect x="26" y="22" width="1" height="1"/><rect x="27" y="22" width="1" height="1"/><rect x="28" y="22" width="1" height="1"/><rect x="8" y="23" width="1" height="1"/><rect x="10" y="23" width="1" height="1"/><rect x="11" y="23" width="1" height="1"/><rect x="27" y="23" width="1" height="1"/><rect x="11" y="24" width="1" height="1"/><rect x="15" y="24" width="1" height="1"/><rect x="16" y="24" width="1" height="1"/><rect x="17" y="24" width="1" height="1"/><rect x="20" y="24" width="1" height="1"/><rect x="22" y="24" width="1" height="1"/><rect x="28" y="24" width="1" height="1"/><rect x="8" y="25" width="1" height="1"/><rect x="10" y="25" width="1" height="1"/><rect x="11" y="25" width="1" height="1"/><rect x="12" y="25" width="1" height="1"/><rect x="14" y="25" width="1" height="1"/><rect x="15" y="25" width="1" height="1"/><rect x="16" y="25" width="1" height="1"/><rect x="17" y="25" width="1" height="1"/><rect x="18" y="25" width="1" height="1"/><rect x="20" y="25" width="1" height="1"/><rect x="21" y="25" width="1" height="1"/><rect x="22" y="25" width="1" height="1"/><rect x="23" y="25" width="1" height="1"/><rect x="26" y="25" width="1" height="1"/><rect x="27" y="25" width="1" height="1"/><rect x="28" y="25" width="1" height="1"/><rect x="10" y="26" width="1" height="1"/><rect x="12" y="26" width="1" height="1"/><rect x="13" y="26" width="1" height="1"/><rect x="16" y="26" width="1" height="1"/><rect x="19" y="26" width="1" height="1"/><rect x="20" y="26" width="1" height="1"/><rect x="21" y="26" width="1" height="1"/><rect x="24" y="26" width="1" height="1"/><rect x="26" y="26" width="1" height="1"/><rect x="8" y="27" width="1" height="1"/><rect x="9" y="27" width="1" height="1"/><rect x="12" y="27" width="1" height="1"/><rect x="16" y="27" width="1" height="1"/><rect x="17" y="27" width="1" height="1"/><rect x="19" y="27" width="1" height="1"/><rect x="27" y="27" width="1" height="1"/><rect x="9" y="28" width="1" height="1"/><rect x="12" y="28" width="1" height="1"/><rect x="13" y="28" width="1" height="1"/><rect x="16" y="28" width="1" height="1"/><rect x="18" y="28" width="1" height="1"/><rect x="22" y="28" width="1" height="1"/><rect x="23" y="28" width="1" height="1"/><rect x="25" y="28" width="1" height="1"/><rect x="0" y="0" width="7" height="7"/><rect x="1" y="1" width="5" height="5" fill="#fff"/><rect x="2" y="2" width="3" height="3"/><rect x="22" y="0" width="7" height="7"/><rect x="23" y="1" width="5" height="5" fill="#fff"/><rect x="24" y="2" width="3" height="3"/><rect x="0" y="22" width="7" height="7"/><rect x="1" y="23" width="5" height="5" fill="#fff"/><rect x="2" y="24" width="3" height="3"/></svg><div style="flex:1;min-width:180px;display:flex;flex-direction:column;gap:8px">
+        <p><span data-en>For <b>Huda Al-Khatib</b> (file 00412), area <b>Face</b>.</span><span data-ar>لـ<b>هدى الخطيب</b> (ملف 00412)، المنطقة <b>الوجه</b>.</span></p>
+        <p class="hint"><span data-en>Works once, for this patient only, for 10 minutes. No sign-in on the phone, and nothing is saved in the phone's gallery.</span><span data-ar>يعمل مرة واحدة، لهذا المريض فقط، لمدة 10 دقائق. لا تسجيل دخول على الهاتف، ولا يُحفظ شيء في معرض الهاتف.</span></p>
+        <span class="pill warn"><span data-en>Waiting for the phone… 9:41 left</span><span data-ar>بانتظار الهاتف… متبقٍ 9:41</span></span>
+      </div></div>
+    </section>
+    <div class="phone new">
+      <div class="camtop"><span><span data-en>Huda A. · 00412</span><span data-ar>هدى خ. · 00412</span></span><span class="mono">9:12</span></div>
+      <div class="camchips"><span class="on"><span data-en>Face</span><span data-ar>الوجه</span></span><span><span data-en>Scalp</span><span data-ar>فروة الرأس</span></span><span><span data-en>Neck</span><span data-ar>الرقبة</span></span><span><span data-en>Back</span><span data-ar>الظهر</span></span><span><span data-en>Hands</span><span data-ar>اليدين</span></span></div>
+      <div class="cam"><div class="ghost"><svg viewBox="0 0 60 80"><ellipse cx="30" cy="34" rx="17" ry="22" fill="none" stroke="#fff" stroke-width="2"/><path d="M14 78c2-12 9-18 16-18s14 6 16 18" fill="none" stroke="#fff" stroke-width="2"/></svg></div><div class="frame-guide"></div></div>
+      <div class="cambar"><div class="thumbs"><span></span><span></span></div><div class="shutter" aria-label="Take photo"></div><button class="btn btn-accent btn-sm"><span data-en>Done (2)</span><span data-ar>تم (2)</span></button></div>
+    </div>
+  </div>
+  <ul>
+    <li><span data-en>The last photo of the same area shows faintly over the camera, so the new one lines up with it (same distance and angle), which makes before-and-after honest.</span><span data-ar>تظهر آخر صورة للمنطقة نفسها بشفافية فوق الكاميرا، لتتطابق الجديدة معها (المسافة والزاوية نفسيهما)، فتكون المقارنة دقيقة.</span></li>
+    <li><span data-en>When the phone taps “Done”, the photos appear on the computer straight away. Location data is removed from every photo.</span><span data-ar>عند الضغط على «تم» في الهاتف، تظهر الصور على الحاسوب فوراً. وتُزال بيانات الموقع من كل صورة.</span></li>
+  </ul>
+
+  <h2 class="display s" id="s3"><span data-en>3 · Documents tab: results, letters, reports</span><span data-ar>٣ · تبويب المستندات: النتائج والرسائل والتقارير</span></h2>
+  <div class="frame">
+<header class="bar"><div class="wrap">
+  <span class="brand"><svg width="30" height="16" viewBox="0 0 60 32" aria-hidden="true"><path d="M16 4C8 4 4 10 4 16s4 12 12 12c10 0 18-24 28-24 8 0 12 6 12 12s-4 12-12 12" fill="none" stroke="#2EE6B5" stroke-width="5" stroke-linecap="round"/></svg>Limitsiz Clinic · <span data-en>Records</span><span data-ar>السجلات الطبية</span></span>
+  <nav><a href="#"><span data-en>Today's patients</span><span data-ar>مرضى اليوم</span></a><a href="#" aria-current="page"><span data-en>Patients</span><span data-ar>المرضى</span></a></nav>
+  <span class="grow"></span>
+  <span class="clinic"><span data-en>Limitsiz Demo Dermatology</span><span data-ar>عيادة Limitsiz التجريبية للجلدية</span></span>
+  
+  <button class="linkbtn" type="button" onclick="flip()"><span data-en>العربية</span><span data-ar>English</span></button>
+  <div class="um"><button type="button"><span data-en>Dr. Omar Khalil</span><span data-ar>د. عمر خليل</span> <span aria-hidden="true">▾</span></button></div>
+</div></header>
+    <div class="wrap page">
+<div class="chead"><div>
+  <h1 class="display"><span data-en>Huda Al-Khatib</span><span data-ar>هدى الخطيب</span></h1>
+  <div class="cfacts"><span><span data-en>File</span><span data-ar>ملف</span> <b class="mono">00412</b></span><span><span data-en>Female, 34 years</span><span data-ar>أنثى، 34 سنة</span></span><bdi dir="ltr" class="mono">+962791234567</bdi><span class="pill ok"><span data-en>Insured · MedNet</span><span data-ar>مؤمَّن · ميدنت</span></span></div>
+</div><a class="btn btn-outline btn-sm" href="#"><span data-en>Open in Booking ↗</span><span data-ar>فتح في المواعيد ↗</span></a></div>
+<div class="alerts"><span class="alert red"><span class="k"><span data-en>Allergy</span><span data-ar>حساسية</span></span><span><span data-en>Penicillin: hives</span><span data-ar>بنسلين: شرى</span></span></span><span class="alert amb"><span class="k"><span data-en>Medicine</span><span data-ar>دواء</span></span><span><span data-en>Isotretinoin 20 mg</span><span data-ar>إيزوتريتينوين 20 ملغ</span></span></span></div>
+<div class="ctabs" role="tablist"><button class=""><span data-en>Summary</span><span data-ar>الملخص</span></button><button class=""><span data-en>Timeline</span><span data-ar>السجل الزمني</span></button><button class=" newtab"><span data-en>Photos</span><span data-ar>الصور</span></button><button class="on newtab"><span data-en>Documents</span><span data-ar>المستندات</span></button><button class=""><span data-en>Details</span><span data-ar>البيانات</span></button></div>
+      <div class="note">
+        <section class="ccard new"><h3><span><span data-en>Documents</span><span data-ar>المستندات</span></span><span class="hint"><span data-en>newest first</span><span data-ar>الأحدث أولاً</span></span></h3>
+          <div class="chips" style="margin:0"><button class="chip on"><span data-en>All</span><span data-ar>الكل</span></button><button class="chip"><span data-en>Lab results</span><span data-ar>نتائج المختبر</span></button><button class="chip"><span data-en>Letters</span><span data-ar>الرسائل</span></button><button class="chip"><span data-en>Insurance and ID</span><span data-ar>التأمين والهوية</span></button></div>
+          
+<div class="li dl">
+  <div class="row" style="gap:12px;align-items:flex-start"><span class="fileic">PDF</span>
+    <div><b><span data-en>TSH, liver tests, lipids</span><span data-ar>TSH، وظائف الكبد، الدهون</span></b><div class="s"><span data-en>Lab result</span><span data-ar>نتيجة مختبر</span> · <span data-en>dated 9 Nov · uploaded by Sara (secretary)</span><span data-ar>بتاريخ 9 تشرين الثاني · رفعتها سارة (السكرتيرة)</span></div></div></div>
+  <div class="end"><button class="btn btn-accent btn-sm"><span data-en>Mark reviewed</span><span data-ar>تمت المراجعة</span></button><span class="pill warn"><span data-en>Not reviewed yet</span><span data-ar>لم تُراجَع بعد</span></span></div>
+</div>
+          
+<div class="li dl">
+  <div class="row" style="gap:12px;align-items:flex-start"><span class="fileic">PDF</span>
+    <div><b><span data-en>From Dr. Hani (endocrinology)</span><span data-ar>من د. هاني (الغدد)</span></b><div class="s"><span data-en>Referral letter</span><span data-ar>رسالة تحويل</span> · <span data-en>dated 2 Oct · uploaded by Dr. Omar</span><span data-ar>بتاريخ 2 تشرين الأول · رفعها د. عمر</span></div></div></div>
+  <div class="end"><span class="pill ok"><span data-en>Reviewed · Dr. Omar</span><span data-ar>رُوجعت · د. عمر</span></span></div>
+</div>
+          
+<div class="li dl">
+  <div class="row" style="gap:12px;align-items:flex-start"><span class="fileic">IMG</span>
+    <div><b><span data-en>MedNet card, front and back</span><span data-ar>بطاقة ميدنت، الوجهان</span></b><div class="s"><span data-en>Insurance card</span><span data-ar>بطاقة التأمين</span> · <span data-en>uploaded by Sara (secretary)</span><span data-ar>رفعتها سارة (السكرتيرة)</span></div></div></div>
+  <div class="end"><span class="hint"><span data-en>2 photos</span><span data-ar>صورتان</span></span></div>
+</div>
+          
+<div class="li dl err">
+  <div class="row" style="gap:12px;align-items:flex-start"><span class="fileic">PDF</span>
+    <div><b><s><span data-en>CBC (wrong patient)</span><span data-ar>تعداد دم (لمريض آخر)</span></s></b><div class="s"><span data-en>Lab result</span><span data-ar>نتيجة مختبر</span> · <span data-en>entered in error by Dr. Omar: belongs to another patient</span><span data-ar>عُلِّم كخطأ من د. عمر: لمريض آخر</span></div></div></div>
+  <div class="end"><span class="pill"><span data-en>entered in error</span><span data-ar>مُدخل خطأً</span></span></div>
+</div>
+        </section>
+        <section class="ccard new"><h3><span><span data-en>Add a document</span><span data-ar>إضافة مستند</span></span></h3>
+          <div class="drop"><span data-en>Drop a PDF or photo here, or <button class="link">choose a file</button><br><small>PDF, JPG or PNG · up to 20 MB</small></span><span data-ar>اسحب ملف PDF أو صورة هنا، أو <button class="link">اختر ملفاً</button><br><small>PDF أو JPG أو PNG · حتى 20 ميغابايت</small></span></div>
+          <label class="field"><span data-en>Kind</span><span data-ar>النوع</span><select><option>Lab result / نتيجة مختبر</option></select></label>
+          <label class="field"><span data-en>Title</span><span data-ar>العنوان</span><input dir="auto" value="TSH, liver tests, lipids"></label>
+          <label class="field"><span data-en>Date on the document</span><span data-ar>التاريخ على المستند</span><input type="text" class="mono" value="2026-11-09"></label>
+          <div><button class="btn btn-accent btn-sm"><span data-en>Add</span><span data-ar>إضافة</span></button></div>
+        </section>
+      </div>
+    </div>
+  </div>
+  <ul>
+    <li><span data-en>Opening a document shows it in the page through a link that works for <b>5 minutes</b> (a setting) and only for the person who opened it. Each opening is recorded.</span><span data-ar>فتح مستند يعرضه في الصفحة عبر رابط يعمل <b>5 دقائق</b> (إعداد) وللشخص الذي فتحه فقط. وكل فتح يُسجَّل.</span></li>
+    <li><span data-en>A <b>lab result</b> uploaded by someone else waits for the doctor: “Not reviewed yet” here, and a count on <b>Today's patients</b> (“2 new results to review”). The doctor marks it reviewed.</span><span data-ar><b>نتيجة المختبر</b> التي يرفعها شخص آخر تنتظر الطبيب: «لم تُراجَع بعد» هنا، ورقم في <b>مرضى اليوم</b> («نتيجتان جديدتان للمراجعة»). ويعلّمها الطبيب كمراجَعة.</span></li>
+    <li><span data-en>Documents appear in the timeline too. Never deleted: marked as entered in error, with the reason.</span><span data-ar>تظهر المستندات في السجل الزمني أيضاً. لا تُحذف: تُعلَّم كمُدخلة خطأً، مع السبب.</span></li>
+  </ul>
+
+  <h2 class="display s" id="s4"><span data-en>4 · The secretary: uploads everything, opens only front-desk papers</span><span data-ar>٤ · السكرتيرة: ترفع كل شيء، وتفتح أوراق الاستقبال فقط</span></h2>
+  <div class="frame">
+<header class="bar"><div class="wrap">
+  <span class="brand"><svg width="30" height="16" viewBox="0 0 60 32" aria-hidden="true"><path d="M16 4C8 4 4 10 4 16s4 12 12 12c10 0 18-24 28-24 8 0 12 6 12 12s-4 12-12 12" fill="none" stroke="#2EE6B5" stroke-width="5" stroke-linecap="round"/></svg>Limitsiz Clinic · <span data-en>Records</span><span data-ar>السجلات الطبية</span></span>
+  <nav><a href="#" aria-current="page"><span data-en>Patients</span><span data-ar>المرضى</span></a></nav>
+  <span class="grow"></span>
+  <span class="clinic"><span data-en>Limitsiz Demo Dermatology</span><span data-ar>عيادة Limitsiz التجريبية للجلدية</span></span>
+  
+  <button class="linkbtn" type="button" onclick="flip()"><span data-en>العربية</span><span data-ar>English</span></button>
+  <div class="um"><button type="button"><span data-en>Sara Secretary</span><span data-ar>سارة السكرتيرة</span> <span aria-hidden="true">▾</span></button></div>
+</div></header>
+    <div class="wrap page">
+<div class="chead"><div>
+  <h1 class="display"><span data-en>Huda Al-Khatib</span><span data-ar>هدى الخطيب</span></h1>
+  <div class="cfacts"><span><span data-en>File</span><span data-ar>ملف</span> <b class="mono">00412</b></span><span><span data-en>Female, 34 years</span><span data-ar>أنثى، 34 سنة</span></span><bdi dir="ltr" class="mono">+962791234567</bdi><span class="pill ok"><span data-en>Insured · MedNet</span><span data-ar>مؤمَّن · ميدنت</span></span></div>
+</div><a class="btn btn-outline btn-sm" href="#"><span data-en>Open in Booking ↗</span><span data-ar>فتح في المواعيد ↗</span></a></div>
+
+<div class="ctabs" role="tablist"><button class="on newtab"><span data-en>Documents</span><span data-ar>المستندات</span></button><button class=""><span data-en>Details</span><span data-ar>البيانات</span></button></div>
+      <section class="ccard new"><h3><span><span data-en>Documents</span><span data-ar>المستندات</span></span><button class="btn btn-accent btn-sm"><span data-en>+ Add a document</span><span data-ar>+ إضافة مستند</span></button></h3>
+        
+<div class="li dl">
+  <div class="row" style="gap:12px;align-items:flex-start"><span class="fileic">IMG</span>
+    <div><b><span data-en>MedNet card, front and back</span><span data-ar>بطاقة ميدنت، الوجهان</span></b><div class="s"><span data-en>Insurance card</span><span data-ar>بطاقة التأمين</span> · <span data-en>uploaded by Sara (secretary)</span><span data-ar>رفعتها سارة (السكرتيرة)</span></div></div></div>
+  <div class="end"><button class="link"><span data-en>Open</span><span data-ar>فتح</span></button></div>
+</div>
+        
+<div class="li dl">
+  <div class="row" style="gap:12px;align-items:flex-start"><span class="fileic">IMG</span>
+    <div><b><span data-en>ID card</span><span data-ar>بطاقة الهوية</span></b><div class="s"><span data-en>National ID</span><span data-ar>الهوية الوطنية</span> · <span data-en>uploaded by Sara (secretary)</span><span data-ar>رفعتها سارة (السكرتيرة)</span></div></div></div>
+  <div class="end"><button class="link"><span data-en>Open</span><span data-ar>فتح</span></button></div>
+</div>
+        <div class="li"><div class="lockrow"><span aria-hidden="true">🔒</span><span><span data-en>3 clinical documents (results, letters) are for the doctors. You uploaded 1 of them today.</span><span data-ar>3 مستندات سريرية (نتائج ورسائل) للأطباء. رفعتِ واحداً منها اليوم.</span></span></div></div>
+      </section>
+    </div>
+  </div>
+  <p class="hint"><span data-en>Which kinds a secretary may open is a setting per kind (screen 6). The insurance card can also be added from the insurance part of the Details tab.</span><span data-ar>الأنواع التي تفتحها السكرتيرة إعداد لكل نوع (الشاشة ٦). ويمكن إضافة بطاقة التأمين أيضاً من جزء التأمين في تبويب البيانات.</span></p>
+
+  <h2 class="display s" id="s5"><span data-en>5 · Details: the emergency contact in two parts</span><span data-ar>٥ · البيانات: جهة اتصال الطوارئ في جزأين</span></h2>
+  <div class="frame">
+<header class="bar"><div class="wrap">
+  <span class="brand"><svg width="30" height="16" viewBox="0 0 60 32" aria-hidden="true"><path d="M16 4C8 4 4 10 4 16s4 12 12 12c10 0 18-24 28-24 8 0 12 6 12 12s-4 12-12 12" fill="none" stroke="#2EE6B5" stroke-width="5" stroke-linecap="round"/></svg>Limitsiz Clinic · <span data-en>Records</span><span data-ar>السجلات الطبية</span></span>
+  <nav><a href="#" aria-current="page"><span data-en>Patients</span><span data-ar>المرضى</span></a></nav>
+  <span class="grow"></span>
+  <span class="clinic"><span data-en>Limitsiz Demo Dermatology</span><span data-ar>عيادة Limitsiz التجريبية للجلدية</span></span>
+  
+  <button class="linkbtn" type="button" onclick="flip()"><span data-en>العربية</span><span data-ar>English</span></button>
+  <div class="um"><button type="button"><span data-en>Sara Secretary</span><span data-ar>سارة السكرتيرة</span> <span aria-hidden="true">▾</span></button></div>
+</div></header>
+    <div class="wrap page"><form class="panel" onsubmit="return false" style="max-width:720px">
+      <h2><span data-en>Details</span><span data-ar>البيانات</span></h2>
+      <div class="dgrid new">
+        <label class="field"><span data-en>Emergency contact: name</span><span data-ar>جهة الطوارئ: الاسم</span> <input dir="auto" value="Khaled Al-Khatib"></label>
+        <label class="field"><span data-en>Relationship <span class="hint">(optional)</span></span><span data-ar>صلة القرابة <span class="hint">(اختياري)</span></span><select><option>Husband / زوج</option></select></label>
+        <label class="field"><span data-en>Emergency contact: phone</span><span data-ar>جهة الطوارئ: الهاتف</span><input dir="ltr" class="mono" value="+962 79 555 0142"></label>
+      </div>
+      <p class="hint"><span data-en>The relationships are a list in Settings (spouse, parent, son or daughter, brother or sister, other). What was typed in today's single box moves to the name, so nothing is lost. “Required” in Settings asks for the name and the phone.</span><span data-ar>صلات القرابة قائمة في الإعدادات (زوج/زوجة، أب/أم، ابن/ابنة، أخ/أخت، أخرى). ما كُتب في الخانة الواحدة اليوم ينتقل إلى الاسم، فلا يضيع شيء. «مطلوب» في الإعدادات يطلب الاسم والهاتف.</span></p>
+    </form></div>
+  </div>
+
+  <h2 class="display s" id="s6"><span data-en>6 · Settings › Photos and documents (clinic administrator)</span><span data-ar>٦ · الإعدادات › الصور والمستندات (مدير العيادة)</span></h2>
+  <div class="frame">
+<header class="bar"><div class="wrap">
+  <span class="brand"><svg width="30" height="16" viewBox="0 0 60 32" aria-hidden="true"><path d="M16 4C8 4 4 10 4 16s4 12 12 12c10 0 18-24 28-24 8 0 12 6 12 12s-4 12-12 12" fill="none" stroke="#2EE6B5" stroke-width="5" stroke-linecap="round"/></svg>Limitsiz Clinic · <span data-en>Records</span><span data-ar>السجلات الطبية</span></span>
+  <nav><a href="#" aria-current="page"><span data-en>Patients</span><span data-ar>المرضى</span></a></nav>
+  <span class="grow"></span>
+  <span class="clinic"><span data-en>Limitsiz Demo Dermatology</span><span data-ar>عيادة Limitsiz التجريبية للجلدية</span></span>
+  <a class="iconbtn on" href="#" aria-label="Settings"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></a>
+  <button class="linkbtn" type="button" onclick="flip()"><span data-en>العربية</span><span data-ar>English</span></button>
+  <div class="um"><button type="button"><span data-en>Layla Admin</span><span data-ar>ليلى المديرة</span> <span aria-hidden="true">▾</span></button></div>
+</div></header>
+    <div class="wrap page"><div class="setwrap">
+      <nav class="settabs"><button><span data-en>Chart</span><span data-ar>الملف</span></button><button class="on"><span data-en>Photos and documents</span><span data-ar>الصور والمستندات</span></button><button><span data-en>Backups</span><span data-ar>النسخ الاحتياطي</span></button></nav>
+      <div class="setbody new">
+        <section class="panel"><h2><span data-en>Body areas for photos</span><span data-ar>مناطق الجسم للصور</span></h2>
+          <p class="hint"><span data-en>The dermatology starter list; each clinic edits its own.</span><span data-ar>قائمة البداية للجلدية؛ وكل عيادة تعدّل قائمتها.</span></p>
+          <div class="chips"><span class="chip"><span data-en>Face</span><span data-ar>الوجه</span></span><span class="chip"><span data-en>Scalp</span><span data-ar>فروة الرأس</span></span><span class="chip"><span data-en>Neck</span><span data-ar>الرقبة</span></span><span class="chip"><span data-en>Chest</span><span data-ar>الصدر</span></span><span class="chip"><span data-en>Back</span><span data-ar>الظهر</span></span><span class="chip"><span data-en>Arms</span><span data-ar>الذراعان</span></span><span class="chip"><span data-en>Hands</span><span data-ar>اليدان</span></span><span class="chip"><span data-en>Underarms</span><span data-ar>تحت الإبط</span></span><span class="chip"><span data-en>Legs</span><span data-ar>الساقان</span></span><span class="chip"><span data-en>Feet</span><span data-ar>القدمان</span></span><button class="chip"><span data-en>+ Add</span><span data-ar>+ إضافة</span></button></div></section>
+        <section class="panel"><h2><span data-en>Kinds of document</span><span data-ar>أنواع المستندات</span></h2>
+          
+          <div class="co"><label class="field"><span data-en>Name in English</span><span data-ar>الاسم بالإنجليزية</span><input dir="ltr" value="Lab result"></label><label class="field"><span data-en>Name in Arabic</span><span data-ar>الاسم بالعربية</span><input dir="rtl" value="نتيجة مختبر"></label>
+            <div style="display:flex;flex-direction:column;gap:4px;font-size:13px"><label class="check"><input type="checkbox"> <span><span data-en>Secretaries can open</span><span data-ar>تفتحه السكرتيرة</span></span></label><label class="check"><input type="checkbox" checked> <span><span data-en>Needs the doctor's review</span><span data-ar>يحتاج مراجعة الطبيب</span></span></label></div></div>
+          <div class="co"><label class="field"><span data-en>Name in English</span><span data-ar>الاسم بالإنجليزية</span><input dir="ltr" value="Referral letter"></label><label class="field"><span data-en>Name in Arabic</span><span data-ar>الاسم بالعربية</span><input dir="rtl" value="رسالة تحويل"></label>
+            <div style="display:flex;flex-direction:column;gap:4px;font-size:13px"><label class="check"><input type="checkbox"> <span><span data-en>Secretaries can open</span><span data-ar>تفتحه السكرتيرة</span></span></label><label class="check"><input type="checkbox"> <span><span data-en>Needs the doctor's review</span><span data-ar>يحتاج مراجعة الطبيب</span></span></label></div></div>
+          <div class="co"><label class="field"><span data-en>Name in English</span><span data-ar>الاسم بالإنجليزية</span><input dir="ltr" value="Report"></label><label class="field"><span data-en>Name in Arabic</span><span data-ar>الاسم بالعربية</span><input dir="rtl" value="تقرير"></label>
+            <div style="display:flex;flex-direction:column;gap:4px;font-size:13px"><label class="check"><input type="checkbox"> <span><span data-en>Secretaries can open</span><span data-ar>تفتحه السكرتيرة</span></span></label><label class="check"><input type="checkbox"> <span><span data-en>Needs the doctor's review</span><span data-ar>يحتاج مراجعة الطبيب</span></span></label></div></div>
+          <div class="co"><label class="field"><span data-en>Name in English</span><span data-ar>الاسم بالإنجليزية</span><input dir="ltr" value="Insurance card"></label><label class="field"><span data-en>Name in Arabic</span><span data-ar>الاسم بالعربية</span><input dir="rtl" value="بطاقة التأمين"></label>
+            <div style="display:flex;flex-direction:column;gap:4px;font-size:13px"><label class="check"><input type="checkbox" checked> <span><span data-en>Secretaries can open</span><span data-ar>تفتحه السكرتيرة</span></span></label><label class="check"><input type="checkbox"> <span><span data-en>Needs the doctor's review</span><span data-ar>يحتاج مراجعة الطبيب</span></span></label></div></div>
+          <div class="co"><label class="field"><span data-en>Name in English</span><span data-ar>الاسم بالإنجليزية</span><input dir="ltr" value="National ID"></label><label class="field"><span data-en>Name in Arabic</span><span data-ar>الاسم بالعربية</span><input dir="rtl" value="الهوية الوطنية"></label>
+            <div style="display:flex;flex-direction:column;gap:4px;font-size:13px"><label class="check"><input type="checkbox" checked> <span><span data-en>Secretaries can open</span><span data-ar>تفتحه السكرتيرة</span></span></label><label class="check"><input type="checkbox"> <span><span data-en>Needs the doctor's review</span><span data-ar>يحتاج مراجعة الطبيب</span></span></label></div></div>
+          <div class="co"><label class="field"><span data-en>Name in English</span><span data-ar>الاسم بالإنجليزية</span><input dir="ltr" value="Consent form"></label><label class="field"><span data-en>Name in Arabic</span><span data-ar>الاسم بالعربية</span><input dir="rtl" value="نموذج موافقة"></label>
+            <div style="display:flex;flex-direction:column;gap:4px;font-size:13px"><label class="check"><input type="checkbox" checked> <span><span data-en>Secretaries can open</span><span data-ar>تفتحه السكرتيرة</span></span></label><label class="check"><input type="checkbox"> <span><span data-en>Needs the doctor's review</span><span data-ar>يحتاج مراجعة الطبيب</span></span></label></div></div>
+          <div><button class="btn btn-outline btn-sm"><span data-en>+ Add a kind</span><span data-ar>+ إضافة نوع</span></button></div></section>
+        <section class="panel"><h2><span data-en>Rules</span><span data-ar>القواعد</span></h2>
+          <label class="check"><input type="checkbox" checked> <span><span data-en>Ask for the patient's photo consent before the first photo</span><span data-ar>طلب موافقة المريض على التصوير قبل أول صورة</span></span></label>
+          <div class="dgrid">
+            <label class="field"><span data-en>Largest file (MB)</span><span data-ar>أكبر ملف (ميغابايت)</span><input class="mono" value="20"></label>
+            <label class="field"><span data-en>A document link works for (minutes)</span><span data-ar>رابط المستند يعمل لمدة (دقائق)</span><input class="mono" value="5"></label>
+            <label class="field"><span data-en>The phone code works for (minutes)</span><span data-ar>رمز الهاتف يعمل لمدة (دقائق)</span><input class="mono" value="10"></label>
+          </div></section>
+        <div><button class="btn btn-ink"><span data-en>Save</span><span data-ar>حفظ</span></button></div>
+      </div>
+    </div></div>
+  </div>
+
+  <h2 class="display s" id="s7"><span data-en>7 · Settings › Backups</span><span data-ar>٧ · الإعدادات › النسخ الاحتياطي</span></h2>
+  <div class="frame">
+<header class="bar"><div class="wrap">
+  <span class="brand"><svg width="30" height="16" viewBox="0 0 60 32" aria-hidden="true"><path d="M16 4C8 4 4 10 4 16s4 12 12 12c10 0 18-24 28-24 8 0 12 6 12 12s-4 12-12 12" fill="none" stroke="#2EE6B5" stroke-width="5" stroke-linecap="round"/></svg>Limitsiz Clinic · <span data-en>Records</span><span data-ar>السجلات الطبية</span></span>
+  <nav><a href="#" aria-current="page"><span data-en>Patients</span><span data-ar>المرضى</span></a></nav>
+  <span class="grow"></span>
+  <span class="clinic"><span data-en>Limitsiz Demo Dermatology</span><span data-ar>عيادة Limitsiz التجريبية للجلدية</span></span>
+  <a class="iconbtn on" href="#" aria-label="Settings"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></a>
+  <button class="linkbtn" type="button" onclick="flip()"><span data-en>العربية</span><span data-ar>English</span></button>
+  <div class="um"><button type="button"><span data-en>Layla Admin</span><span data-ar>ليلى المديرة</span> <span aria-hidden="true">▾</span></button></div>
+</div></header>
+    <div class="wrap page"><div class="setwrap">
+      <nav class="settabs"><button><span data-en>Chart</span><span data-ar>الملف</span></button><button><span data-en>Photos and documents</span><span data-ar>الصور والمستندات</span></button><button class="on"><span data-en>Backups</span><span data-ar>النسخ الاحتياطي</span></button></nav>
+      <div class="setbody new">
+        <div class="banner ok"><span data-en><b>Last backup: today 03:00.</b> 14 new files and the record tables, encrypted. Last restore check: Sunday, 20 files restored and matched.</span><span data-ar><b>آخر نسخة: اليوم 03:00.</b> 14 ملفاً جديداً وجداول الملف، مشفّرة. آخر فحص استعادة: الأحد، استُعيد 20 ملفاً وتطابقت.</span></div>
+        <div class="kpis"><div class="kpi"><span class="hint"><span data-en>Files kept</span><span data-ar>الملفات المحفوظة</span></span><b>903</b></div><div class="kpi"><span class="hint"><span data-en>Backup size</span><span data-ar>حجم النسخ</span></span><b>2.1 GB</b></div><div class="kpi"><span class="hint"><span data-en>Free on the VPS disk</span><span data-ar>المتاح على قرص الخادم</span></span><b>61 GB</b></div></div>
+        <section class="panel"><h2><span data-en>Last 7 nights</span><span data-ar>آخر 7 ليالٍ</span></h2>
+          <div class="tablewrap"><table class="nights"><thead><tr><th><span data-en>Night</span><span data-ar>الليلة</span></th><th><span data-en>Copied</span><span data-ar>نُسخ</span></th><th><span data-en>State</span><span data-ar>الحالة</span></th></tr></thead><tbody>
+            <tr><td><span data-en>Tue 10 Nov</span><span data-ar>الثلاثاء 10 ت2</span></td><td><span data-en>14 new files · 31 MB</span><span data-ar>14 ملفاً جديداً · 31 ميغابايت</span></td><td><span class="pill ok"><span data-en>done</span><span data-ar>تم</span></span></td></tr>
+            <tr><td><span data-en>Mon 9 Nov</span><span data-ar>الاثنين 9 ت2</span></td><td><span data-en>9 new files · 18 MB</span><span data-ar>9 ملفات جديدة · 18 ميغابايت</span></td><td><span class="pill ok"><span data-en>done</span><span data-ar>تم</span></span></td></tr>
+            <tr><td><span data-en>Sun 8 Nov</span><span data-ar>الأحد 8 ت2</span></td><td><span data-en>6 new files · restore check</span><span data-ar>6 ملفات جديدة · فحص استعادة</span></td><td><span class="pill ok"><span data-en>done · restore matched</span><span data-ar>تم · الاستعادة مطابقة</span></span></td></tr>
+            <tr><td><span data-en>Sat 7 Nov</span><span data-ar>السبت 7 ت2</span></td><td><span data-en>retried at 04:00 · 3 files</span><span data-ar>أُعيدت 04:00 · 3 ملفات</span></td><td><span class="pill warn"><span data-en>done on the retry</span><span data-ar>تم في الإعادة</span></span></td></tr>
+            <tr><td><span data-en>Fri 6 Nov</span><span data-ar>الجمعة 6 ت2</span></td><td>—</td><td><span class="pill bad"><span data-en>failed: storage not reachable · emailed</span><span data-ar>فشل: المخزن غير متاح · أُرسل بريد</span></span></td></tr>
+          </tbody></table></div></section>
+        <section class="panel"><h2><span data-en>Schedule and keeping</span><span data-ar>الجدول والاحتفاظ</span></h2>
+          <div class="dgrid">
+            <label class="field"><span data-en>Every night at</span><span data-ar>كل ليلة الساعة</span><input class="mono" value="03:00"></label>
+            <label class="field"><span data-en>Daily copies kept</span><span data-ar>النسخ اليومية المحفوظة</span><input class="mono" value="30"></label>
+            <label class="field"><span data-en>Monthly copies kept</span><span data-ar>النسخ الشهرية المحفوظة</span><input class="mono" value="12"></label>
+            <label class="field"><span data-en>Restore check every</span><span data-ar>فحص الاستعادة كل</span><select><option>Sunday / الأحد</option></select></label>
+            <label class="field"><span data-en>Email when a night fails</span><span data-ar>بريد عند فشل ليلة</span><input dir="ltr" value="alerts@clinic.example"></label>
+          </div>
+          <p class="hint"><span data-en>The times and how long copies are kept are changed by a Limitsiz administrator, since one VPS serves every clinic; the clinic administrator sees them.</span><span data-ar>الأوقات ومدة الاحتفاظ يغيّرها مدير Limitsiz، لأن خادماً واحداً يخدم كل العيادات؛ ومدير العيادة يراها.</span></p></section>
+        <section class="panel"><h2><span data-en>Backup key</span><span data-ar>مفتاح النسخ</span></h2>
+          <p><span data-en>Made on the VPS when backups were set up, and never shown on screen. You keep one printed copy in a safe place: without it, the copies can't be read, by anyone, including us.</span><span data-ar>يُولَّد على الخادم عند إعداد النسخ، ولا يُعرض على الشاشة أبداً. تحتفظ بنسخة مطبوعة واحدة في مكان آمن: بدونها لا يمكن لأحد قراءة النسخ، ولا نحن.</span></p>
+          <p class="hint"><span data-en>Key fingerprint (to check the printed copy): <span class="mono">age1q3…7k2f</span></span><span data-ar>بصمة المفتاح (للتحقق من النسخة المطبوعة): <span class="mono">age1q3…7k2f</span></span></p></section>
+      </div>
+    </div></div>
+  </div>
+
+  <section class="panel" id="s8">
+    <h2><span data-en>8 · How the files are kept safe</span><span data-ar>٨ · كيف تُحفظ الملفات بأمان</span></h2>
+    <ul>
+      <li><span data-en><b>One private bucket</b> in the same Supabase project, encrypted at rest. No public links: browsers never talk to the bucket on their own. Records checks who is asking, then hands out a link that works for a few minutes.</span><span data-ar><b>مخزن خاص واحد</b> في مشروع Supabase نفسه، مشفّر أثناء التخزين. لا روابط عامة: المتصفح لا يصل إلى المخزن وحده. تتحقق «السجلات الطبية» ممن يطلب، ثم تعطي رابطاً يعمل دقائق.</span></li>
+      <li><span data-en><b>Each clinic in its own folder</b>, and the database checks the clinic on every file. Files are named by number, never by the patient's name.</span><span data-ar><b>لكل عيادة مجلدها</b>، وتتحقق قاعدة البيانات من العيادة لكل ملف. وتُسمّى الملفات بأرقام، لا باسم المريض أبداً.</span></li>
+      <li><span data-en><b>Only PDF, JPG and PNG</b>, checked by their content, not just the name. Photos lose their location data. Size limit from Settings.</span><span data-ar><b>PDF وJPG وPNG فقط</b>، يُفحص المحتوى لا الاسم فقط. وتُزال بيانات الموقع من الصور. والحد الأقصى من الإعدادات.</span></li>
+      <li><span data-en><b>Every opening is recorded</b> (who, which file, when) and shows in “Who opened this record”. The audit trail holds the kind of file and the action, never the file itself.</span><span data-ar><b>كل فتح يُسجَّل</b> (من، وأي ملف، ومتى) ويظهر في «من فتح هذا الملف». وسجل التدقيق يحفظ نوع الملف والإجراء، لا الملف نفسه.</span></li>
+      <li><span data-en><b>Never deleted</b>: entered in error with a reason, like the chart. Booking cannot read any file.</span><span data-ar><b>لا يُحذف شيء</b>: يُعلَّم كمُدخل خطأً مع السبب، مثل الملف. و«المواعيد» لا تقرأ أي ملف.</span></li>
+      <li><span data-en><b>The nightly copy</b> on the VPS: new and changed files plus a dump of the record tables, each encrypted with the backup key; kept 30 days and 12 months; a weekly restore check; an email when a night fails or is missed; it stops before the disk fills.</span><span data-ar><b>النسخة الليلية</b> على الخادم: الملفات الجديدة والمتغيرة ونسخة من جداول الملف، كلٌ مشفّر بمفتاح النسخ؛ تُحفظ 30 يوماً و12 شهراً؛ فحص استعادة أسبوعي؛ بريد عند فشل ليلة أو تفويتها؛ وتتوقف قبل امتلاء القرص.</span></li>
+    </ul>
+  </section>
+
+  <section class="panel" id="s9">
+    <h2><span data-en>9 · Server setup (each step only with your go-ahead)</span><span data-ar>٩ · إعداد الخادم (كل خطوة بموافقتك فقط)</span></h2>
+    <ul>
+      <li><span data-en>A migration adds the photo and document tables, the settings, and the private bucket. It is applied live before the code, as before.</span><span data-ar>ترحيل يضيف جداول الصور والمستندات والإعدادات والمخزن الخاص. يُطبَّق على الخادم قبل الكود، كما سابقاً.</span></li>
+      <li><span data-en>Records needs the project's <b>service key</b> to reach the bucket. You paste it on the VPS when a setup script asks; it is never shown, sent or committed.</span><span data-ar>تحتاج «السجلات الطبية» <b>مفتاح الخدمة</b> للمشروع للوصول إلى المخزن. تلصقه على الخادم عندما يطلبه سكربت الإعداد؛ لا يُعرض ولا يُرسل ولا يُحفظ في المستودع.</span></li>
+      <li><span data-en>The same script makes the backup folder and the backup key on the VPS, starts the nightly job, runs a first backup and a restore check, and tells you how to print the key.</span><span data-ar>السكربت نفسه ينشئ مجلد النسخ ومفتاح النسخ على الخادم، ويبدأ المهمة الليلية، ويشغّل أول نسخة وفحص استعادة، ويخبرك كيف تطبع المفتاح.</span></li>
+      <li><span data-en>Nginx: uploads up to the size limit pass through to Records. Nothing else on the server changes.</span><span data-ar>Nginx: الرفع حتى الحد الأقصى يمرّ إلى «السجلات الطبية». لا شيء آخر يتغير على الخادم.</span></li>
+    </ul>
+  </section>
+</main>
+<script>
+function flip(){var h=document.documentElement,ar=h.lang==="en";h.lang=ar?"ar":"en";h.dir=ar?"rtl":"ltr";try{localStorage.setItem("lc_design_lang",h.lang)}catch(e){}}
+try{if(localStorage.getItem("lc_design_lang")==="ar")flip()}catch(e){}
+</script>
+</body>
+</html>

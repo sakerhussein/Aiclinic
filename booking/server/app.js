@@ -105,7 +105,12 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
 
   // ---------------------------------------------------------------- lookups and free times
   app.get("/api/lookups", auth("booking.appointments.view"), wrap(async (req, res) => res.json(await svc.lookups(req.ctx))));
-  app.get("/api/time-off", auth("booking.appointments.view"), wrap(async (req, res) => res.json(await svc.timeOffOn(req.ctx, parse(z.object({ date: day }), req.query).date))));
+  app.get("/api/time-off", auth("booking.appointments.view"), wrap(async (req, res) => {
+    const q = parse(z.object({ date: day, to: day.optional() }), req.query);
+    if (q.to && (q.to < q.date || Date.parse(q.to) - Date.parse(q.date) > 31 * 86400000)) throw new HttpError(400, "invalid_input");
+    res.json(await svc.timeOffOn(req.ctx, q.date, q.to ?? q.date));
+  }));
+  app.get("/api/today-line", auth("booking.appointments.view"), wrap(async (req, res) => res.json(await svc.todayLine(req.ctx))));
   app.get("/api/slots", auth("booking.appointments.view"), wrap(async (req, res) => {
     const q = parse(z.object({ service: uuid, doctor: uuid.optional(), date: day, days: z.coerce.number().int().min(1).max(31).optional() }), req.query);
     res.json(await svc.slots(req.ctx, { serviceId: q.service, doctorId: req.ctx.onlyDoctor ?? q.doctor, from: q.date, days: q.days }));
@@ -164,6 +169,7 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
   // ---------------------------------------------------------------- patients
   app.get("/api/patients", auth("booking.patients.view"), wrap(async (req, res) => res.json(await svc.searchPatients(req.ctx, String(req.query.q ?? "").slice(0, 80)))));
   app.get("/api/patients/:id", auth("booking.patients.view"), wrap(async (req, res) => res.json(await svc.getPatient(req.ctx, parse(uuid, req.params.id)))));
+  app.get("/api/patients/:id/insurance", auth("booking.patients.view"), wrap(async (req, res) => res.json(await svc.insurance(req.ctx, parse(uuid, req.params.id)))));
   app.post("/api/patients", auth("booking.patients.edit"), wrap(async (req, res) => {
     if (req.ctx.onlyDoctor) throw denied("own_bookings_only");       // a doctor's patient comes with a booking, or they could not see it afterwards
     res.status(201).json(await svc.createPatient(req.ctx, parse(newPatient, req.body)));

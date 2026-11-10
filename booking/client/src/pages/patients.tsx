@@ -6,6 +6,7 @@ import { useI18n } from "../i18n";
 import { useApp } from "../session";
 import { Banner, ExportButton, Field, SendLinkButton, StatusPill, useAction } from "../ui";
 import { fill, useN } from "./notes-text";
+import { InsuranceLine } from "../insurance";
 
 type NoteRow = { id: string; appointment_id: string; kind: string; status: string; ai_drafted: boolean; starts_at: string; additions: number;
   doctor_name_en: string; doctor_name_ar: string; service_name_en: string; service_name_ar: string };
@@ -28,7 +29,7 @@ function PatientNotes({ id }: { id: string }) {
           <thead><tr><th>{n.date}</th><th>{n.doctor}</th><th>{n.visit}</th><th>{n.note}</th></tr></thead>
           <tbody>{rows.map((r) => (
             <tr key={r.id}>
-              <td>{can("booking.notes.read") ? <Link to={`/bookings/${r.appointment_id}/note`}>{fmtDateTime(r.starts_at, look.clinic.timezone, lang)}</Link> : fmtDateTime(r.starts_at, look.clinic.timezone, lang)}</td>
+              <td>{can("booking.notes.read") ? <Link to={`/bookings/${r.appointment_id}/note`} state={{ from: `/patients/${id}` }}>{fmtDateTime(r.starts_at, look.clinic.timezone, lang)}</Link> : fmtDateTime(r.starts_at, look.clinic.timezone, lang)}</td>
               <td>{lang === "ar" ? r.doctor_name_ar : r.doctor_name_en}</td>
               <td>{lang === "ar" ? r.service_name_ar : r.service_name_en}</td>
               <td><span className={`pill ${r.status === "signed" ? (r.ai_drafted ? "ok" : "") : r.status === "failed" ? "bad" : "warn"}`}>{state(r)}</span>
@@ -86,6 +87,7 @@ export function PatientPage() {
   return (
     <main className="wrap page">
       <div className="row between"><h1 className="display">{isNew ? t("newPatientTitle") : t("editPatient")}</h1>{records && <a className="btn btn-outline btn-sm" href={records}>{t("openInRecords")}</a>}</div>
+      {!isNew && id && <InsuranceLine patientId={id} as="line" />}
       <form className="panel stack" onSubmit={a.submit(async () => {
         const body = { fullName: f.fullName, phone: f.phone || null, language: f.language, whatsappReminders: f.whatsappReminders };
         if (isNew) { const p = await post<Patient>("/api/patients", body); nav(`/patients/${p.id}`); } else { await patch(`/api/patients/${id}`, body); setSaved(true); load(); }
@@ -100,9 +102,9 @@ export function PatientPage() {
       </form>
       {!isNew && (
         <section className="panel">
-          <div className="row between"><h2>{t("patientBookings")}</h2><div className="row"><SendLinkButton phone={f.phone} language={f.language} />{can("booking.appointments.create") && <Link className="btn btn-outline btn-sm" to={`/new?patient=${id}`}>{t("newBooking")}</Link>}</div></div>
+          <div className="row between"><h2>{t("patientBookings")}</h2><div className="row"><SendLinkButton phone={f.phone} language={f.language} />{can("booking.appointments.create") && <Link className="btn btn-outline btn-sm" to={`/new?patient=${id}`} state={{ from: `/patients/${id}` }}>{t("newBooking")}</Link>}</div></div>
           <div className="tablewrap"><table><tbody>{appts.map((x) => (
-            <tr key={x.id}><td><Link to={`/bookings/${x.id}`}>{fmtDateTime(x.starts_at, look.clinic.timezone, lang)}</Link></td>
+            <tr key={x.id}><td><Link to={`/bookings/${x.id}`} state={{ from: `/patients/${id}` }}>{fmtDateTime(x.starts_at, look.clinic.timezone, lang)}</Link></td>
               <td>{lang === "ar" ? x.service_name_ar : x.service_name_en}</td><td>{lang === "ar" ? x.doctor_name_ar : x.doctor_name_en}</td>
               <td>{d.sources[x.source] ?? x.source}</td><td><StatusPill status={x.status} /></td></tr>))}</tbody></table></div>
         </section>

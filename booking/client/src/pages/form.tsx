@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { get, patch, post, type Appt, type Patient } from "../api";
-import { dayOf, fmtDateTime, hm, localToIso, todayIn } from "../lib";
+import { backTo, dayOf, fmtDateTime, hm, localToIso, todayIn } from "../lib";
 import { useI18n } from "../i18n";
 import { useApp } from "../session";
 import { Banner, Field, useAction } from "../ui";
@@ -15,6 +15,7 @@ export function BookingForm() {
   const tz = look.clinic.timezone;
   const nav = useNavigate();
   const { id } = useParams();
+  const { state } = useLocation();                      // where the booking was opened from: handed on, so its "Back" returns there
   const [q] = useSearchParams();
   const editing = !!id;
   const [orig, setOrig] = useState<Appt | null>(null);
@@ -39,7 +40,7 @@ export function BookingForm() {
     get<Appt>(`/api/appointments/${id}`).then((x) => {
       setOrig(x); setServiceId(x.service_id); setDoctorId(x.doctor_id); setDate(dayOf(x.starts_at, tz)); setStartsAt(x.starts_at);
       setNote(x.internal_note || ""); setPatient({ id: x.patient_id, full_name: x.patient_name, phone_e164: x.patient_phone, preferred_language: null, whatsapp_reminders: x.whatsapp_reminders });
-    }).catch(() => nav(`/bookings/${id}`, { replace: true }));     // the booking page says it is not available
+    }).catch(() => nav(`/bookings/${id}`, { replace: true, state }));     // the booking page says it is not available
   }, [id, tz]);                                                    // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -71,14 +72,14 @@ export function BookingForm() {
     if (editing && orig) {
       const r = await patch<Appt>(`/api/appointments/${orig.id}`, { expectedVersion: orig.row_version, serviceId, doctorId: doctorId === "any" ? undefined : doctorId,
         startsAt: chosen, internalNote: note || null, override: isOther });
-      nav(`/bookings/${r.id}`);
+      nav(`/bookings/${r.id}`, { state });
     } else {
       const body: Record<string, unknown> = { serviceId, doctorId, startsAt: chosen, source, internalNote: note || null, override: isOther, allowOverLimit };
       if (existingPatient) body.patientId = existingPatient;
       else if (isNew) body.newPatient = { fullName: np.fullName, phone: np.phone || null, language: np.language, whatsappReminders: np.whatsappReminders };
       else body.patientId = patient!.id;
       const r = await post<Appt>("/api/appointments", body);
-      setDone(r.id); nav(`/bookings/${r.id}`);
+      setDone(r.id); nav(`/bookings/${r.id}`, { state });
     }
   }
   const conflict = a.err?.code === "version_conflict";
@@ -151,7 +152,7 @@ export function BookingForm() {
             {a.err.code === "patient_exists" && !!a.err.data.patientId && <> <button type="button" className="link" onClick={() => void a.run(() => save(false, String(a.err?.data.patientId)))}>{t("bookThisPatient")}</button></>}</Banner>}
           <div className="row">
             <button className="btn btn-accent" disabled={a.busy || !ready || !!done}>{editing ? t("save") : isOther ? t("confirmOther") : t("create")}</button>
-            <Link className="btn btn-outline" to={editing ? `/bookings/${id}` : "/"}>{t("cancel")}</Link>
+            <Link className="btn btn-outline" to={editing ? `/bookings/${id}` : backTo(state, "/")} state={editing ? state : undefined}>{t("cancel")}</Link>
           </div>
           {!chosen && serviceId && <p className="hint">{t("chooseTime")}</p>}
         </div>

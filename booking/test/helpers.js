@@ -109,6 +109,7 @@ export async function setup() {
   async function reset() { agent.next = []; agent.calls = []; agent.down = false; drafter.fail = null; drafter.calls = []; tidier.fail = null; tidier.calls = [];
     for (const d of fs.readdirSync(audioDir)) fs.rmSync(path.join(audioDir, d), { recursive: true, force: true });
     await a.owner.query(`delete from web_callbacks; delete from web_chats; delete from appointments; delete from patients; delete from time_off; delete from clinic_hours;
+      delete from insurance_companies; update record_settings set insurance_in_booking = true;
       update doctors set slot_minutes = null, buffer_minutes = 0, active = true, scribe_enabled = false;
       update scribe_settings set enabled = false, note_language = 'en', max_recording_minutes = 45, transcript_keep_days = 30, notes_per_doctor_per_day = 40,
         speech_service = 'stand_in', draft_model = 'claude-opus-5-5', dictation_enabled = false, dictation_model = 'claude-haiku-5-5',

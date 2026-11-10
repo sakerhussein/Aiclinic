@@ -57,12 +57,35 @@ export function createService({ pool, auditPool, now = () => new Date(), audioDi
   }
 
   // Closures and leave touching one local day, for the calendar.
-  async function timeOffOn(ctx, day) {
+  // Closures and leave touching the days from `day` to `to` (one day, or a week for the week view).
+  async function timeOffOn(ctx, day, to = day) {
     const { rows } = await pool.query(
       `select o.id, o.doctor_id, o.starts_at, o.ends_at, o.reason from time_off o join clinics c on c.id = o.clinic_id
-        where o.clinic_id = $1 and o.starts_at < (($2::date + 1)::timestamp at time zone c.timezone) and o.ends_at > ($2::date::timestamp at time zone c.timezone)
-          and ($3::uuid is null or o.doctor_id is null or o.doctor_id = $3)`, [ctx.clinicId, day, ctx.onlyDoctor ?? null]);
+        where o.clinic_id = $1 and o.starts_at < (($4::date + 1)::timestamp at time zone c.timezone) and o.ends_at > ($2::date::timestamp at time zone c.timezone)
+          and ($3::uuid is null or o.doctor_id is null or o.doctor_id = $3)`, [ctx.clinicId, day, ctx.onlyDoctor ?? null, to]);
     return rows;
+  }
+
+  // The calendar's "today" line: today's counts (a doctor's own, or the clinic's) and the next free time today.
+  async function todayLine(ctx) {
+    const clinic = await clinicRow(pool, ctx);
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: clinic.timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(now());
+    const c = await one(pool,
+      `select count(*) filter (where a.status not in ('cancelled', 'voided'))::int as booked,
+              count(*) filter (where a.status in ('booked', 'confirmed') and ((a.needs_check and a.checked_at is null) or a.moved_online_at is not null and a.status = 'booked'))::int as not_checked,
+              count(*) filter (where a.status = 'completed')::int as completed,
+              count(*) filter (where a.status = 'no_show')::int as no_show
+         from appointments a join clinics c on c.id = a.clinic_id
+        where a.clinic_id = $1 and (a.starts_at at time zone c.timezone)::date = $2::date and ($3::uuid is null or a.doctor_id = $3)`,
+      [ctx.clinicId, today, ctx.onlyDoctor ?? null]);
+    // The next free time: the earliest start left today for the clinic's shortest service.
+    const shortest = await one(pool, "select id from services where clinic_id = $1 and active order by duration_minutes, sort limit 1", [ctx.clinicId]);
+    let nextFree = null;
+    if (shortest) {
+      const free = await slots(ctx, { serviceId: shortest.id, doctorId: ctx.onlyDoctor ?? undefined, from: today }).catch(() => []);
+      nextFree = free.find((s) => Date.parse(s.startsAt) > now().getTime())?.startsAt ?? null;
+    }
+    return { date: today, booked: c.booked, notChecked: c.not_checked, completed: c.completed, noShow: c.no_show, nextFree };
   }
 
   // The rules for staff, from Settings -> Booking rules (the WhatsApp assistant reads the "patient" row).
@@ -177,6 +200,18 @@ export function createService({ pool, auditPool, now = () => new Date(), audioDi
       select 1 from appointments a where a.clinic_id = p.clinic_id and a.patient_id = p.id and a.doctor_id = $3 and a.status <> 'voided'))`, [ctx.clinicId, id, ctx.onlyDoctor ?? null]);
     if (!r) throw notFound("patient_not_found");
     return r;
+  }
+  // The insurance line from Records (Settings › Chart › "Show the insurance line in Booking"), with the company's card.
+  // null: the clinic switched the line off, or Records has nothing for this patient yet. Only these columns are readable here.
+  async function insurance(ctx, id) {
+    await visiblePatient(pool, ctx, id);
+    const s = await one(pool, "select insurance_in_booking from record_settings where clinic_id = $1", [ctx.clinicId]);
+    if (!s?.insurance_in_booking) return { on: false, status: null };
+    const d = await one(pool, "select insurance_status, insurance_company_id, insurance from patient_details where clinic_id = $1 and patient_id = $2", [ctx.clinicId, id]);
+    const company = d?.insurance_company_id ? await one(pool,
+      `select id, name_en, name_ar, phone, email, address, contact_name, contact_title, contact_phone, contact_email, notes, hidden
+         from insurance_companies where clinic_id = $1 and id = $2`, [ctx.clinicId, d.insurance_company_id]) : null;
+    return { on: true, status: d?.insurance_status ?? "unknown", company: company ?? null, other: d?.insurance ?? null };
   }
   async function createPatient(ctx, b, c) {
     const phone = b.phone ? normalizePhone(b.phone) : null;
@@ -416,5 +451,5 @@ export function createService({ pool, auditPool, now = () => new Date(), audioDi
   const exportBookings = (ctx, q, lang) => exportFile(ctx, "bookings", (n) => listAppointments(ctx, q, n), bookingsFile, q, lang);
   const exportPatients = (ctx, q, lang) => exportFile(ctx, "patients", (n) => searchPatients(ctx, q, n), patientsFile, q ? { q } : {}, lang);
   return { settings, audit, notes, lookups, timeOffOn, slots, listAppointments, getAppointment, history, createAppointment, updateAppointment, setStatus, restore, markChecked, onlineLink,
-           searchPatients, exportBookings, exportPatients, getPatient, createPatient: (ctx, b) => createPatient(ctx, b), updatePatient, tx };
+           searchPatients, exportBookings, exportPatients, getPatient, insurance, todayLine, createPatient: (ctx, b) => createPatient(ctx, b), updatePatient, tx };
 }

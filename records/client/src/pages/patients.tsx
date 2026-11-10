@@ -15,6 +15,7 @@ export function Today() {
   return (
     <main className="wrap page">
       <h1 className="display">{t("today")}</h1>
+      {!!rows?.some((r) => r.to_review) && <div className="banner warn">{t("toReview", { n: [...new Map(rows.map((r) => [r.patient_id, r.to_review])).values()].reduce((s, n) => s + n, 0) })}</div>}
       <section className="panel">
         {rows && !rows.length ? <p className="hint">{me.doctorId ? t("noToday") : t("noTodayAll")}</p> : (
           <div className="tablewrap"><table>
@@ -28,7 +29,7 @@ export function Today() {
                   <td className="mono">{r.file_no || "—"}</td>
                   <td>{lang === "ar" ? r.service_ar : r.service_en} <span className="hint">· {d.statuses[r.status] ?? r.status}</span></td>
                   {!me.doctorId && <td>{lang === "ar" ? r.doctor_ar : r.doctor_en}</td>}
-                  <td>{r.alerts ? <span className="pill bad">{r.alerts}</span> : "—"}</td>
+                  <td>{r.alerts ? <span className="pill bad">{r.alerts}</span> : "—"}{r.to_review > 0 && <> <Link to={`/patients/${r.patient_id}?tab=doc`} className="pill warn">{t("toReview", { n: r.to_review })}</Link></>}</td>
                 </tr>
               );
             })}</tbody>

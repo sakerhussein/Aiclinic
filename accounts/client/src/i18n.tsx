@@ -61,8 +61,8 @@ const EN = {
   resetDoneN: "Two-step reset for {name}. {n} session(s) ended.",
   leftPill: "{n} code(s) left",
   roles: { clinic_admin: "Clinic administrator", secretary: "Secretary", doctor: "Doctor", readonly: "Read-only", platform_admin: "Limitsiz administrator" } as Record<string, string>,
-  apps: { booking: "Booking" } as Record<string, string>,
-  appDesc: { booking: "Appointments, patients, and the WhatsApp assistant." } as Record<string, string>,
+  apps: { booking: "Booking", records: "Records" } as Record<string, string>,
+  appDesc: { booking: "Appointments, patients, and the WhatsApp assistant.", records: "The patient's file: details, allergies, medicines, and history." } as Record<string, string>,
   footer: "Limitsiz",
   errors: {
     invalid_credentials: "The email or password is not right, or the account is locked for a few minutes.",
@@ -145,8 +145,8 @@ const AR: typeof EN = {
   resetDoneN: "أُعيد ضبط التحقق لـ {name}. تم إنهاء {n} جلسة.",
   leftPill: "رموز متبقية: {n}",
   roles: { clinic_admin: "مدير العيادة", secretary: "سكرتيرة", doctor: "طبيب", readonly: "قراءة فقط", platform_admin: "مدير Limitsiz" },
-  apps: { booking: "المواعيد" },
-  appDesc: { booking: "المواعيد والمرضى ومساعد واتساب." },
+  apps: { booking: "المواعيد", records: "السجلات الطبية" },
+  appDesc: { booking: "المواعيد والمرضى ومساعد واتساب.", records: "ملف المريض: البيانات والحساسية والأدوية والتاريخ المرضي." },
   footer: "Limitsiz",
   errors: {
     invalid_credentials: "البريد الإلكتروني أو كلمة المرور غير صحيحة، أو الحساب مقفل لبضع دقائق.",

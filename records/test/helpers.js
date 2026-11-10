@@ -5,6 +5,13 @@ import { setup as accountsSetup, GOOD } from "../../accounts/test/helpers.js";
 import { sha256 } from "../../accounts/server/crypto.js";
 import { createService } from "../server/service.js";
 import { createApp } from "../server/app.js";
+import { createStorage } from "../server/storage.js";
+import { createFiles } from "../server/files.js";
+import { createBackups } from "../server/backup.js";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import crypto from "node:crypto";
 
 export { GOOD };
 const SECRET = "r".repeat(40);
@@ -17,8 +24,19 @@ export async function setup() {
   const bookingPool = new pg.Pool({ connectionString: url("booking_app"), max: 2 });
   const config = { siteUrl: "", origin: "", accountsUrl: a.base, accountsInternalUrl: a.base, bookingUrl: "http://booking.test", clientSecret: SECRET,
                    secureCookies: false, sessionCookie: "lc_records", stateCookie: "lc_rstate", trustProxy: "false" };
-  const svc = createService({ pool, now: () => new Date(a.clock.t) });
-  const app = createApp({ svc, config });
+  const now = () => new Date(a.clock.t);
+  const svc = createService({ pool, now });
+  // Files in a temporary folder; backups to another, with a test key; emails collected instead of sent.
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "records-test-"));
+  config.storage = { kind: "disk", dir: path.join(tmp, "files") };
+  config.backup = { dir: path.join(tmp, "backup"), keyFile: path.join(tmp, "backup.key") };
+  fs.mkdirSync(config.backup.dir, { recursive: true });
+  fs.writeFileSync(config.backup.keyFile, crypto.randomBytes(32));
+  const storage = createStorage(config.storage);
+  const mails = [];
+  const files = createFiles({ pool, svc, storage, secret: SECRET, siteUrl: "", now });
+  const backups = createBackups({ pool, storage, config, now, log: () => {}, sendMail: async (to, subject, text) => { mails.push({ to, subject, text }); return true; } });
+  const app = createApp({ svc, config, files, backups });
   const server = await new Promise((r) => { const s = app.listen(0, "127.0.0.1", () => r(s)); });
   const base = `http://127.0.0.1:${server.address().port}`;
   config.siteUrl = base; config.origin = base;
@@ -82,11 +100,15 @@ export async function setup() {
 
   async function reset() {
     await a.owner.query(`delete from record_openings; delete from chart_answers; delete from chart_entries; delete from patient_details;
-      delete from visit_notes; delete from appointments; delete from patients;
+      delete from phone_captures; delete from record_files; delete from backup_runs; delete from insurance_companies; delete from visit_notes; delete from appointments; delete from patients;
       update record_settings set doctors_scope = 'all', show_allergies = true, show_medicines = true, show_conditions = true, show_procedures = true,
-        show_family = false, specialty_fields = default, file_numbers = 'auto', next_file_no = 1, file_no_digits = 5, required_details = '{}';`);
+        show_family = false, specialty_fields = default, file_numbers = 'auto', next_file_no = 1, file_no_digits = 5, required_details = '{}',
+        insurance_in_booking = true, insurance_required = false, photo_areas = default, doc_kinds = default, relations = default,
+        photo_consent_required = true, max_file_mb = 20, link_minutes = 5, phone_minutes = 10;
+      update backup_settings set run_at = '03:00', timezone = 'Asia/Amman', keep_daily = 30, keep_monthly = 12, restore_weekday = 0, alert_emails = 'owner@example.jo';`);
+    mails.length = 0;
     await a.reset();
   }
-  return { ...a, reset, base, login, people, patient, booking, pool, bookingPool, jar,
-    async close() { server.close(); await pool.end(); await bookingPool.end(); await a.close(); } };
+  return { ...a, reset, base, login, people, patient, booking, pool, bookingPool, jar, files, backups, storage, mails, tmp, config,
+    async close() { server.close(); backups.stop(); await pool.end(); await bookingPool.end(); await a.close(); fs.rmSync(tmp, { recursive: true, force: true }); } };
 }

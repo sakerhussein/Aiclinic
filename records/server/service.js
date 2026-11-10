@@ -4,6 +4,8 @@
 //   ctx.canDetails  the patient's details (date of birth, file number, insurance…): doctors, secretaries, administrators
 //   ctx.canChart    the chart itself (allergies, medicines, conditions, timeline): doctors only
 //   Settings › Chart › "Which doctors can open a chart": all of the clinic's patients, or only those booked with them.
+// Insurance: an answer (not asked yet / no insurance / insured) and, when insured, a company from the clinic's own list (or a name
+// typed by staff when it is not on the list). Companies are hidden, never deleted.
 // Every opening of a patient's record is written down (record_openings, and the audit trail).
 import { HttpError, bad, notFound } from "./http.js";
 
@@ -11,7 +13,12 @@ export const KINDS = ["allergy", "medicine", "condition", "procedure", "family"]
 const SHOW = { allergy: "show_allergies", medicine: "show_medicines", condition: "show_conditions", procedure: "show_procedures", family: "show_family" };
 const DETAIL_FIELDS = ["birth_date", "sex", "national_id", "emergency_contact"];
 // Dates of birth go out as "YYYY-MM-DD": as a timestamp they would shift a day with the time zone.
-const DETAILS = "patient_id, clinic_id, file_no, birth_date::text as birth_date, sex, national_id, insurance, emergency_contact, updated_at, updated_by_name, row_version";
+const DETAILS = `patient_id, clinic_id, file_no, birth_date::text as birth_date, sex, national_id, insurance, insurance_status, insurance_company_id,
+  emergency_name, emergency_relation, emergency_phone, updated_at, updated_by_name, row_version`;
+// A company's card, as staff see it (the patient's insurer).
+const CARD = "id, name_en, name_ar, phone, email, address, contact_name, contact_title, contact_phone, contact_email, notes, hidden";
+const COMPANY_FIELDS = ["name_en", "name_ar", "phone", "email", "address", "contact_name", "contact_title", "contact_phone", "contact_email", "notes"];
+const camel = (k) => k.replace(/_([a-z])/g, (_, x) => x.toUpperCase());
 
 export function createService({ pool, now = () => new Date() }) {
   async function tx(ctx, fn) {
@@ -26,6 +33,7 @@ export function createService({ pool, now = () => new Date() }) {
     } catch (e) {
       await c.query("rollback").catch(() => {});
       if (e.code === "23505" && /file_no/.test(e.constraint || e.message)) throw bad("file_no_taken");
+      if (e.code === "23505" && /insurance_companies_name/.test(e.constraint || e.message)) throw bad("company_exists");
       throw e;
     } finally { c.release(); }
   }
@@ -41,6 +49,9 @@ export function createService({ pool, now = () => new Date() }) {
   const publicSettings = (s) => ({
     doctorsScope: s.doctors_scope, show: Object.fromEntries(KINDS.map((k) => [k, s[SHOW[k]]])), specialtyFields: s.specialty_fields,
     fileNumbers: s.file_numbers, nextFileNo: s.next_file_no, fileNoDigits: s.file_no_digits, requiredDetails: s.required_details,
+    insuranceInBooking: s.insurance_in_booking, insuranceRequired: s.insurance_required,
+    relations: s.relations, photoAreas: s.photo_areas, docKinds: s.doc_kinds, photoConsentRequired: s.photo_consent_required,
+    maxFileMb: s.max_file_mb, linkMinutes: s.link_minutes, phoneMinutes: s.phone_minutes,
   });
 
   async function lookups(ctx) {
@@ -88,7 +99,11 @@ export function createService({ pool, now = () => new Date() }) {
       `select a.id, a.starts_at, a.status, a.patient_id, a.doctor_id, p.full_name, pd.file_no, pd.birth_date::text as birth_date, pd.sex,
               s.name_en as service_en, s.name_ar as service_ar, d.name_en as doctor_en, d.name_ar as doctor_ar,
               (select count(*)::int from chart_entries e where e.clinic_id = a.clinic_id and e.patient_id = a.patient_id and e.error_at is null
-                  and e.status = 'active' and (e.kind = 'allergy' or e.alert)) as alerts
+                  and e.status = 'active' and (e.kind = 'allergy' or e.alert)) as alerts,
+              -- results added by someone else that wait for the doctor's review
+              (select count(*)::int from record_files f join record_settings rs on rs.clinic_id = f.clinic_id
+                where f.clinic_id = a.clinic_id and f.patient_id = a.patient_id and f.kind = 'document' and f.reviewed_at is null and f.error_at is null
+                  and exists (select 1 from jsonb_array_elements(rs.doc_kinds) k where k ->> 'key' = f.doc_kind and (k ->> 'review')::boolean)) as to_review
          from appointments a join clinics c on c.id = a.clinic_id join patients p on p.id = a.patient_id
          join services s on s.id = a.service_id join doctors d on d.id = a.doctor_id
          left join patient_details pd on pd.patient_id = a.patient_id
@@ -114,6 +129,18 @@ export function createService({ pool, now = () => new Date() }) {
       items.push({ type: "entry", at: e.created_at, id: e.id, kind: e.kind, title: e.title, by: e.created_by_name, source: e.source });
       if (e.error_at) items.push({ type: "error", at: e.error_at, id: e.id, kind: e.kind, title: e.title, by: e.error_by_name, reason: e.error_reason });
     }
+    // Photos and documents: photos of one area on one day are one line; each document is its own.
+    const files = (await c.query(
+      `select f.id, f.kind, f.area_key, f.doc_kind, f.title, f.created_at, f.created_by_name, (f.created_at at time zone cl.timezone)::date::text as local_day
+         from record_files f join clinics cl on cl.id = f.clinic_id where f.clinic_id = $1 and f.patient_id = $2 and f.error_at is null order by created_at`,
+      [ctx.clinicId, patientId])).rows;
+    const groups = new Map();
+    for (const f of files) {
+      if (f.kind === "document") { items.push({ type: "document", at: f.created_at, id: f.id, docKind: f.doc_kind, title: f.title, by: f.created_by_name }); continue; }
+      const g = groups.get(`${f.local_day}|${f.area_key}`);
+      if (g) g.count += 1; else groups.set(`${f.local_day}|${f.area_key}`, { type: "photos", at: f.created_at, id: f.id, area: f.area_key, count: 1, by: f.created_by_name });
+    }
+    items.push(...groups.values());
     return items.sort((a, b) => new Date(b.at) - new Date(a.at));
   }
 
@@ -124,7 +151,11 @@ export function createService({ pool, now = () => new Date() }) {
       const details = (await one(c, `select ${DETAILS} from patient_details where clinic_id = $1 and patient_id = $2`, [ctx.clinicId, patientId])) || null;
       await c.query("insert into record_openings (clinic_id, patient_id, user_id, user_name, role, opened_at) values ($1,$2,$3,$4,$5,$6)",
         [ctx.clinicId, patientId, ctx.user.id, ctx.user.name, ctx.role ?? null, now()]);
-      const out = { patient, details, settings: publicSettings(s), chart: null };
+      // The clinic's companies for the Details form (hidden ones too: a patient may still have one), and the patient's company card.
+      const companies = (await c.query("select id, name_en, name_ar, hidden from insurance_companies where clinic_id = $1 order by lower(name_en)", [ctx.clinicId])).rows;
+      const insurer = details?.insurance_company_id
+        ? (await one(c, `select ${CARD} from insurance_companies where clinic_id = $1 and id = $2`, [ctx.clinicId, details.insurance_company_id])) || null : null;
+      const out = { patient, details, settings: publicSettings(s), companies, insurer, chart: null };
       if (ctx.canChart) {
         const entries = (await c.query("select * from chart_entries where clinic_id = $1 and patient_id = $2 order by created_at", [ctx.clinicId, patientId])).rows;
         const answers = (await c.query("select field_key, value, updated_at, updated_by_name from chart_answers where clinic_id = $1 and patient_id = $2", [ctx.clinicId, patientId])).rows;
@@ -157,23 +188,47 @@ export function createService({ pool, now = () => new Date() }) {
       const s = await settingsRow(c, ctx.clinicId);
       await allowedPatient(c, ctx, patientId, s);
       const v = { birth_date: b.birthDate ?? null, sex: b.sex ?? null, national_id: b.nationalId?.trim() || null,
-                  insurance: b.insurance?.trim() || null, emergency_contact: b.emergencyContact?.trim() || null };
+                  insurance: b.insurance?.trim() || null, emergency_name: b.emergencyName?.trim() || null,
+                  emergency_relation: b.emergencyRelation || null, emergency_phone: b.emergencyPhone?.trim() || null };
+      // The emergency contact is complete with a name and a phone; the relationship comes from the clinic's list.
+      v.emergency_contact = v.emergency_name && v.emergency_phone ? "yes" : null;
+      if (v.emergency_relation && !s.relations.some((r) => r.key === v.emergency_relation)) throw bad("invalid_value");
       for (const f of s.required_details) if (DETAIL_FIELDS.includes(f) && !v[f]) throw bad("details_required", { field: f });
       if (v.birth_date && new Date(v.birth_date) > now()) throw bad("birth_date_in_future");
       const cur = await one(c, "select * from patient_details where patient_id = $1 for update", [patientId]);
       if (cur && b.expectedVersion !== undefined && b.expectedVersion !== null && cur.row_version !== b.expectedVersion) throw conflict(cur);
+      // Insurance: when insured, a company from the list (a hidden one only if the patient already has it) or a typed name.
+      v.insurance_status = b.insuranceStatus ?? cur?.insurance_status ?? "unknown";
+      if (s.insurance_required && v.insurance_status === "unknown") throw bad("details_required", { field: "insurance" });
+      v.insurance_company_id = null;
+      if (v.insurance_status !== "insured") v.insurance = null;
+      else {
+        const companyId = b.insuranceCompanyId === undefined ? cur?.insurance_company_id ?? null : b.insuranceCompanyId;
+        if (companyId) {
+          const co = await one(c, "select id, hidden from insurance_companies where clinic_id = $1 and id = $2", [ctx.clinicId, companyId]);
+          if (!co || (co.hidden && co.id !== cur?.insurance_company_id)) throw bad("insurance_company_unknown");
+          v.insurance_company_id = co.id; v.insurance = null;
+        } else if (!v.insurance) throw bad("insurance_company_needed");
+      }
       const fileNo = s.file_numbers === "manual" ? (b.fileNo?.trim() || null) : cur?.file_no ?? null;
       if (cur) {
         await c.query(
-          `update patient_details set file_no = $2, birth_date = $3, sex = $4, national_id = $5, insurance = $6, emergency_contact = $7, updated_by_name = $8
-            where patient_id = $1`, [patientId, fileNo, v.birth_date, v.sex, v.national_id, v.insurance, v.emergency_contact, ctx.user.name]);
+          `update patient_details set file_no = $2, birth_date = $3, sex = $4, national_id = $5, insurance = $6, updated_by_name = $7,
+                  insurance_status = $8, insurance_company_id = $9, emergency_name = $10, emergency_relation = $11, emergency_phone = $12
+            where patient_id = $1`, [patientId, fileNo, v.birth_date, v.sex, v.national_id, v.insurance, ctx.user.name,
+                                   v.insurance_status, v.insurance_company_id, v.emergency_name, v.emergency_relation, v.emergency_phone]);
       } else {
         await c.query(
-          `insert into patient_details (patient_id, clinic_id, file_no, birth_date, sex, national_id, insurance, emergency_contact, updated_by_name)
-           values ($1,$2,$3,$4,$5,$6,$7,$8,$9)`, [patientId, ctx.clinicId, fileNo, v.birth_date, v.sex, v.national_id, v.insurance, v.emergency_contact, ctx.user.name]);
+          `insert into patient_details (patient_id, clinic_id, file_no, birth_date, sex, national_id, insurance, updated_by_name,
+                                       insurance_status, insurance_company_id, emergency_name, emergency_relation, emergency_phone)
+           values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`, [patientId, ctx.clinicId, fileNo, v.birth_date, v.sex, v.national_id, v.insurance,
+                                                       ctx.user.name, v.insurance_status, v.insurance_company_id, v.emergency_name, v.emergency_relation, v.emergency_phone]);
       }
       await ensureFileNo(c, ctx, patientId, s);
-      return one(c, `select ${DETAILS} from patient_details where patient_id = $1`, [patientId]);
+      const saved = await one(c, `select ${DETAILS} from patient_details where patient_id = $1`, [patientId]);
+      // The company's card comes back too, so the page can show it under the name without opening the record again.
+      const insurer = saved.insurance_company_id ? await one(c, `select ${CARD} from insurance_companies where id = $1`, [saved.insurance_company_id]) : null;
+      return { ...saved, insurer };
     });
   }
 
@@ -244,8 +299,10 @@ export function createService({ pool, now = () => new Date() }) {
   async function openings(ctx, patientId) {
     const p = await one(pool, "select 1 from patients where clinic_id = $1 and id = $2", [ctx.clinicId, patientId]);
     if (!p) throw notFound("patient_not_found");
-    return (await pool.query("select user_name, role, opened_at from record_openings where clinic_id = $1 and patient_id = $2 order by opened_at desc limit 200",
-      [ctx.clinicId, patientId])).rows;
+    // A file opened shows its kind only (photo, or the kind of document), never its title.
+    return (await pool.query(
+      `select o.user_name, o.role, o.opened_at, o.what, f.kind as file_kind, f.doc_kind, f.area_key from record_openings o left join record_files f on f.id = o.file_id
+        where o.clinic_id = $1 and o.patient_id = $2 order by o.opened_at desc limit 200`, [ctx.clinicId, patientId])).rows;
   }
 
   // ---------------------------------------------------------------- settings
@@ -254,19 +311,76 @@ export function createService({ pool, now = () => new Date() }) {
     const keys = b.specialtyFields.map((f) => f.key);
     if (new Set(keys).size !== keys.length) throw bad("duplicate_field");
     for (const f of b.specialtyFields) if (f.kind === "choice" && !f.options?.length) throw bad("choice_needs_options");
+    for (const list of [b.relations, b.photoAreas, b.docKinds]) if (list && new Set(list.map((x) => x.key)).size !== list.length) throw bad("duplicate_field");
     return tx(ctx, async (c) => {
+      // An area or a kind of document in use can't be removed (the photos and documents keep pointing at it).
+      for (const [list, col, kind] of [[b.photoAreas, "area_key", "photo"], [b.docKinds, "doc_kind", "document"]]) {
+        if (!list) continue;
+        const used = (await c.query(`select distinct ${col} as k from record_files where clinic_id = $1 and kind = $2`, [ctx.clinicId, kind])).rows.map((r) => r.k);
+        const gone = used.filter((k) => !list.some((x) => x.key === k));
+        if (gone.length) throw bad("in_use", { keys: gone });
+      }
       await settingsRow(c, ctx.clinicId, true);
       await c.query(
         `update record_settings set doctors_scope = $2, show_allergies = $3, show_medicines = $4, show_conditions = $5, show_procedures = $6, show_family = $7,
-                specialty_fields = $8, file_numbers = $9, next_file_no = $10, file_no_digits = $11, required_details = $12 where clinic_id = $1`,
+                specialty_fields = $8, file_numbers = $9, next_file_no = $10, file_no_digits = $11, required_details = $12,
+                insurance_in_booking = coalesce($13, insurance_in_booking), insurance_required = coalesce($14, insurance_required),
+                relations = coalesce($15, relations), photo_areas = coalesce($16, photo_areas), doc_kinds = coalesce($17, doc_kinds),
+                photo_consent_required = coalesce($18, photo_consent_required), max_file_mb = coalesce($19, max_file_mb),
+                link_minutes = coalesce($20, link_minutes), phone_minutes = coalesce($21, phone_minutes) where clinic_id = $1`,
         [ctx.clinicId, b.doctorsScope, b.show.allergy, b.show.medicine, b.show.condition, b.show.procedure, b.show.family,
          JSON.stringify(b.specialtyFields.map((f) => ({ key: f.key, en: f.en.trim(), ar: f.ar.trim(), kind: f.kind,
            ...(f.kind === "choice" ? { options: f.options.map((o) => ({ en: o.en.trim(), ar: o.ar.trim() })) } : {}) }))),
-         b.fileNumbers, b.nextFileNo, b.fileNoDigits, b.requiredDetails]);
+         b.fileNumbers, b.nextFileNo, b.fileNoDigits, b.requiredDetails, b.insuranceInBooking ?? null, b.insuranceRequired ?? null,
+         b.relations ? JSON.stringify(b.relations) : null, b.photoAreas ? JSON.stringify(b.photoAreas) : null, b.docKinds ? JSON.stringify(b.docKinds) : null,
+         b.photoConsentRequired ?? null, b.maxFileMb ?? null, b.linkMinutes ?? null, b.phoneMinutes ?? null]);
       return publicSettings(await settingsRow(c, ctx.clinicId));
     });
   }
 
-  return { tx, lookups, listPatients, today, chart, updateDetails, addEntry, updateEntry, markError, confirmEntry, setAnswer, openings,
-           getSettings, updateSettings };
+  // ---------------------------------------------------------------- insurance companies (Settings › Chart)
+  // The list with how many patients have each, and the names staff typed that are not on the list yet.
+  async function insurers(ctx) {
+    const companies = (await pool.query(
+      `select ${CARD}, row_version, (select count(*)::int from patient_details d where d.clinic_id = c.clinic_id and d.insurance_company_id = c.id) as patients
+         from insurance_companies c where clinic_id = $1 order by hidden, lower(name_en)`, [ctx.clinicId])).rows;
+    const typed = (await pool.query(
+      `select min(insurance) as name, count(*)::int as patients from patient_details
+        where clinic_id = $1 and insurance_status = 'insured' and insurance_company_id is null and insurance is not null
+        group by lower(btrim(insurance)) order by count(*) desc, min(insurance) limit 50`, [ctx.clinicId])).rows;
+    return { companies, typed };
+  }
+  const companyValues = (b) => COMPANY_FIELDS.map((k) => (typeof b[camel(k)] === "string" ? b[camel(k)].trim() || null : null));
+  // fromTyped: a name staff typed; the patients who have it are moved onto the new company.
+  async function addInsurer(ctx, b) {
+    return tx(ctx, async (c) => {
+      const co = await one(c,
+        `insert into insurance_companies (clinic_id, ${COMPANY_FIELDS.join(", ")}, updated_by_name)
+         values ($1, ${COMPANY_FIELDS.map((_, i) => "$" + (i + 2)).join(", ")}, $${COMPANY_FIELDS.length + 2}) returning id`,
+        [ctx.clinicId, ...companyValues(b), ctx.user.name]);
+      if (b.fromTyped) {
+        await c.query(
+          `update patient_details set insurance_company_id = $2, insurance = null, updated_by_name = $4
+            where clinic_id = $1 and insurance_status = 'insured' and insurance_company_id is null and lower(btrim(insurance)) = lower(btrim($3))`,
+          [ctx.clinicId, co.id, b.fromTyped, ctx.user.name]);
+      }
+      return one(c, `select ${CARD}, row_version from insurance_companies where id = $1`, [co.id]);
+    });
+  }
+  // Changes the card, or only hides / shows it again (no names given).
+  async function updateInsurer(ctx, id, b) {
+    return tx(ctx, async (c) => {
+      const cur = await one(c, "select * from insurance_companies where clinic_id = $1 and id = $2 for update", [ctx.clinicId, id]);
+      if (!cur) throw notFound("company_not_found");
+      if (cur.row_version !== b.expectedVersion) throw conflict(cur);
+      const vals = b.nameEn === undefined ? COMPANY_FIELDS.map((k) => cur[k]) : companyValues(b);
+      return one(c,
+        `update insurance_companies set ${COMPANY_FIELDS.map((k, i) => `${k} = $${i + 2}`).join(", ")},
+                hidden = $${COMPANY_FIELDS.length + 2}, updated_by_name = $${COMPANY_FIELDS.length + 3}
+          where id = $1 returning ${CARD}, row_version`, [id, ...vals, b.hidden ?? cur.hidden, ctx.user.name]);
+    });
+  }
+
+  return { tx, settingsRow, allowedPatient, lookups, listPatients, today, chart, updateDetails, addEntry, updateEntry, markError, confirmEntry, setAnswer, openings,
+           getSettings, updateSettings, insurers, addInsurer, updateInsurer };
 }

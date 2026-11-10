@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 import { get, post, type Appt } from "../api";
-import { fmtDateTime, hm, todayIn, dayOf } from "../lib";
+import { backTo, fmtDateTime, hm, todayIn, dayOf } from "../lib";
 import { useI18n } from "../i18n";
 import { useApp } from "../session";
 import { Banner, ExportButton, SendLinkButton, StatusPill, useAction } from "../ui";
 import { NOTE_PILL, useN } from "./notes-text";
+import { InsuranceLine } from "../insurance";
 
 export function BookingList() {
   const { t, lang, d } = useI18n();
@@ -14,7 +15,10 @@ export function BookingList() {
   const own = me.role === "doctor";                     // a doctor's list holds only their own bookings
   const notes = look.notesEnabled;                      // the visit note column and filter, while the clinic uses visit notes
   const tz = look.clinic.timezone;
-  const [f, setF] = useState({ from: todayIn(tz), to: "", doctor: "", status: "", source: "", q: "", voided: false, unchecked: false, note: "" });
+  // A link can open the list already filtered (the calendar's "today" line: ?from=…&to=…&status=…&unchecked=1).
+  const [sp] = useSearchParams();
+  const [f, setF] = useState({ from: sp.get("from") || todayIn(tz), to: sp.get("to") || "", doctor: "", status: sp.get("status") || "", source: "", q: "",
+                               voided: false, unchecked: sp.get("unchecked") === "1", note: "" });
   const [rows, setRows] = useState<Appt[] | null>(null);
   const p = new URLSearchParams();
   if (f.from) p.set("from", f.from); if (f.to) p.set("to", f.to); if (f.doctor) p.set("doctor", f.doctor);
@@ -77,6 +81,7 @@ export function BookingDetail() {
   const nt = useN();
   const tz = look.clinic.timezone;
   const { id } = useParams();
+  const { state } = useLocation();                      // where this booking was opened from; handed on to the note and the edit form
   const [a, setA] = useState<Appt | null>(null);
   const [hist, setHist] = useState<Ev[]>([]);
   const [missing, setMissing] = useState(false);
@@ -102,8 +107,8 @@ export function BookingDetail() {
   // Visit note (AI Scribe): everyone sees whether there is one; the treating doctor opens or starts it. Secretaries never see the content.
   const ownVisit = me.doctorId === a.doctor_id && can("booking.notes.write");
   const noteButton = can("booking.notes.read") && (a.note_status
-    ? <Link className="btn btn-outline btn-sm" to={`/bookings/${a.id}/note`}>{nt.open}</Link>
-    : ownVisit && look.notesEnabled && (active || a.status === "completed") && <Link className="btn btn-accent btn-sm" to={`/bookings/${a.id}/note`}>{nt.start}</Link>);
+    ? <Link className="btn btn-outline btn-sm" to={`/bookings/${a.id}/note`} state={state}>{nt.open}</Link>
+    : ownVisit && look.notesEnabled && (active || a.status === "completed") && <Link className="btn btn-accent btn-sm" to={`/bookings/${a.id}/note`} state={state}>{nt.start}</Link>);
 
   return (
     <main className="wrap page">
@@ -114,6 +119,7 @@ export function BookingDetail() {
           <dt>{t("service")}</dt><dd>{lang === "ar" ? a.service_name_ar : a.service_name_en} · {a.duration_minutes} {t("min")}{a.price_jod ? ` · ${a.price_jod} ${t("jod")}` : ""}</dd>
           <dt>{t("doctor")}</dt><dd>{lang === "ar" ? a.doctor_name_ar : a.doctor_name_en}</dd>
           <dt>{t("patient")}</dt><dd><Link to={`/patients/${a.patient_id}`}>{a.patient_name || "—"}</Link> <span className="mono">{a.patient_phone}</span></dd>
+          <InsuranceLine patientId={a.patient_id} as="facts" />
           <dt>{t("source")}</dt><dd>{d.sources[a.source] ?? a.source}{a.online_from ? ` · ${t("onlineFrom")} ${a.online_from}` : ""}{a.booked_for_other ? ` · ${t("forOther")}` : ""}</dd>
           {a.internal_note && <><dt>{t("note")}</dt><dd>{a.internal_note}</dd></>}
           {a.cancel_reason && <><dt>{t("reason")}</dt><dd>{a.cancel_reason}</dd></>}
@@ -130,7 +136,7 @@ export function BookingDetail() {
           {noteButton}
           {a.unchecked && active && can("booking.appointments.edit") && <button className="btn btn-accent btn-sm" disabled={act.busy}
             onClick={() => void act.run(async () => { setA(await post<Appt>(`/api/appointments/${a.id}/check`, { expectedVersion: a.row_version })); load(); })}>{t("markChecked")}</button>}
-          {active && can("booking.appointments.edit") && <Link className="btn btn-ink btn-sm" to={`/bookings/${a.id}/edit`}>{t("edit")}</Link>}
+          {active && can("booking.appointments.edit") && <Link className="btn btn-ink btn-sm" to={`/bookings/${a.id}/edit`} state={state}>{t("edit")}</Link>}
           {options.map((s) => <button key={s} className={`btn btn-sm ${s === "voided" || s === "cancelled" ? "btn-outline" : "btn-accent"}`} disabled={act.busy}
             onClick={() => (needsReason(s) ? setAsking(s) : void apply(s))}>{d.actions[s]}</button>)}
           {a.status === "voided" && can("booking.appointments.restore") && <button className="btn btn-accent btn-sm" disabled={act.busy} onClick={() => void act.run(async () => { setA(await post<Appt>(`/api/appointments/${a.id}/restore`, { expectedVersion: a.row_version })); load(); })}>{d.actions.restore}</button>}
@@ -148,7 +154,7 @@ export function BookingDetail() {
         <ol className="hist">{hist.map((e, i) => (
           <li key={i}><b>{d.historyActions[e.action === "updated" && e.changed_fields?.includes("checked_at") ? "checked" : e.action] ?? e.action}</b> · {t("by")} {actorName(e)} · <span className="hint">{fmtDateTime(e.at, tz, lang)}</span>{e.reason && <> · “{e.reason}”</>}</li>))}</ol>
       </section>
-      <Link to="/bookings" className="link">{t("back")}</Link>
+      <Link to={backTo(state, "/bookings")} className="link">{t("back")}</Link>
       <span hidden>{dayOf(a.starts_at, tz)}</span>
     </main>
   );

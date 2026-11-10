@@ -1,7 +1,7 @@
 // The visit note (AI Scribe, design booking/design/ai-scribe.html screens 2 to 5): consent, recording, the draft next to the
 // transcript, signing, additions. Opened from the booking page at /bookings/:id/note. The server decides who may do what.
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { ApiError, get, goSignIn, patch, post, type Appt } from "../api";
 import { fmtDateTime } from "../lib";
 import { useI18n } from "../i18n";
@@ -34,6 +34,7 @@ export function VisitNote() {
   const { lang } = useI18n();
   const { look } = useApp();
   const { id } = useParams();
+  const { state } = useLocation();                      // handed back to the booking, so its "Back" still returns where it was opened from
   const [v, setV] = useState<Visit | null>(null);
   const [missing, setMissing] = useState(false);
   const load = useCallback(() => get<Visit>(`/api/appointments/${id}/note`).then(setV).catch(() => setMissing(true)), [id]);
@@ -66,7 +67,7 @@ export function VisitNote() {
       {(note?.status === "processing" || note?.status === "failed") && <Waiting note={note} doctor={s.isTheDoctor} onChange={setNote} onDiscarded={load} />}
       {note?.status === "draft" && <Draft v={v} note={note} onChange={setNote} onDiscarded={load} />}
       {note?.status === "signed" && <Signed v={v} note={note} onChange={setNote} />}
-      <Link to={`/bookings/${a.id}`} className="link">{n.back}</Link>
+      <Link to={`/bookings/${a.id}`} state={state} className="link">{n.back}</Link>
     </main>
   );
 }

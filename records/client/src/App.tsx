@@ -6,6 +6,7 @@ import { Layout } from "./ui";
 import { Today, PatientList } from "./pages/patients";
 import { ChartPage } from "./pages/chart";
 import { Settings } from "./pages/settings";
+import { CapturePage } from "./pages/capture";
 
 // A page someone may not open sends them home; the server refuses the data either way.
 function Allowed({ perm, children }: { perm: string; children: ReactNode }) {
@@ -19,6 +20,8 @@ function Home() {
 }
 
 export default function App() {
+  // The clinic phone's camera page has no sign-in: the one-time code in the address is the key.
+  if (window.location.pathname.startsWith("/c/")) return <I18nProvider><CapturePage /></I18nProvider>;
   return (
     <I18nProvider>
       <AppProvider>

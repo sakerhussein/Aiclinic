@@ -6,7 +6,7 @@ import { useSession } from "../session";
 import { AppBar, Banner, CardPage, Field, useAction } from "../ui";
 
 export function Launcher() {
-  const { t, dict } = useI18n();
+  const { t, dict, lang } = useI18n();
   const { me } = useSession();
   const [apps, setApps] = useState<{ key: string; name_en: string; name_ar: string; url: string }[] | null>(null);
   useEffect(() => { get("/api/apps").then(setApps).catch(() => setApps([])); }, []);
@@ -20,7 +20,7 @@ export function Launcher() {
         <div className="apps">
           {apps?.map((a) => (
             <a key={a.key} className="app" href={a.url}>
-              <b>{dict.apps[a.key] || a.name_en}</b>
+              <b>{dict.apps[a.key] || (lang === "ar" ? a.name_ar : a.name_en)}</b>
               <span className="hint">{dict.appDesc[a.key]}</span>
               <span className="pill ok" style={{ alignSelf: "flex-start" }}>{t("openApp")}</span>
             </a>

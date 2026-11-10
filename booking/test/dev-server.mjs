@@ -1,6 +1,8 @@
 // Local preview of Accounts (3003) and Booking (3004) together on the throwaway Postgres: node test/dev-server.mjs
 // Real single sign-on between the two. Demo people and a few bookings today. Not for production.
 import pg from "pg";
+import fs from "node:fs";
+import path from "node:path";
 import { setup, GOOD } from "./helpers.js";
 import { createApp as accountsApp } from "../../accounts/server/app.js";
 import { createService } from "../server/service.js";
@@ -79,7 +81,14 @@ createScribe({ pool, drafter: sampleDrafter }).start();
   await t.owner.query("alter role records_app password 'test'");
   await t.owner.query("update accounts.apps set redirect_uris = array['http://localhost:3006/auth/callback'], secret_hash = $1, url = 'http://localhost:3006' where key = 'records'", [sha256(RSECRET)]);
   const huda = (await t.owner.query("select id from patients where clinic_id = $1 and full_name = 'Huda Al-Khatib'", [t.clinicA])).rows[0].id;
-  await t.owner.query("insert into patient_details (patient_id, clinic_id, file_no, birth_date, sex, insurance) values ($1,$2,'00412','1992-03-14','female','Card 55-2031')", [huda, t.clinicA]);
+  // Two example insurance companies (made-up numbers), Huda insured with the first.
+  const mednet = (await t.owner.query(
+    `insert into insurance_companies (clinic_id, name_en, name_ar, phone, email, address, contact_name, contact_title, contact_phone, notes) values
+     ($1, 'MedNet', 'ميدنت', '+962 6 555 0101', 'approvals@example.jo', 'Amman, Shmeisani', 'Rana Haddad', 'Medical approvals', '+962 79 555 0199',
+      'Approval needed before laser sessions. Patient brings the card at every visit.') returning id`, [t.clinicA])).rows[0].id;
+  await t.owner.query("insert into insurance_companies (clinic_id, name_en, name_ar, phone) values ($1, 'NatHealth', 'نات هيلث', '+962 6 555 0102')", [t.clinicA]);
+  await t.owner.query(`insert into patient_details (patient_id, clinic_id, file_no, birth_date, sex, insurance_status, insurance_company_id)
+                       values ($1,$2,'00412','1992-03-14','female','insured',$3)`, [huda, t.clinicA, mednet]);
   await t.owner.query("update record_settings set next_file_no = 413 where clinic_id = $1", [t.clinicA]);
   for (const [kind, title, detail, alert] of [["allergy", "Penicillin", "hives", true], ["medicine", "Isotretinoin 20 mg", "daily with food; pregnancy test before each refill", true],
     ["medicine", "Levothyroxine 50 mcg", "from another doctor", false], ["condition", "Acne vulgaris, moderate", null, false], ["condition", "Hypothyroidism", "treated elsewhere", false],
@@ -91,7 +100,19 @@ createScribe({ pool, drafter: sampleDrafter }).start();
   const rpool = new pg.Pool({ connectionString: "postgresql://records_app:test@localhost:54329/accounts_test", max: 4 });
   const rConfig = { ...common, siteUrl: "http://localhost:3006", origin: "http://localhost:3006", accountsUrl: "http://localhost:3003", accountsInternalUrl: "http://127.0.0.1:3003",
     bookingUrl: "http://localhost:3004", clientSecret: RSECRET, sessionCookie: "lc_records", stateCookie: "lc_rstate" };
-  recordsApp({ svc: recordsService({ pool: rpool }), config: rConfig }).listen(3006, "127.0.0.1", () => console.log("READY  Records http://localhost:3006   (doctor: dr@demo.jo)"));
+  // Photos and documents in a throwaway folder; backups to another, with a throwaway key (emails only logged).
+  const { createStorage } = await import("../../records/server/storage.js");
+  const { createFiles } = await import("../../records/server/files.js");
+  const { createBackups } = await import("../../records/server/backup.js");
+  const os = await import("node:os"); const nodeCrypto = await import("node:crypto");
+  const rtmp = fs.mkdtempSync(path.join(os.tmpdir(), "records-dev-"));
+  rConfig.storage = { kind: "disk", dir: path.join(rtmp, "files") };
+  rConfig.backup = { dir: path.join(rtmp, "backup"), keyFile: path.join(rtmp, "backup.key") };
+  fs.mkdirSync(rConfig.backup.dir, { recursive: true }); fs.writeFileSync(rConfig.backup.keyFile, nodeCrypto.randomBytes(32));
+  const rsvc = recordsService({ pool: rpool }), rstorage = createStorage(rConfig.storage);
+  const rfiles = createFiles({ pool: rpool, svc: rsvc, storage: rstorage, secret: RSECRET, siteUrl: rConfig.siteUrl });
+  const rbackups = createBackups({ pool: rpool, storage: rstorage, config: rConfig });
+  recordsApp({ svc: rsvc, config: rConfig, files: rfiles, backups: rbackups }).listen(3006, "127.0.0.1", () => console.log("READY  Records http://localhost:3006   (doctor: dr@demo.jo)"));
   bkConfig.recordsUrl = "http://localhost:3006";
 }
 bookingApp({ svc: createService({ pool, auditPool, tidier: sampleTidier }), config: bkConfig }).listen(3004, "127.0.0.1", () =>

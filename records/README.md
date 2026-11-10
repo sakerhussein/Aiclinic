@@ -26,7 +26,20 @@ Who sees what follows the person's role in Accounts: doctors the whole chart; se
 - Server: `bash deploy/setup-records.sh` once, after migration 0020 is applied. From then on the "Deploy Accounts and Booking"
   workflow also deploys Records.
 
+## Phase B (design: `booking/design/records-phase-b.html`; database: migration `0022_records_files.sql`)
+
+- **Photos** (doctors only, after the patient's photo consent): by body area, two side by side, taken from this computer or with
+  the clinic phone (a one-time code shown as a QR code, a few minutes, no sign-in on the phone; the last photo shows faintly over
+  the camera). Location data is removed from every photo.
+- **Documents**: results, letters, reports, ID and insurance cards. Secretaries add any kind but open only the kinds marked
+  "secretaries can open". Results added by someone else wait for the doctor's "Mark reviewed" (also counted on Today's patients).
+- Files are opened through links that work for a few minutes; every opening is recorded; nothing is deleted (entered in error).
+  Files live in the private bucket `records`, reached only by this server (`STORAGE=supabase`); until set up, uploads are refused.
+- **Nightly backup** (`server/backup.js`): new files and a dump of the record tables, AES-256-GCM encrypted with the key made on
+  the VPS; kept by Settings' days and months; a weekly restore check; a retry and an email when a night fails.
+- **Emergency contact** in three parts (name, relationship from the clinic's list, phone).
+- Server: `bash deploy/setup-records-files.sh` once, after migration 0022 is applied and the code is deployed.
+
 ## Later phases
 
-B: photos and documents (private Supabase Storage bucket, nightly encrypted copy on the VPS). C: forms before the visit,
-prescriptions, treatment courses, the AI summary.
+C: forms before the visit, prescriptions, treatment courses, the AI summary.

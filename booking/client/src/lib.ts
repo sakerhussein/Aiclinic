@@ -20,6 +20,13 @@ export const dayOf = (iso: string, tz: string) => new Intl.DateTimeFormat("en-CA
 export const minutesOfDay = (iso: string, tz: string) => { const [h, m] = hm(iso, tz).split(":").map(Number); return h * 60 + m; };
 export const weekdayOf = (day: string) => new Date(day + "T12:00:00Z").getUTCDay();
 export const addDays = (day: string, n: number) => new Date(Date.parse(day + "T12:00:00Z") + n * 86400000).toISOString().slice(0, 10);
+// Where a booking was opened from (the calendar's day, a patient, the list), so its "Back" returns there. Passed as router state
+// from the page that opens it, and handed on through the visit note and the edit form.
+export const fromHere = (l: { pathname: string; search: string }) => ({ from: l.pathname + l.search });
+export const backTo = (state: unknown, fallback: string) => {
+  const f = (state as { from?: unknown } | null)?.from;
+  return typeof f === "string" && f.startsWith("/") && !f.startsWith("//") ? f : fallback;
+};
 export const todayIn = (tz: string) => dayOf(new Date().toISOString(), tz);
 export const fmtDay = (day: string, lang: string) => new Intl.DateTimeFormat(lang === "ar" ? "ar-JO-u-nu-latn" : "en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(day + "T12:00:00Z"));
 export const fmtDateTime = (iso: string, tz: string, lang: string) => new Intl.DateTimeFormat(lang === "ar" ? "ar-JO-u-nu-latn" : "en-GB", { timeZone: tz, day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(iso));
