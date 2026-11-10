@@ -284,3 +284,9 @@ html[lang="ar"] .mic{font-family:var(--font-ar)}
 .notelink:hover .pill{box-shadow:0 0 0 2px var(--accent-ink)}
 /* Phone numbers, codes and links keep their left-to-right order, but in Arabic they start at the right like every other field. */
 html[dir="rtl"] input.mono{text-align:right}
+
+/* the chart line on the visit note (Records) */
+.chartline{background:#fff;border:1px solid var(--rule);border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.chartalert{display:inline-flex;gap:6px;align-items:center;border-radius:10px;padding:5px 10px;font-size:13px;border:1px solid}
+.chartalert.red{background:var(--error-tint);border-color:#F3B4AB;color:#7a1a12}
+.chartalert.amb{background:var(--amber-tint);border-color:var(--amber);color:#5c3700}

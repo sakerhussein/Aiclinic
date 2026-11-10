@@ -41,7 +41,7 @@ export const del = <T = any>(u: string) => api<T>("DELETE", u);
 export type Me = {
   user: { id: string; email: string; name: string; language: "ar" | "en" };
   clinic: { id: string; slug: string; nameEn: string; nameAr: string };
-  role: string; doctorId: string | null; permissions: string[]; accountsUrl: string;
+  role: string; doctorId: string | null; permissions: string[]; accountsUrl: string; recordsUrl?: string;
 };
 export type Doctor = { id: string; name_en: string; name_ar: string; service_ids: string[]; hours: { weekday: number; start: string; end: string }[] };
 export type Service = { id: string; name_en: string; name_ar: string; duration_minutes: number; price_jod: string | null; price_is_from: boolean };

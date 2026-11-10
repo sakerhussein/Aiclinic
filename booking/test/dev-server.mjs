@@ -71,6 +71,29 @@ createPublicApp({ svc: demo.svc, config: pubConfig }).listen(3005, "127.0.0.1", 
 await t.owner.query("update scribe_settings set enabled = true, dictation_enabled = true where clinic_id = $1", [t.clinicA]);
 await t.owner.query("update doctors set scribe_enabled = true where clinic_id = $1", [t.clinicA]);
 createScribe({ pool, drafter: sampleDrafter }).start();
+// Records (the patient chart) on 3006, on its own login, with a filled-in chart for the first demo patient.
+{
+  const { createService: recordsService } = await import("../../records/server/service.js");
+  const { createApp: recordsApp } = await import("../../records/server/app.js");
+  const RSECRET = "dev-records-".padEnd(40, "x");
+  await t.owner.query("alter role records_app password 'test'");
+  await t.owner.query("update accounts.apps set redirect_uris = array['http://localhost:3006/auth/callback'], secret_hash = $1, url = 'http://localhost:3006' where key = 'records'", [sha256(RSECRET)]);
+  const huda = (await t.owner.query("select id from patients where clinic_id = $1 and full_name = 'Huda Al-Khatib'", [t.clinicA])).rows[0].id;
+  await t.owner.query("insert into patient_details (patient_id, clinic_id, file_no, birth_date, sex, insurance) values ($1,$2,'00412','1992-03-14','female','Card 55-2031')", [huda, t.clinicA]);
+  await t.owner.query("update record_settings set next_file_no = 413 where clinic_id = $1", [t.clinicA]);
+  for (const [kind, title, detail, alert] of [["allergy", "Penicillin", "hives", true], ["medicine", "Isotretinoin 20 mg", "daily with food; pregnancy test before each refill", true],
+    ["medicine", "Levothyroxine 50 mcg", "from another doctor", false], ["condition", "Acne vulgaris, moderate", null, false], ["condition", "Hypothyroidism", "treated elsewhere", false],
+    ["procedure", "Chemical peel (salicylic), 2024", "at another clinic", false]]) {
+    await t.owner.query("insert into chart_entries (clinic_id, patient_id, kind, title, detail, alert, created_by, created_by_name) values ($1,$2,$3,$4,$5,$6,'demo','Dr Lina')",
+      [t.clinicA, huda, kind, title, detail, alert]);
+  }
+  await t.owner.query("insert into chart_answers (patient_id, clinic_id, field_key, value, updated_by_name) values ($1,$2,'skin_type','III','Dr Lina')", [huda, t.clinicA]);
+  const rpool = new pg.Pool({ connectionString: "postgresql://records_app:test@localhost:54329/accounts_test", max: 4 });
+  const rConfig = { ...common, siteUrl: "http://localhost:3006", origin: "http://localhost:3006", accountsUrl: "http://localhost:3003", accountsInternalUrl: "http://127.0.0.1:3003",
+    bookingUrl: "http://localhost:3004", clientSecret: RSECRET, sessionCookie: "lc_records", stateCookie: "lc_rstate" };
+  recordsApp({ svc: recordsService({ pool: rpool }), config: rConfig }).listen(3006, "127.0.0.1", () => console.log("READY  Records http://localhost:3006   (doctor: dr@demo.jo)"));
+  bkConfig.recordsUrl = "http://localhost:3006";
+}
 bookingApp({ svc: createService({ pool, auditPool, tidier: sampleTidier }), config: bkConfig }).listen(3004, "127.0.0.1", () =>
   console.log(`READY  Booking http://localhost:3004   sign in: sec@demo.jo / ${GOOD}   (administrator admin@demo.jo needs two-step)`));
 console.log(`Administrator admin@demo.jo has two-step on. Current code:  node -e "import('../accounts/server/crypto.js').then(m=>console.log(m.totp('${P.admin.secret}')))"  (run it in the repo's accounts/ folder... see README)`);

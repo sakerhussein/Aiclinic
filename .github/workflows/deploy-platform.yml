@@ -10,9 +10,11 @@ on:
     paths:
       - "accounts/**"
       - "booking/**"
+      - "records/**"
       - "!**/*.md"
       - "!accounts/test/**"
       - "!booking/test/**"
+      - "!records/test/**"
       - "!booking/design/**"
       - ".github/workflows/deploy-platform.yml"
   workflow_dispatch:
@@ -48,6 +50,10 @@ jobs:
             PUBLIC_MARK=/root/Aiclinic-public-deployed.txt
             # Written by deploy/setup-scribe.sh. Until then the AI Scribe's process is not run here.
             SCRIBE_MARK=/root/Aiclinic-scribe-deployed.txt
+            # Written by deploy/setup-records.sh. Until then Records (records.limitsiz.si) is not built or run here.
+            RECORDS_MARK=/root/Aiclinic-records-deployed.txt
+            SERVICES="accounts booking"
+            if [ -f "$RECORDS_MARK" ]; then SERVICES="$SERVICES records"; fi
 
             # Before deploy/setup-platform.sh has run there is nothing to deploy to, and nothing is touched.
             if [ ! -f "$MARK" ]; then
@@ -67,7 +73,7 @@ jobs:
             LAST=$(cat "$MARK")
             NOW=$(git rev-parse HEAD)
             CHANGED=""
-            for s in accounts booking; do
+            for s in $SERVICES; do
               if ! git diff --quiet "$LAST" "$NOW" -- "$s" ; then CHANGED="$CHANGED $s"; fi
             done
             if [ -z "$CHANGED" ]; then

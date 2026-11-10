@@ -39,7 +39,12 @@ export function createNotes({ pool, tx, now = () => new Date(), audioDir = DEFAU
     const s = await settingsOf(pool, ctx.clinicId);
     const d = await one(pool, "select scribe_enabled from doctors where clinic_id = $1 and id = $2", [ctx.clinicId, a.doctor_id]);
     const n = await one(pool, "select * from visit_notes where clinic_id = $1 and appointment_id = $2 and status <> 'discarded'", [ctx.clinicId, appointmentId]);
+    // From the chart in Records: current allergies, alerts, medicines and conditions (titles only), for the treating doctor.
+    const chart = ctx.onlyDoctor === a.doctor_id ? (await pool.query(
+      `select kind, title, alert from chart_entries where clinic_id = $1 and patient_id = $2 and error_at is null and status = 'active'
+        order by (kind = 'allergy') desc, created_at`, [ctx.clinicId, a.patient_id])).rows : [];
     return {
+      chart,
       appointment: a,
       settings: {
         enabled: s.enabled, recording: s.enabled && !!d?.scribe_enabled, language: s.note_language, consentEn: s.consent_en, consentAr: s.consent_ar,

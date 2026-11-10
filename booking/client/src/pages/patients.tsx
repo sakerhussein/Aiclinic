@@ -63,9 +63,10 @@ export function PatientList() {
 
 export function PatientPage() {
   const { t, lang, d } = useI18n();
-  const { look, can } = useApp();
+  const { look, can, me } = useApp();
   const { id } = useParams();
   const isNew = id === "new";
+  const records = !isNew && me.recordsUrl && (can("records.chart.read") || can("records.details.view")) ? `${me.recordsUrl}/patients/${id}` : "";
   const nav = useNavigate();
   const [f, setF] = useState({ fullName: "", phone: "", language: "ar" as "ar" | "en", whatsappReminders: false });
   const [appts, setAppts] = useState<Appt[]>([]);
@@ -84,7 +85,7 @@ export function PatientPage() {
   if (missing) return <main className="wrap page"><Banner kind="warn">{t("notAvailable")}</Banner></main>;
   return (
     <main className="wrap page">
-      <h1 className="display">{isNew ? t("newPatientTitle") : t("editPatient")}</h1>
+      <div className="row between"><h1 className="display">{isNew ? t("newPatientTitle") : t("editPatient")}</h1>{records && <a className="btn btn-outline btn-sm" href={records}>{t("openInRecords")}</a>}</div>
       <form className="panel stack" onSubmit={a.submit(async () => {
         const body = { fullName: f.fullName, phone: f.phone || null, language: f.language, whatsappReminders: f.whatsappReminders };
         if (isNew) { const p = await post<Patient>("/api/patients", body); nav(`/patients/${p.id}`); } else { await patch(`/api/patients/${id}`, body); setSaved(true); load(); }

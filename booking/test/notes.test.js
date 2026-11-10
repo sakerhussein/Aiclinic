@@ -394,3 +394,22 @@ test("Settings > AI Scribe > Dictation is saved and validated", async () => {
   assert.equal((await admin.patch("/api/settings/scribe", body)).status, 200);
   assert.equal((await admin.get("/api/settings")).json.scribe.dictation_model, "claude-sonnet-5-5", "left out: kept");
 });
+
+test("the visit note carries the chart's alert line from Records, for the treating doctor only", async () => {
+  const add = (kind, title, extra = {}) => t.owner.query(
+    `insert into chart_entries (clinic_id, patient_id, kind, title, alert, created_by, created_by_name, status, error_at, error_reason)
+     values ($1,$2,$3,$4,$5,'x','Dr Lina',$6,$7,$8)`,
+    [t.clinicA, appt.patient_id, kind, title, extra.alert ?? kind === "allergy", extra.status ?? "active", extra.error ? new Date() : null, extra.error ? "wrong" : null]);
+  await add("condition", "Acne");
+  await add("allergy", "Penicillin");
+  await add("medicine", "Isotretinoin 20 mg", { alert: true });
+  await add("medicine", "Old cream", { status: "past" });
+  await add("allergy", "Nickel", { error: true });
+  const v = (await dr.get(`/api/appointments/${appt.id}/note`)).json;
+  assert.deepEqual(v.chart.map((r) => r.title), ["Penicillin", "Acne", "Isotretinoin 20 mg"]);
+  assert.ok(!("detail" in v.chart[0]));
+  // Another doctor of the clinic opening this visit gets no chart line.
+  const dr2 = await t.makeUser({ email: "dr2@demo.jo", name: "Dr Omar", role: "doctor", doctor: other });
+  const v2 = await (await t.login(dr2)).b.get(`/api/appointments/${appt.id}/note`);
+  assert.deepEqual(v2.json?.chart ?? [], []);
+});

@@ -94,7 +94,7 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
 
   app.get("/api/me", auth(), (req, res) => res.json({
     user: req.session.user, clinic: req.session.clinic, role: req.session.role, doctorId: req.session.doctorId,
-    permissions: req.session.permissions, security: req.session.security, accountsUrl: config.accountsUrl,
+    permissions: req.session.permissions, security: req.session.security, accountsUrl: config.accountsUrl, recordsUrl: config.recordsUrl || "",
   }));
   app.post("/api/activity", auth(), (req, res) => res.json({ ok: true }));
   app.post("/api/logout", auth(), wrap(async (req, res) => {

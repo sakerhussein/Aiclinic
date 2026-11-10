@@ -14,6 +14,8 @@ export function loadConfig(env = process.env) {
     accountsInternalUrl: (env.ACCOUNTS_INTERNAL_URL || "http://127.0.0.1:3003").replace(/\/+$/, ""),
     // The online booking page's address, for the link staff send and the QR code. Empty = not set up on this server.
     publicBookingUrl: (env.PUBLIC_SITE_URL || "").replace(/\/+$/, ""),
+    // Records (the patient chart), for the "Open in Records" links. Empty = not set up on this server: no links.
+    recordsUrl: (env.RECORDS_URL || "").replace(/\/+$/, ""),
     clientSecret: env.BOOKING_CLIENT_SECRET,
     secureCookies: secure,
     sessionCookie: secure ? "__Host-lc_booking" : "lc_booking",

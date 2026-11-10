@@ -451,8 +451,14 @@ test("administrator-sent reset link and the launcher", async () => {
   assert.equal((await b.post(`/api/users/${sec.id}/send-reset`)).status, 200);
   assert.equal(t.mails.at(-1).kind, "reset");
   assert.equal(t.mails.at(-1).to, "s3@clinic.jo");
+  // Records is not offered until it has an address (deploy/setup-records.sh sets it once it runs).
+  assert.deepEqual((await b.get("/api/apps")).json.map((a) => a.key), ["booking"]);
+  await t.owner.query("update accounts.apps set url = 'https://records.limitsiz.si' where key = 'records'");
   const apps = (await b.get("/api/apps")).json;
-  assert.deepEqual(apps.map((a) => a.key), ["booking"]);
+  assert.deepEqual(apps.map((a) => a.key), ["booking", "records"]);
+  // Read-only has Booking but no Records, so the launcher shows only Booking.
+  const ro = await t.makeUser({ email: "ro5@clinic.jo", role: "readonly" });
+  assert.deepEqual((await (await t.signIn(ro)).b.get("/api/apps")).json.map((a) => a.key), ["booking"]);
 });
 
 test("a person with several clinics must choose one", async () => {

@@ -19,7 +19,7 @@ export type Note = {
   error: string | null; signedAt: string | null; signedName: string | null; rowVersion: number; slow: boolean; additions: Addition[];
 };
 type Visit = {
-  appointment: Appt; note: Note | null;
+  appointment: Appt; note: Note | null; chart?: { kind: string; title: string; alert: boolean }[];
   settings: { enabled: boolean; recording: boolean; language: "en" | "ar"; consentEn: string; consentAr: string; maxMinutes: number; keepDays: number;
     standIn: boolean; isTheDoctor: boolean; openVisit: boolean;
     dictation: { enabled: boolean; tidy: boolean; fieldSeconds: number; noteMinutes: number } };
@@ -57,6 +57,7 @@ export function VisitNote() {
         {note && <span className={`pill ${pill[note.status] ?? ""}`}>{n.states[note.status] ?? note.status}</span>}
       </div>
       <p className="hint">{fmtDateTime(a.starts_at, tz, lang)} · {lang === "ar" ? a.service_name_ar : a.service_name_en} · {lang === "ar" ? a.doctor_name_ar : a.doctor_name_en}</p>
+      {s.isTheDoctor && <FromChart rows={v.chart ?? []} patientId={a.patient_id} />}
       {!note && !s.enabled && <Banner kind="warn">{n.off}</Banner>}
       {!note && s.enabled && !s.isTheDoctor && <Banner kind="warn">{n.notTheDoctor}</Banner>}
       {!note && s.enabled && s.isTheDoctor && !s.openVisit && <Banner kind="warn">{n.closedVisit}</Banner>}
@@ -67,6 +68,27 @@ export function VisitNote() {
       {note?.status === "signed" && <Signed v={v} note={note} onChange={setNote} />}
       <Link to={`/bookings/${a.id}`} className="link">{n.back}</Link>
     </main>
+  );
+}
+
+// ---------------------------------------------------------------- from the chart (Records; design: booking/design/emr.html screen 4)
+// Allergies and alerts in red and amber, then the current medicines and conditions, so the doctor never leaves the note to check.
+// Booking only reads this line; the chart itself is in Records. Shown only where Records is set up and this person has it.
+function FromChart({ rows, patientId }: { rows: { kind: string; title: string; alert: boolean }[]; patientId: string }) {
+  const n = useN();
+  const { me, can } = useApp();
+  if (!me.recordsUrl || !can("records.chart.read")) return null;
+  const alerts = rows.filter((r) => r.kind === "allergy" || r.alert);
+  const list = (k: string) => rows.filter((r) => r.kind === k).map((r) => r.title).join(" · ");
+  return (
+    <section className="chartline">
+      <div className="row between"><span className="sec-h" style={{ margin: 0 }}>{n.fromChart}</span><a href={`${me.recordsUrl}/patients/${patientId}`} className="hint">{n.openRecords}</a></div>
+      {alerts.length > 0 && <div className="row" style={{ gap: 8 }}>{alerts.map((r, i) => (
+        <span key={i} className={`chartalert ${r.kind === "allergy" ? "red" : "amb"}`}><b>{r.kind === "allergy" ? n.chartAllergy : n.chartAlert[r.kind] ?? r.kind}</b> <span dir="auto">{r.title}</span></span>))}</div>}
+      {list("medicine") && <span className="hint"><b>{n.chartMedicines}:</b> <span dir="auto">{list("medicine")}</span></span>}
+      {list("condition") && <span className="hint"><b>{n.chartConditions}:</b> <span dir="auto">{list("condition")}</span></span>}
+      {rows.length === 0 && <span className="hint">{n.chartNone}</span>}
+    </section>
   );
 }
 

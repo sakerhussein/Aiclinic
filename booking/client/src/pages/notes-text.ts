@@ -43,6 +43,8 @@ const EN = {
   fieldStop: "Stop and insert", fieldBusy: "Writing what you said…", heard: "Heard:", undo: "Undo", tidyFailed: "Could not be tidied: inserted exactly as heard.",
   noMicDictate: "The microphone could not be opened. Allow it in the browser, or type.", standInDictate: "Test mode: dictation puts sample words in, not what you said.",
   heardWhole: "Heard (whole note):",
+  fromChart: "From the chart", openRecords: "Open in Records ↗", chartAllergy: "Allergy", chartAlert: { medicine: "Medicine", condition: "Condition", procedure: "Procedure", family: "Family" } as Record<string, string>,
+  chartMedicines: "Medicines", chartConditions: "Conditions", chartNone: "Nothing recorded in the chart yet.",
 };
 
 const AR: typeof EN = {
@@ -80,6 +82,8 @@ const AR: typeof EN = {
   fieldStop: "إيقاف وإدراج", fieldBusy: "نكتب ما قلته…", heard: "سُمع:", undo: "تراجع", tidyFailed: "تعذّر الترتيب: أُدرج كما سُمع تماماً.",
   noMicDictate: "تعذّر فتح الميكروفون. اسمح به في المتصفح، أو اكتب.", standInDictate: "وضع الاختبار: الإملاء يضع كلمات تجريبية، لا ما قلته.",
   heardWhole: "سُمع (الملاحظة كاملة):",
+  fromChart: "من الملف", openRecords: "فتح في السجلات الطبية ↗", chartAllergy: "حساسية", chartAlert: { medicine: "دواء", condition: "حالة", procedure: "إجراء", family: "عائلي" },
+  chartMedicines: "الأدوية", chartConditions: "الحالات", chartNone: "لا شيء مسجّل في الملف بعد.",
 };
 
 // The visit note's state as a small coloured label (Bookings list, booking page).

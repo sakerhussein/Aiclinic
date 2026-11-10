@@ -218,7 +218,8 @@ export function createApp({ core, config, now = () => Date.now(), limits = {} })
   // The launcher: the services this person may open.
   app.get("/api/apps", session(OK), wrap(async (req, res) => {
     const perms = await core.permissionsFor(req.session);
-    const { rows } = await core.pool.query("select key, name_en, name_ar, url from accounts.apps where key <> 'accounts' order by key");
+    // A service without an address is not set up on this server yet, so it is not offered.
+    const { rows } = await core.pool.query("select key, name_en, name_ar, url from accounts.apps where key <> 'accounts' and url is not null order by key");
     res.json(rows.filter((a) => perms.some((p) => p.startsWith(`${a.key}.`))));
   }));
 
