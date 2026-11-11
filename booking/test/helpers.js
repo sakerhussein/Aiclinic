@@ -32,7 +32,7 @@ export async function setup() {
   const drafter = { fail: null, calls: [], async draft(x) { drafter.calls.push(x); if (drafter.fail) throw new ScribeError(drafter.fail); return sampleDrafter.draft(x); } };
   const scribe = createScribe({ pool, audioDir, drafter, now: () => new Date(a.clock.t), log: { error() {} } });
   const tidier = { fail: null, calls: [], async tidy(x) { tidier.calls.push(x); if (tidier.fail) throw new ScribeError(tidier.fail); return sampleTidier.tidy(x); } };
-  const svc = createService({ pool, auditPool, now: () => new Date(a.clock.t), audioDir, tidier });
+  const svc = createService({ pool, auditPool, now: () => new Date(a.clock.t), audioDir, tidier, recordsUrl: "http://records.test" });
   const app = createApp({ svc, config });
   const server = await new Promise((r) => { const s = app.listen(0, "127.0.0.1", () => r(s)); });
   const base = `http://127.0.0.1:${server.address().port}`;
@@ -108,9 +108,11 @@ export async function setup() {
 
   async function reset() { agent.next = []; agent.calls = []; agent.down = false; drafter.fail = null; drafter.calls = []; tidier.fail = null; tidier.calls = [];
     for (const d of fs.readdirSync(audioDir)) fs.rmSync(path.join(audioDir, d), { recursive: true, force: true });
-    await a.owner.query(`delete from web_callbacks; delete from web_chats; delete from appointments; delete from patients; delete from time_off; delete from clinic_hours;
+    await a.owner.query(`delete from prescriptions; delete from form_responses; delete from form_templates; delete from form_links; delete from treatment_courses;
+      update record_settings set courses_on = false, forms_on = false, rx_on = false, form_link_hours = 24, form_message_en = default, form_message_ar = default;
+      delete from web_callbacks; delete from web_chats; delete from appointments; delete from patients; delete from time_off; delete from clinic_hours;
       delete from insurance_companies; update record_settings set insurance_in_booking = true;
-      update doctors set slot_minutes = null, buffer_minutes = 0, active = true, scribe_enabled = false;
+      update doctors set slot_minutes = null, buffer_minutes = 0, active = true, scribe_enabled = false, licence_no = null;
       update scribe_settings set enabled = false, note_language = 'en', max_recording_minutes = 45, transcript_keep_days = 30, notes_per_doctor_per_day = 40,
         speech_service = 'stand_in', draft_model = 'claude-opus-5-5', dictation_enabled = false, dictation_model = 'claude-haiku-5-5',
         dictation_translate = true, dictation_field_seconds = 120, dictation_note_minutes = 5, dictations_per_doctor_per_day = 200;

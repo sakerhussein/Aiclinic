@@ -1,31 +1,39 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import { KINDS, ageOf, get, patch, post, put, type Answer, type Chart, type Company, type FilesList, type Details, type Entry, type Field as SField, type Item, type Kind } from "../api";
+import { KINDS, ageOf, get, patch, post, put, type Answer, type Chart, type Company, type FilesList, type Details, type Entry, type Field as SField, type Item, type Kind, type TabCount, type TabCounts } from "../api";
 import { InsuranceFields, InsurancePill, insBody, insDraftOf } from "../insurance";
 import { DocumentsTab, PhotosTab } from "./files";
+import { AiSummary, Courses, FormsTab, RxTab } from "./visit";
+import { useV } from "../visit-text";
 import { fmtDateTime } from "../lib";
 import { useI18n } from "../i18n";
 import { useApp } from "../session";
 import { Banner, Field, useAction } from "../ui";
 
-type Tab = "sum" | "tl" | "ph" | "doc" | "det" | "open";
+type Tab = "sum" | "tl" | "ph" | "doc" | "rx" | "forms" | "det" | "open";
 
 // The patient's chart (design: booking/design/emr.html, screens 1, 2 and 7). Opening it is recorded on the server. Changes update
 // this page in place instead of loading the chart again, so one visit counts as one opening.
 export function ChartPage() {
   const { id = "" } = useParams();
   const { t, lang } = useI18n();
-  const { me, can } = useApp();
+  const { me, can, look } = useApp();
+  const v = useV();
   const canChart = can("records.chart.read");
   const [c, setC] = useState<Chart | null>(null);
   const [missing, setMissing] = useState(false);
-  const [sp] = useSearchParams();                      // ?tab=doc: straight to the documents (from "results to review")
-  const [tab, setTab] = useState<Tab>(sp.get("tab") === "doc" ? "doc" : canChart ? "sum" : "det");
+  const [sp] = useSearchParams();                      // ?tab=doc: straight to the documents (from "results to review"); ?tab=rx&new=1: from Booking's "℞"
+  const asked = sp.get("tab");
+  const [tab, setTab] = useState<Tab>(asked === "doc" || asked === "rx" || asked === "forms" ? asked : canChart ? "sum" : "det");
   useEffect(() => { setC(null); setMissing(false); setFiles(null); get<Chart>(`/api/patients/${id}`).then(setC).catch(() => setMissing(true)); }, [id]);
   // Photos and documents load when their tab is opened (and again after a change).
   const [files, setFiles] = useState<FilesList | null>(null);
   const loadFiles = useCallback(() => { get<FilesList>(`/api/patients/${id}/files`).then(setFiles).catch(() => setFiles(null)); }, [id]);
   useEffect(() => { if ((tab === "ph" || tab === "doc") && !files) loadFiles(); }, [tab, files, loadFiles]);
+  // The numbers beside the tabs, counted again on every change of tab and after the files change (a result just reviewed, a draft printed).
+  const [counts, setCounts] = useState<TabCounts | null>(null);
+  useEffect(() => { setCounts(null); }, [id]);
+  useEffect(() => { get<TabCounts>(`/api/patients/${id}/tab-counts`).then(setCounts).catch(() => undefined); }, [id, tab, files]);
   if (missing) return <main className="wrap page"><Banner kind="warn">{t("notAvailable")}</Banner></main>;
   if (!c) return null;
 
@@ -39,6 +47,8 @@ export function ChartPage() {
     ...(canChart ? [["sum", t("tabSummary")], ["tl", t("tabTimeline")]] as [Tab, string][] : []),
     ...(can("records.photos.view") ? [["ph", t("tabPhotos")]] as [Tab, string][] : []),
     ["doc", t("tabDocs")],
+    ...(canChart && look.settings.rxOn ? [["rx", v.tabRx]] as [Tab, string][] : []),
+    ...(look.settings.formsOn ? [["forms", v.tabForms]] as [Tab, string][] : []),
     ["det", t("tabDetails")],
     ...(can("records.openings.view") ? [["open", t("tabOpenings")]] as [Tab, string][] : []),
   ];
@@ -63,16 +73,30 @@ export function ChartPage() {
           {alerts.map((e) => (
             <span key={e.id} className={`alert ${e.kind === "allergy" ? "red" : "amb"}`}>
               <span className="k">{lang === "ar" ? AR_KIND[e.kind] : EN_KIND[e.kind]}</span><span dir="auto">{e.title}{e.detail ? `: ${e.detail}` : ""}</span>
+              {e.source === "patient" && !e.confirmed_at && <span className="pr">{t("patientReported")}</span>}
             </span>))}
         </div>
       )}
       <div className="ctabs" role="tablist">
-        {tabs.map(([k, label]) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{label}</button>)}
+        {tabs.map(([k, label]) => {
+          const n: TabCount | null | undefined = k === "ph" ? counts?.photos : k === "doc" ? counts?.docs : k === "rx" ? counts?.rx : k === "forms" ? counts?.forms : null;
+          const say = n && n.total > 0 ? (n.waiting ? t("countWaiting", { n: n.waiting, of: n.total }) : t("countAll", { n: n.total })) : "";
+          return (
+            <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? "on" : ""} onClick={() => setTab(k)} title={say || undefined}>
+              {label}
+              {n && n.total > 0 && <span className={`tcount${n.waiting ? " wait" : ""}`} aria-label={say}><bdi dir="ltr">{n.waiting ? `${n.waiting}/${n.total}` : n.total}</bdi></span>}
+            </button>);
+        })}
       </div>
       {tab === "sum" && chart && <Summary c={c} setEntries={setEntries} setAnswers={(a) => setC((x) => x && x.chart ? { ...x, chart: { ...x.chart, answers: a(x.chart.answers) } } : x)} />}
       {tab === "tl" && chart && <Timeline items={chart.timeline} />}
       {tab === "ph" && files && <PhotosTab patientId={id} list={files} reload={loadFiles} />}
       {tab === "doc" && files && <DocumentsTab patientId={id} list={files} reload={loadFiles} />}
+      {tab === "rx" && chart && <RxTab c={c} startNew={sp.get("new") === "1"} visitId={sp.get("visit")} onMedsAdded={(es) => setEntries((all) => [...all, ...es])} />}
+      {tab === "forms" && <FormsTab c={c} onEntries={(fn) => setEntries(fn)}
+        onAnswer={(key, value) => setC((x) => x && x.chart ? { ...x, chart: { ...x.chart, answers: [...x.chart.answers.filter((a) => a.field_key !== key),
+          { field_key: key, value, updated_at: new Date().toISOString(), updated_by_name: me.user.name }] } } : x)} />}
+      {tab === "det" && !chart && <Courses patientId={id} />}
       {tab === "det" && <DetailsTab c={c} onSaved={(d) => setC((x) => x && { ...x, details: d, insurer: d.insurer })} />}
       {tab === "open" && <Openings id={id} />}
     </main>
@@ -86,7 +110,10 @@ function Summary({ c, setEntries, setAnswers }: { c: Chart; setEntries: (fn: (e:
   const { t } = useI18n();
   const kinds = KINDS.filter((k) => c.settings.show[k]);
   return (
+    <>
+    <AiSummary patientId={c.patient.id} />
     <div className="cgrid">
+      <Courses patientId={c.patient.id} />
       {kinds.map((k) => <EntryCard key={k} kind={k} patientId={c.patient.id} entries={c.chart!.entries.filter((e) => e.kind === k)} setEntries={setEntries} />)}
       {c.settings.specialtyFields.length > 0 && (
         <div className="ccard">
@@ -95,6 +122,7 @@ function Summary({ c, setEntries, setAnswers }: { c: Chart; setEntries: (fn: (e:
         </div>
       )}
     </div>
+    </>
   );
 }
 

@@ -11,7 +11,7 @@ const uuid = z.guid();
 const dist = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "client", "dist");
 const text = (max) => z.string().max(max);
 
-export function createApp({ svc, config, files, backups = null, fetchImpl = fetch }) {
+export function createApp({ svc, config, files, backups = null, courses, rx, forms, summary, fetchImpl = fetch }) {
   const app = express();
   app.disable("x-powered-by");
   app.set("trust proxy", config.trustProxy === "false" ? false : Number(config.trustProxy) || config.trustProxy);
@@ -25,7 +25,9 @@ export function createApp({ svc, config, files, backups = null, fetchImpl = fetc
     if (req.path.startsWith("/api") || req.path.startsWith("/auth")) res.set("Cache-Control", "no-store");
     next();
   });
-  app.use(express.json({ limit: "40kb" }));
+  // The patient's form page sends a drawn signature, so its answers may be larger; everything else stays small.
+  const small = express.json({ limit: "40kb" }), signed = express.json({ limit: "300kb" });
+  app.use((req, res, next) => (req.path.startsWith("/api/f/") ? signed : small)(req, res, next));
   app.use((req, res, next) => {
     if (!["GET", "HEAD", "OPTIONS"].includes(req.method) && req.get("origin") !== config.origin) return next(new HttpError(403, "bad_origin"));
     req.ctxBase = { ip: req.ip, ua: (req.get("user-agent") || "").slice(0, 300), requestId: crypto.randomBytes(8).toString("base64url") };
@@ -83,7 +85,8 @@ export function createApp({ svc, config, files, backups = null, fetchImpl = fetc
     const has = (p) => s.permissions.includes(p);
     req.ctx = { ...req.ctxBase, clinicId: s.clinic.id, user: { id: s.user.id, name: s.user.name }, role: s.role, doctorId: s.doctorId ?? null,
                 canChart: has("records.chart.read"), canDetails: has("records.details.view"), canChartWrite: has("records.chart.write"),
-                canPhotos: has("records.photos.view"), canAddFiles: has("records.files.add") };
+                canPhotos: has("records.photos.view"), canAddFiles: has("records.files.add"),
+                canCourses: has("records.courses.view"), canCoursesEdit: has("records.courses.edit"), canRx: has("records.rx.write"), canFormsSend: has("records.forms.send") };
     if (perms.length && !perms.some(has)) throw denied("forbidden");
     next();
   });
@@ -113,6 +116,7 @@ export function createApp({ svc, config, files, backups = null, fetchImpl = fetc
   }));
   app.get("/api/today", auth(CHART), wrap(async (req, res) => res.json(await svc.today(req.ctx))));
   app.get("/api/patients/:id", auth(CHART, DETAILS), wrap(async (req, res) => res.json(await svc.chart(req.ctx, parse(uuid, req.params.id)))));
+  app.get("/api/patients/:id/tab-counts", auth(CHART, DETAILS), wrap(async (req, res) => res.json(await svc.tabCounts(req.ctx, parse(uuid, req.params.id)))));
   app.put("/api/patients/:id/details", auth("records.details.edit"), wrap(async (req, res) => {
     const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
     const b = parse(z.object({
@@ -230,6 +234,95 @@ export function createApp({ svc, config, files, backups = null, fetchImpl = fetc
     res.status(201).json(await files.captureAdd(parse(token, req.params.token), parse(key, req.query.area), Buffer.isBuffer(req.body) ? req.body : null));
   }));
   app.post("/api/capture/:token/done", wrap(async (req, res) => res.json(await files.captureDone(parse(token, req.params.token)))));
+
+  // ---------------------------------------------------------------- phase C: before and after the visit
+  const version = z.number().int();
+  app.put("/api/settings/visit", auth("records.settings.edit"), wrap(async (req, res) => {
+    const b = parse(z.object({
+      coursesOn: z.boolean(), courseAreaRequired: z.boolean(), courseDefaults: z.array(z.object({ serviceId: uuid, sessions: z.number().int().min(1).max(50), weeks: z.number().int().min(0).max(52) })).max(100),
+      rxOn: z.boolean(), rxValidDays: z.number().int().min(1).max(365), rxPaper: z.enum(["A5", "A4"]),
+      rxFavourites: z.array(z.object({ name: z.string().trim().min(1).max(120), how: text(200).nullish(), days: z.number().int().min(1).max(365).nullish(), qty: text(40).nullish() })).max(60),
+      formsOn: z.boolean(), formLinkHours: z.number().int().min(1).max(168),
+      formMessageEn: z.string().trim().min(1).max(400).refine((x) => x.includes("{link}")), formMessageAr: z.string().trim().min(1).max(400).refine((x) => x.includes("{link}")),
+      summaryModel: z.enum(["off", "claude-haiku-5-5", "claude-sonnet-5-5"]), summaryDaily: z.number().int().min(1).max(200),
+    }), req.body);
+    res.json(await svc.updateVisitSettings(req.ctx, b));
+  }));
+
+  // Treatment courses
+  app.get("/api/patients/:id/courses", auth("records.courses.view"), wrap(async (req, res) => res.json(await courses.list(req.ctx, parse(uuid, req.params.id)))));
+  app.post("/api/patients/:id/courses", auth("records.courses.edit"), wrap(async (req, res) => {
+    const b = parse(z.object({ serviceId: uuid, sessions: z.number().int().min(1).max(50), everyWeeks: z.number().int().min(0).max(52),
+      areas: z.array(z.string().min(1).max(40)).max(20).optional(), note: text(120).nullish(), startsOn: day.optional() }), req.body);
+    res.status(201).json(await courses.start(req.ctx, parse(uuid, req.params.id), b));
+  }));
+  app.patch("/api/courses/:id", auth("records.courses.edit"), wrap(async (req, res) => {
+    const b = parse(z.object({ sessions: z.number().int().min(1).max(50).optional(), everyWeeks: z.number().int().min(0).max(52).optional(),
+      areas: z.array(z.string().min(1).max(40)).max(20).optional(), note: text(120).nullish(), expectedVersion: version }), req.body);
+    res.json(await courses.update(req.ctx, parse(uuid, req.params.id), b));
+  }));
+  app.post("/api/courses/:id/end", auth("records.courses.edit"), wrap(async (req, res) => {
+    res.json(await courses.end(req.ctx, parse(uuid, req.params.id), parse(z.object({ reason: z.string().trim().min(1).max(300), expectedVersion: version }), req.body)));
+  }));
+
+  // Prescriptions (print only)
+  const rxItems = z.array(z.object({ name: z.string().trim().min(1).max(120), how: text(200).nullish(), days: z.number().int().min(1).max(365).nullish(),
+    qty: text(40).nullish() })).min(1).max(20);
+  app.get("/api/patients/:id/prescriptions", auth(CHART), wrap(async (req, res) => res.json(await rx.list(req.ctx, parse(uuid, req.params.id)))));
+  app.post("/api/patients/:id/prescriptions", auth("records.rx.write"), wrap(async (req, res) => {
+    const b = parse(z.object({ items: rxItems, language: z.enum(["en", "ar"]), validDays: z.number().int().min(1).max(365).optional(), appointmentId: uuid.nullish() }), req.body);
+    res.status(201).json(await rx.create(req.ctx, parse(uuid, req.params.id), b));
+  }));
+  app.patch("/api/prescriptions/:id", auth("records.rx.write"), wrap(async (req, res) => {
+    const b = parse(z.object({ items: rxItems, language: z.enum(["en", "ar"]), validDays: z.number().int().min(1).max(365), expectedVersion: version }), req.body);
+    res.json(await rx.update(req.ctx, parse(uuid, req.params.id), b));
+  }));
+  app.post("/api/prescriptions/:id/print", auth("records.rx.write"), wrap(async (req, res) => {
+    res.json(await rx.print(req.ctx, parse(uuid, req.params.id), parse(z.object({ expectedVersion: version }), req.body)));
+  }));
+  app.post("/api/prescriptions/:id/error", auth("records.rx.write"), wrap(async (req, res) => {
+    res.json(await rx.markError(req.ctx, parse(uuid, req.params.id), parse(z.object({ reason: z.string().trim().min(1).max(300), expectedVersion: version }), req.body)));
+  }));
+
+  // Forms before the visit
+  const named60 = z.object({ en: z.string().trim().min(1).max(60), ar: z.string().trim().min(1).max(60) });
+  const formBody = z.object({
+    titleEn: z.string().trim().min(1).max(80), titleAr: z.string().trim().min(1).max(80),
+    questions: z.array(z.object({ key, en: z.string().trim().min(1).max(300), ar: z.string().trim().min(1).max(300),
+      kind: z.enum(["yesno", "yesno_details", "choice", "text", "date"]), required: z.boolean().optional(), options: z.array(named60).max(12).optional(),
+      goesTo: z.union([z.enum(["allergy", "medicine", "condition"]), z.string().regex(/^field:[a-z][a-z0-9_]{0,39}$/)]).nullish() })).max(40),
+    consent: z.boolean(), agreeEn: text(1000).nullish(), agreeAr: text(1000).nullish(), firstVisitOnly: z.boolean(), serviceIds: z.array(uuid).max(100),
+    minutes: z.number().int().min(1).max(30), hidden: z.boolean().optional(), sort: z.number().int().min(0).max(1000).optional(),
+  });
+  app.get("/api/forms", auth("records.settings.view"), wrap(async (req, res) => res.json(await forms.templates(req.ctx))));
+  app.post("/api/forms", auth("records.settings.edit"), wrap(async (req, res) => res.status(201).json(await forms.saveTemplate(req.ctx, null, parse(formBody, req.body)))));
+  app.put("/api/forms/:id", auth("records.settings.edit"), wrap(async (req, res) => {
+    res.json(await forms.saveTemplate(req.ctx, parse(uuid, req.params.id), parse(formBody.extend({ expectedVersion: version }), req.body)));
+  }));
+  app.get("/api/patients/:id/forms", auth(CHART, DETAILS), wrap(async (req, res) => res.json(await forms.forPatient(req.ctx, parse(uuid, req.params.id)))));
+  app.post("/api/appointments/:id/form-link", auth("records.forms.send"), wrap(async (req, res) => res.status(201).json(await forms.makeLink(req.ctx, parse(uuid, req.params.id)))));
+  app.post("/api/form-responses/:id/fields/:key", auth(WRITE), wrap(async (req, res) => {
+    const b = parse(z.object({ value: text(200).nullable() }), req.body);
+    res.json(await forms.field(req.ctx, parse(uuid, req.params.id), parse(key, req.params.key), b.value));
+  }));
+  app.post("/api/form-responses/:id/refresh", auth(WRITE), wrap(async (req, res) => res.json(await forms.refresh(req.ctx, parse(uuid, req.params.id)))));
+  // The patient's phone: no sign-in, the private link is the key (it works for that booking only, until some hours after it).
+  app.get("/api/f/:token", wrap(async (req, res) => res.json(await forms.open(parse(token, req.params.token)))));
+  app.post("/api/f/:token/forms/:formId", wrap(async (req, res) => {
+    const b = parse(z.object({ answers: z.record(z.string(), z.object({ value: text(300), details: text(300).optional() })),
+      signature: z.string().max(200000).optional(), signedName: text(120).optional(), language: z.enum(["en", "ar"]) }), req.body);
+    res.status(201).json(await forms.submit(parse(token, req.params.token), parse(uuid, req.params.formId), b));
+  }));
+  app.post("/api/f/:token/copy/:responseId", express.raw({ type: () => true, limit: "6mb" }), wrap(async (req, res) => {
+    res.status(201).json(await forms.copy(parse(token, req.params.token), parse(uuid, req.params.responseId), Buffer.isBuffer(req.body) ? req.body : null));
+  }));
+
+  // The AI summary before the visit
+  app.get("/api/patients/:id/summary", auth(CHART), wrap(async (req, res) => res.json(await summary.get(req.ctx, parse(uuid, req.params.id)))));
+  app.post("/api/patients/:id/summary", auth(CHART), wrap(async (req, res) => {
+    const b = parse(z.object({ lang: z.enum(["en", "ar"]).optional() }), req.body);
+    res.json(await summary.make(req.ctx, parse(uuid, req.params.id), b.lang));
+  }));
 
   // ---------------------------------------------------------------- backups (one VPS serves every clinic)
   app.get("/api/backups", auth("records.backups.view"), wrap(async (req, res) => {

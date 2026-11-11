@@ -35,7 +35,7 @@ export function createSettings({ pool, tx, now = () => new Date() }) {
       q(`select id, slug, name_en, name_ar, timezone, phone, address_en, address_ar, maps_url, default_language, week_start, slot_step_minutes from clinics where id = $1`),
       q(`select id, weekday, to_char(start_time, 'HH24:MI') as start, to_char(end_time, 'HH24:MI') as "end" from clinic_hours where clinic_id = $1 order by weekday, start_time`),
       q(`select id, doctor_id, starts_at, ends_at, reason from time_off where clinic_id = $1 and ends_at > now() - interval '30 days' order by starts_at`),
-      q(`select d.id, d.name_en, d.name_ar, d.title_en, d.title_ar, d.gender, d.active, d.slot_minutes, d.buffer_minutes, d.scribe_enabled,
+      q(`select d.id, d.name_en, d.name_ar, d.title_en, d.title_ar, d.gender, d.licence_no, d.active, d.slot_minutes, d.buffer_minutes, d.scribe_enabled,
                 coalesce((select array_agg(ds.service_id) from doctor_services ds where ds.doctor_id = d.id), '{}') as service_ids,
                 coalesce((select json_agg(json_build_object('weekday', w.weekday, 'start', to_char(w.start_time, 'HH24:MI'), 'end', to_char(w.end_time, 'HH24:MI')) order by w.weekday, w.start_time)
                             from working_hours w where w.doctor_id = d.id), '[]') as hours
@@ -131,15 +131,18 @@ export function createSettings({ pool, tx, now = () => new Date() }) {
   }
 
   async function createDoctor(ctx, b) {
-    const r = await write(ctx, (c) => one(c, `insert into doctors (clinic_id, name_en, name_ar, title_en, title_ar, gender, slot_minutes, buffer_minutes)
-      values ($1,$2,$3,$4,$5,$6,$7,$8) returning id`, [ctx.clinicId, b.nameEn, b.nameAr, b.titleEn || null, b.titleAr || null, b.gender ?? null, b.slotMinutes ?? null, b.bufferMinutes ?? 0]));
+    const r = await write(ctx, (c) => one(c, `insert into doctors (clinic_id, name_en, name_ar, title_en, title_ar, gender, slot_minutes, buffer_minutes, licence_no)
+      values ($1,$2,$3,$4,$5,$6,$7,$8,$9) returning id`, [ctx.clinicId, b.nameEn, b.nameAr, b.titleEn || null, b.titleAr || null, b.gender ?? null, b.slotMinutes ?? null, b.bufferMinutes ?? 0, b.licenceNo || null]));
     return { ok: true, id: r.id };
   }
   async function updateDoctor(ctx, id, b) {
     await write(ctx, async (c) => {
       await ownDoctor(c, ctx, id);
-      await c.query(`update doctors set name_en=$3, name_ar=$4, title_en=$5, title_ar=$6, gender=$7, slot_minutes=$8, buffer_minutes=$9, active=$10 where clinic_id=$1 and id=$2`,
-        [ctx.clinicId, id, b.nameEn, b.nameAr, b.titleEn || null, b.titleAr || null, b.gender ?? null, b.slotMinutes ?? null, b.bufferMinutes, b.active]);
+      // The licence number: printed on prescriptions (Records); kept as it was when the form does not send it.
+      await c.query(`update doctors set name_en=$3, name_ar=$4, title_en=$5, title_ar=$6, gender=$7, slot_minutes=$8, buffer_minutes=$9, active=$10,
+                      licence_no = case when $11 then $12 else licence_no end where clinic_id=$1 and id=$2`,
+        [ctx.clinicId, id, b.nameEn, b.nameAr, b.titleEn || null, b.titleAr || null, b.gender ?? null, b.slotMinutes ?? null, b.bufferMinutes, b.active,
+         b.licenceNo !== undefined, b.licenceNo || null]);
     });
     return withOutside(ctx);
   }

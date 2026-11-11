@@ -228,5 +228,5 @@ export function createFiles({ pool, svc, storage, secret, siteUrl, now = () => n
     return { photos: r.photos };
   }
 
-  return { list, upload, link, photoLinks, content, review, markError, setConsent, phoneCode, phoneState, captureInfo, captureGhost, captureAdd, captureDone };
+  return { list, upload, link, photoLinks, content, review, markError, setConsent, phoneCode, phoneState, captureInfo, captureGhost, captureAdd, captureDone, addFile: add };
 }

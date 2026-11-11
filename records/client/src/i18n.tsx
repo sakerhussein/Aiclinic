@@ -10,7 +10,7 @@ const EN = {
   noPatients: "No patients found.", noToday: "No patients booked with you today.", noTodayAll: "No patients booked today.", time: "Time", visit: "Visit", doctor: "Doctor", alerts: "Alerts",
   openInBooking: "Open in Booking ↗", editInBooking: "Edit in Booking ↗", years: "{n} years", notAvailable: "This patient's record is not available.",
   female: "Female", male: "Male", arabic: "Arabic", english: "English", doctorLine: "Doctor: {name}",
-  tabSummary: "Summary", tabTimeline: "Timeline", tabDetails: "Details", tabOpenings: "Who opened this record",
+  tabSummary: "Summary", tabTimeline: "Timeline", tabDetails: "Details", tabOpenings: "Who opened this record", countAll: "{n} in all", countWaiting: "{n} of {of} waiting for you",
   add: "+ Add", none: "None recorded.", edit: "Edit", save: "Save", cancel: "Cancel", saved: "Saved.",
   entryName: "Name", entryDetail: "Details (optional)", entryAlert: "Show as an alert under the name on every screen", allergyAlways: "Allergies always show as an alert.",
   status: "Status", active: "Current", past: "Past",
@@ -37,7 +37,7 @@ tabPhotos: "Photos", tabDocs: "Documents", allAreas: "All",
   toReview: "New results to review: {n}", photosAdded: "{area}: {n} photo(s)", docAdded: "{kind}: {title}",
   whatPhotos: "Looked at the photos", whatFile: "Opened: {kind}", whatChart: "Opened the record",
   emName: "Emergency contact: name", emRelation: "Relationship", emPhone: "Emergency contact: phone",
-  setFiles: "Photos and documents", setBackups: "Backups", areasTitle: "Body areas for photos", areasHint: "The dermatology starter list; each clinic edits its own. An area that has photos can't be removed.",
+  setFiles: "Photos and documents", setBackups: "Backups", areasTitle: "Body areas (photos and treatment courses)", areasHint: "The dermatology starter list; each clinic edits its own. An area that has photos or courses can't be removed.",
   kindsTitle: "Kinds of document", kindsHint: "A kind that has documents can't be removed.", secretaryOpens: "Secretaries can open", needsReview: "Needs the doctor's review",
   addKind: "+ Add a kind", addArea: "+ Add an area", relationsTitle: "Relationships (emergency contact)", addRelation: "+ Add a relationship", rulesTitle: "Rules",
   consentRequired: "Ask for the patient's photo consent before the first photo", maxMb: "Largest file (MB)", linkMin: "A document link works for (minutes)", phoneMin: "The phone code works for (minutes)",
@@ -92,6 +92,16 @@ tabPhotos: "Photos", tabDocs: "Documents", allAreas: "All",
     unknown_doc_kind: "This kind of document is no longer in Settings. Reload the page.", title_needed: "Give the document a title.", date_in_future: "That date is in the future.",
     file_not_found: "This file is not available.", link_expired: "This link has expired. Open the file again.", code_expired: "This code has ended.",
     code_not_found: "This code is not available.", files_not_set_up: "Photos and documents are not set up on this server yet.", in_use: "Some of these are in use and can't be removed.", backups_not_set_up: "Backups are not set up on this server yet.",
+    courses_off: "Treatment courses are switched off in Settings.", area_required: "Pick the area of the body for this course.", course_open: "This service already has a course going. End it or let it finish first.",
+    course_ended: "This course has ended.", fewer_than_booked: "More sessions are already booked than that.", unknown_service: "That service is not available. Reload the page.",
+    rx_off: "Prescriptions are switched off in Settings.", licence_missing: "Add your licence number in Booking › Settings › Doctors first.", rx_printed: "This prescription was printed and is locked.",
+    not_a_doctor: "Only a doctor can write a prescription.", rx_not_found: "This prescription is not available.", unknown_appointment: "That visit is not this patient's.",
+    forms_off: "Forms before the visit are switched off in Settings.", no_forms: "No forms go with this booking.", booking_not_open: "This booking is over or cancelled.",
+    already_filled: "This form was already sent.", answer_required: "Please answer every required question.", signature_needed: "Please sign and write your name.",
+    link_ended: "This link has ended.", consent_needs_text: "A consent needs what the patient agrees to, in both languages.", form_not_found: "This form is not available.",
+    summary_off: "The AI summary is switched off.", summary_limit: "Today's summaries are used up.",
+    summary_nothing: "There is nothing to summarise yet.", summary_unreadable: "The summary could not be read. Try again.", summary_refused: "The summary was not made.",
+    appointment_not_found: "This booking is not available.", course_not_found: "This course is not available.",
   } as Record<string, string>,
 };
 
@@ -102,7 +112,7 @@ const AR: typeof EN = {
   noPatients: "لا يوجد مرضى.", noToday: "لا يوجد مرضى محجوزون معك اليوم.", noTodayAll: "لا يوجد مرضى محجوزون اليوم.", time: "الوقت", visit: "الزيارة", doctor: "الطبيب", alerts: "التنبيهات",
   openInBooking: "فتح في المواعيد ↗", editInBooking: "تعديل في المواعيد ↗", years: "{n} سنة", notAvailable: "ملف هذا المريض غير متاح.",
   female: "أنثى", male: "ذكر", arabic: "العربية", english: "الإنجليزية", doctorLine: "الطبيب: {name}",
-  tabSummary: "الملخص", tabTimeline: "السجل الزمني", tabDetails: "البيانات", tabOpenings: "من فتح هذا الملف",
+  tabSummary: "الملخص", tabTimeline: "السجل الزمني", tabDetails: "البيانات", tabOpenings: "من فتح هذا الملف", countAll: "{n} في المجموع", countWaiting: "{n} من {of} بانتظارك",
   add: "+ إضافة", none: "لا شيء مسجّل.", edit: "تعديل", save: "حفظ", cancel: "إلغاء", saved: "تم الحفظ.",
   entryName: "الاسم", entryDetail: "التفاصيل (اختياري)", entryAlert: "إظهاره كتنبيه تحت الاسم في كل شاشة", allergyAlways: "الحساسية تظهر دائماً كتنبيه.",
   status: "الحالة", active: "حالي", past: "سابق",
@@ -129,7 +139,7 @@ tabPhotos: "الصور", tabDocs: "المستندات", allAreas: "الكل",
   toReview: "نتائج جديدة للمراجعة: {n}", photosAdded: "{area}: صور {n}", docAdded: "{kind}: {title}",
   whatPhotos: "عرض الصور", whatFile: "فتح: {kind}", whatChart: "فتح الملف",
   emName: "جهة الطوارئ: الاسم", emRelation: "صلة القرابة", emPhone: "جهة الطوارئ: الهاتف",
-  setFiles: "الصور والمستندات", setBackups: "النسخ الاحتياطي", areasTitle: "مناطق الجسم للصور", areasHint: "قائمة البداية للجلدية؛ وكل عيادة تعدّل قائمتها. لا يمكن حذف منطقة لها صور.",
+  setFiles: "الصور والمستندات", setBackups: "النسخ الاحتياطي", areasTitle: "مناطق الجسم (الصور ودورات العلاج)", areasHint: "قائمة البداية للجلدية؛ وكل عيادة تعدّل قائمتها. لا يمكن حذف منطقة لها صور أو دورات.",
   kindsTitle: "أنواع المستندات", kindsHint: "لا يمكن حذف نوع له مستندات.", secretaryOpens: "تفتحه السكرتيرة", needsReview: "يحتاج مراجعة الطبيب",
   addKind: "+ إضافة نوع", addArea: "+ إضافة منطقة", relationsTitle: "صلات القرابة (جهة الطوارئ)", addRelation: "+ إضافة صلة", rulesTitle: "القواعد",
   consentRequired: "طلب موافقة المريض على التصوير قبل أول صورة", maxMb: "أكبر ملف (ميغابايت)", linkMin: "رابط المستند يعمل لمدة (دقائق)", phoneMin: "رمز الهاتف يعمل لمدة (دقائق)",
@@ -184,27 +194,71 @@ tabPhotos: "الصور", tabDocs: "المستندات", allAreas: "الكل",
     unknown_doc_kind: "هذا النوع لم يعد في الإعدادات. أعد تحميل الصفحة.", title_needed: "أعطِ المستند عنواناً.", date_in_future: "هذا التاريخ في المستقبل.",
     file_not_found: "هذا الملف غير متاح.", link_expired: "انتهى هذا الرابط. افتح الملف مرة أخرى.", code_expired: "انتهى هذا الرمز.",
     code_not_found: "هذا الرمز غير متاح.", files_not_set_up: "الصور والمستندات غير مُعدّة على هذا الخادم بعد.", in_use: "بعضها مستخدم ولا يمكن حذفه.", backups_not_set_up: "النسخ الاحتياطي غير مُعدّ على هذا الخادم بعد.",
+    courses_off: "دورات العلاج متوقفة في الإعدادات.", area_required: "اختر منطقة الجسم لهذه الدورة.", course_open: "لهذه الخدمة دورة جارية. أنهِها أو انتظر اكتمالها أولاً.",
+    course_ended: "انتهت هذه الدورة.", fewer_than_booked: "حُجز عدد أكبر من الجلسات بالفعل.", unknown_service: "هذه الخدمة غير متاحة. أعد تحميل الصفحة.",
+    rx_off: "الوصفات متوقفة في الإعدادات.", licence_missing: "أضف رقم ترخيصك في «المواعيد» › الإعدادات › الأطباء أولاً.", rx_printed: "طُبعت هذه الوصفة وهي مقفلة.",
+    not_a_doctor: "الطبيب فقط يكتب الوصفة.", rx_not_found: "هذه الوصفة غير متاحة.", unknown_appointment: "هذه الزيارة ليست لهذا المريض.",
+    forms_off: "النماذج قبل الزيارة متوقفة في الإعدادات.", no_forms: "لا توجد نماذج لهذا الحجز.", booking_not_open: "انتهى هذا الحجز أو أُلغي.",
+    already_filled: "أُرسل هذا النموذج من قبل.", answer_required: "يرجى الإجابة عن كل سؤال إلزامي.", signature_needed: "يرجى التوقيع وكتابة اسمك.",
+    link_ended: "انتهى هذا الرابط.", consent_needs_text: "الموافقة تحتاج نص ما يوافق عليه المريض باللغتين.", form_not_found: "هذا النموذج غير متاح.",
+    summary_off: "الملخص الذكي متوقف.", summary_limit: "استُنفدت ملخصات اليوم.",
+    summary_nothing: "لا يوجد ما يُلخَّص بعد.", summary_unreadable: "تعذّرت قراءة الملخص. حاول مرة أخرى.", summary_refused: "لم يُنشأ الملخص.",
+    appointment_not_found: "هذا الحجز غير متاح.", course_not_found: "هذه الدورة غير متاحة.",
   },
 };
 
 const DICT = { en: EN, ar: AR };
 type Key = Exclude<keyof typeof EN, "kinds" | "kind1" | "statuses" | "roles" | "detailNames" | "errors">;
-type Ctx = { lang: Lang; setLang: (l: Lang) => void; t: (k: Key, vars?: Record<string, string | number>) => string; d: typeof EN; error: (code: string) => string };
+type Ctx = { lang: Lang; setLang: (l: Lang, keep?: boolean) => void; t: (k: Key, vars?: Record<string, string | number>) => string; d: typeof EN; error: (code: string) => string };
 const C = createContext<Ctx>(null as never);
 export const useI18n = () => useContext(C);
 
+
+// Links to the other Limitsiz services (Accounts, Booking, Records: same site, another subdomain or port) carry the language.
+function sameSite(a: string, b: string) {
+  const local = (h: string) => h === "localhost" || h === "127.0.0.1";
+  if (local(a) || local(b)) return local(a) && local(b);
+  return a.split(".").slice(-2).join(".") === b.split(".").slice(-2).join(".");
+}
+function useCarryLang(lang: Lang) {
+  useEffect(() => {
+    const on = (e: MouseEvent) => {
+      const a = (e.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
+      if (!a) return;
+      try {
+        const u = new URL(a.href);
+        if (u.origin === window.location.origin || !/^https?:$/.test(u.protocol) || !sameSite(u.hostname, window.location.hostname)) return;
+        u.searchParams.set("lang", lang); a.href = u.toString();
+      } catch { /* ignore */ }
+    };
+    document.addEventListener("click", on, true); document.addEventListener("auxclick", on, true);
+    return () => { document.removeEventListener("click", on, true); document.removeEventListener("auxclick", on, true); };
+  }, [lang]);
+}
+
 function initial(): Lang {
+  // A link from another Limitsiz service brings ?lang= (each service is its own site, so its own saved language).
+  try {
+    const u = new URL(window.location.href); const q = u.searchParams.get("lang");
+    if (q === "ar" || q === "en") {
+      u.searchParams.delete("lang"); window.history.replaceState(window.history.state, "", u.pathname + u.search + u.hash);
+      try { localStorage.setItem("lc_lang", q); } catch { /* storage blocked */ }
+      return q;
+    }
+  } catch { /* ignore */ }
   try { const s = localStorage.getItem("lc_lang"); if (s === "ar" || s === "en") return s; } catch { /* storage blocked */ }
   return navigator.language?.toLowerCase().startsWith("ar") ? "ar" : "en";
 }
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [lang, setL] = useState<Lang>(initial);
+  useCarryLang(lang);
   useEffect(() => {
     document.documentElement.lang = lang; document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
     document.title = lang === "ar" ? "Limitsiz Clinic: السجلات الطبية" : "Limitsiz Clinic: Records";
   }, [lang]);
-  const setLang = (l: Lang) => { setL(l); try { localStorage.setItem("lc_lang", l); } catch { /* ignore */ } };
+  // keep = false: this page only (the patient's form on a front-desk tablet must not change the staff's language).
+  const setLang = (l: Lang, keep = true) => { setL(l); if (keep) try { localStorage.setItem("lc_lang", l); } catch { /* ignore */ } };
   const d = DICT[lang];
   const t: Ctx["t"] = (k, vars) => String(d[k]).replace(/\{(\w+)\}/g, (_, v) => String(vars?.[v] ?? ""));
   return <C.Provider value={{ lang, setLang, t, d, error: (c) => d.errors[c] || d.errors.server_error }}>{children}</C.Provider>;

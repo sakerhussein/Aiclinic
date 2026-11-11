@@ -56,21 +56,76 @@ function spell(m: number, x: Tx) {
   return `${m} ${x.minutes}`;
 }
 
-// "Add to calendar": a small .ics file made here, nothing sent anywhere.
-// The calendar entry carries the private link, so a patient who saved the appointment always finds it again.
+// "Add to calendar": the same entry three ways. The calendar entry carries the private link, so a patient who saved the
+// appointment always finds it again.
+//   Google Calendar and Outlook: a link that opens the patient's calendar with the entry filled in (the details travel in the link,
+//   to Google or Microsoft, only when the patient taps it). Google's app can't open .ics files, and most patients here use Android.
+//   Apple / other: a small .ics file made here, nothing sent anywhere (Apple Calendar, Outlook on a computer, Samsung Calendar).
+function calEvent(s: Summary, l: Lang, x: Tx, link: string) {
+  const clinic = l === "ar" ? s.clinic.nameAr : s.clinic.nameEn, svc = l === "ar" ? s.service.nameAr : s.service.nameEn;
+  const doctor = l === "ar" ? s.doctor.nameAr : s.doctor.nameEn;
+  return {
+    title: `${svc} · ${clinic}`,
+    where: (l === "ar" ? s.clinic.addressAr : s.clinic.addressEn) || clinic,
+    note: [doctor, x.calLink.replace("{link}", link), s.clinic.phone ? `${x.callClinic}: ${s.clinic.phone}` : ""].filter(Boolean).join("\n"),
+  };
+}
+const utc = (iso: string) => new Date(iso).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");   // 20261111T090000Z
+
 export function icsHref(s: Summary, l: Lang, x: Tx, link: string) {
-  const z = (iso: string) => new Date(iso).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  const e = calEvent(s, l, x, link);
   const esc = (v: string) => v.replace(/[\\,;]/g, (c) => "\\" + c).replace(/\n/g, "\\n");
   // Lines longer than 75 bytes are folded (RFC 5545); 60 characters keeps Arabic under the limit too.
   const fold = (line: string) => { const out = []; for (let i = 0; i < line.length; i += 60) out.push((i ? " " : "") + line.slice(i, i + 60)); return out.join("\r\n"); };
-  const clinic = l === "ar" ? s.clinic.nameAr : s.clinic.nameEn, svc = l === "ar" ? s.service.nameAr : s.service.nameEn;
-  const doctor = l === "ar" ? s.doctor.nameAr : s.doctor.nameEn;
-  const where = (l === "ar" ? s.clinic.addressAr : s.clinic.addressEn) || clinic;
-  const note = [doctor, x.calLink.replace("{link}", link), s.clinic.phone ? `${x.callClinic}: ${s.clinic.phone}` : ""].filter(Boolean).join("\n");
-  const body = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Limitsiz//Online booking//EN", "BEGIN:VEVENT", `UID:${s.id}@limitsiz`, `DTSTAMP:${z(new Date().toISOString())}`,
-    `DTSTART:${z(s.startsAt)}`, `DTEND:${z(s.endsAt)}`, `SUMMARY:${esc(`${svc} · ${clinic}`)}`, `LOCATION:${esc(where)}`,
-    `DESCRIPTION:${esc(note)}`, `URL:${link}`, "END:VEVENT", "END:VCALENDAR"].map(fold).join("\r\n");
+  const body = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Limitsiz//Online booking//EN", "BEGIN:VEVENT", `UID:${s.id}@limitsiz`, `DTSTAMP:${utc(new Date().toISOString())}`,
+    `DTSTART:${utc(s.startsAt)}`, `DTEND:${utc(s.endsAt)}`, `SUMMARY:${esc(e.title)}`, `LOCATION:${esc(e.where)}`,
+    `DESCRIPTION:${esc(e.note)}`, `URL:${link}`, "END:VEVENT", "END:VCALENDAR"].map(fold).join("\r\n");
   return "data:text/calendar;charset=utf-8," + encodeURIComponent(body);
+}
+
+export function googleHref(s: Summary, l: Lang, x: Tx, link: string) {
+  const e = calEvent(s, l, x, link);
+  const q = new URLSearchParams({ action: "TEMPLATE", text: e.title, dates: `${utc(s.startsAt)}/${utc(s.endsAt)}`, details: e.note, location: e.where });
+  return `https://calendar.google.com/calendar/render?${q}`;
+}
+
+export function outlookHref(s: Summary, l: Lang, x: Tx, link: string) {
+  const e = calEvent(s, l, x, link);
+  const iso = (v: string) => new Date(v).toISOString().replace(/\.\d{3}/, "");
+  const q = new URLSearchParams({ path: "/calendar/action/compose", rru: "addevent", subject: e.title, startdt: iso(s.startsAt), enddt: iso(s.endsAt),
+    body: e.note, location: e.where });
+  return `https://outlook.live.com/calendar/0/deeplink/compose?${q}`;
+}
+
+// The calendars' marks, drawn small beside their names. Google Calendar and Apple: Simple Icons (CC0); Outlook and "other": drawn here.
+const CAL_ICON = {
+  google: <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M18.316 5.684H24v12.632h-5.684V5.684zM5.684 24h12.632v-5.684H5.684V24zM18.316 5.684V0H1.895A1.894 1.894 0 0 0 0 1.895v16.421h5.684V5.684h12.632zm-7.207 6.25v-.065c.272-.144.5-.349.687-.617s.279-.595.279-.982c0-.379-.099-.72-.3-1.025a2.05 2.05 0 0 0-.832-.714 2.703 2.703 0 0 0-1.197-.257c-.6 0-1.094.156-1.481.467-.386.311-.65.671-.793 1.078l1.085.452c.086-.249.224-.461.413-.633.189-.172.445-.257.767-.257.33 0 .602.088.816.264a.86.86 0 0 1 .322.703c0 .33-.12.589-.36.778-.24.19-.535.284-.886.284h-.567v1.085h.633c.407 0 .748.109 1.02.327.272.218.407.499.407.843 0 .336-.129.614-.387.832s-.565.327-.924.327c-.351 0-.651-.103-.897-.311-.248-.208-.422-.502-.521-.881l-1.096.452c.178.616.505 1.082.977 1.401.472.319.984.478 1.538.477a2.84 2.84 0 0 0 1.293-.291c.382-.193.684-.458.902-.794.218-.336.327-.72.327-1.149 0-.429-.115-.797-.344-1.105a2.067 2.067 0 0 0-.881-.689zm2.093-1.931l.602.913L15 10.045v5.744h1.187V8.446h-.827l-2.158 1.557zM22.105 0h-3.289v5.184H24V1.895A1.894 1.894 0 0 0 22.105 0zm-3.289 23.5l4.684-4.684h-4.684V23.5zM0 22.105C0 23.152.848 24 1.895 24h3.289v-5.184H0v3.289z" /></svg>,
+  outlook: <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="4" width="16" height="16" rx="2" fill="#28A8EA" /><path fill="#0364B8" d="M7 12h16v6a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2z" /><rect x="1" y="6" width="12" height="12" rx="2" fill="#0F6CBD" />
+    <ellipse cx="7" cy="12" rx="3" ry="3.6" fill="none" stroke="#fff" strokeWidth="1.8" /></svg>,
+  apple: <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701" /></svg>,
+  other: <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="3" y="5" width="18" height="16" rx="2.5" />
+    <path d="M3 10h18M8 3v4M16 3v4" /><path d="M12 13.5v4M10 15.5h4" /></svg>,
+};
+
+/** "Add to calendar", as four icons (the name shows above an icon under the mouse or the keyboard, and is what screen readers say): Google Calendar and Outlook open the patient's calendar with the entry filled in; Apple Calendar and "other
+ *  calendars" take the .ics file. Apple comes first on an iPhone, iPad or Mac. */
+export function CalendarButtons({ s, x, lang, link }: { s: Summary; x: Tx; lang: Lang; link: string }) {
+  const apple = /iPhone|iPad|Macintosh/.test(navigator.userAgent);
+  const ics = icsHref(s, lang, x, link);
+  const btn = (k: keyof typeof CAL_ICON, label: string, href: string, file: boolean) => (
+    <a key={k} className="bk-btn ghost bk-calbtn" href={href} aria-label={label} data-tip={label} {...(file ? { download: "appointment.ics" } : { target: "_blank", rel: "noreferrer" })}>
+      <span className="bk-calico">{CAL_ICON[k]}</span>
+    </a>);
+  const google = btn("google", x.calGoogle, googleHref(s, lang, x, link), false);
+  const outlook = btn("outlook", x.calOutlook, outlookHref(s, lang, x, link), false);
+  const appleBtn = btn("apple", x.calApple, ics, true);
+  const other = btn("other", x.calOther, ics, true);
+  return (
+    <div className="bk-cal" role="group" aria-label={x.addCal}>
+      <span className="bk-cal-h">{x.addCal}</span>
+      <div className="bk-cal-row">{apple ? [appleBtn, google, outlook, other] : [google, outlook, appleBtn, other]}</div>
+    </div>
+  );
 }
 
 // "Save the link": the phone's own share menu (WhatsApp, messages, notes, email); WhatsApp where there is none (computers).
@@ -327,7 +382,7 @@ export function BookPage({ slug }: { slug: string }) {
       <SummaryCard s={done} x={x} lang={lang} withName />
       {note && <p className="bk-note">{note}</p>}
       <ShareLink s={done} x={x} lang={lang} link={link} />
-      <a className="bk-btn outline" href={icsHref(done, lang, x, link)} download="appointment.ics">{x.addCal}</a>
+      <CalendarButtons s={done} x={x} lang={lang} link={link} />
       <p className="bk-hint">{x.calHint}</p>
     </>);
   }
@@ -400,7 +455,7 @@ export function ManagePage({ slug }: { slug: string }) {
           <button type="button" className="bk-btn danger" disabled={busy} onClick={() => void act(() => call<Summary>("POST", `/api/c/${slug}/manage/cancel`, { token }), null)}>{x.yesCancel}</button>
         </div>
       </div>}
-      {active && <a className="bk-btn outline" href={icsHref(s, lang, x, location.href)} download="appointment.ics">{x.addCal}</a>}
+      {active && <CalendarButtons s={s} x={x} lang={lang} link={location.href} />}
       {active && <ShareLink s={s} x={x} lang={lang} link={location.href} />}
     </Shell>
   );

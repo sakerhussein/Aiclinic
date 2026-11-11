@@ -5,6 +5,8 @@ import { companyName } from "../insurance";
 import { useI18n } from "../i18n";
 import { useApp } from "../session";
 import { Banner, Field, useAction } from "../ui";
+import { VisitSettings } from "./visit-settings";
+import { useV } from "../visit-text";
 
 const DETAILS = ["birth_date", "sex", "national_id", "emergency_contact"];
 
@@ -31,8 +33,9 @@ export function Settings() {
   const [saved, setSaved] = useState(false);
   const a = useAction();
   const setField = (i: number, p: Partial<Draft>) => setFields(fields.map((x, j) => (j === i ? { ...x, ...p } : x)));
-  const [tab, setTab] = useState<"chart" | "files" | "backups">("chart");
-  const tabs: ["chart" | "files" | "backups", string][] = [["chart", t("setChart")], ["files", t("setFiles")],
+  const v = useV();
+  const [tab, setTab] = useState<"chart" | "files" | "visit" | "backups">("chart");
+  const tabs: ["chart" | "files" | "visit" | "backups", string][] = [["chart", t("setChart")], ["files", t("setFiles")], ["visit", v.setVisit],
     ...(can("records.backups.view") ? [["backups", t("setBackups")]] as ["backups", string][] : [])];
 
   return (
@@ -127,6 +130,7 @@ export function Settings() {
         <Insurers edit={edit} />
         </div>}
         {tab === "files" && <FilesSettings edit={edit} />}
+        {tab === "visit" && <VisitSettings edit={edit} />}
         {tab === "backups" && <BackupsTab />}
       </div>
     </main>

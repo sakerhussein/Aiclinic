@@ -9,6 +9,7 @@ import { createAudit } from "./audit.js";
 import { bookingsFile, patientsFile, todayIn, MAX_EXPORT_ROWS } from "./export.js";
 import { freeStarts, MIN } from "./slots.js";
 import { createNotes } from "./notes.js";
+import { createVisitLines } from "./visit-lines.js";
 
 const ACTIVE = ["booked", "confirmed"];
 
@@ -23,7 +24,7 @@ export function normalizePhone(raw, country = "962") {
   return "+" + n;
 }
 
-export function createService({ pool, auditPool, now = () => new Date(), audioDir, speech, tidier }) {
+export function createService({ pool, auditPool, now = () => new Date(), audioDir, speech, tidier, recordsUrl = "" }) {
   // ---------------------------------------------------------------- transactions with an audit actor
   async function tx(ctx, fn) {
     const c = await pool.connect();
@@ -450,6 +451,7 @@ export function createService({ pool, auditPool, now = () => new Date(), audioDi
   }
   const exportBookings = (ctx, q, lang) => exportFile(ctx, "bookings", (n) => listAppointments(ctx, q, n), bookingsFile, q, lang);
   const exportPatients = (ctx, q, lang) => exportFile(ctx, "patients", (n) => searchPatients(ctx, q, n), patientsFile, q ? { q } : {}, lang);
-  return { settings, audit, notes, lookups, timeOffOn, slots, listAppointments, getAppointment, history, createAppointment, updateAppointment, setStatus, restore, markChecked, onlineLink,
+  const visit = createVisitLines({ pool, tx, getAppointment, recordsUrl, now });
+  return { settings, audit, notes, visit, lookups, timeOffOn, slots, listAppointments, getAppointment, history, createAppointment, updateAppointment, setStatus, restore, markChecked, onlineLink,
            searchPatients, exportBookings, exportPatients, getPatient, insurance, todayLine, createPatient: (ctx, b) => createPatient(ctx, b), updatePatient, tx };
 }

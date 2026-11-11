@@ -87,9 +87,18 @@ test("documents: a secretary adds any kind but opens only front-desk ones; resul
   assert.equal(today.find((r) => r.patient_id === pid).to_review, 1);
   const docs = (await dr.get(`/api/patients/${pid}/files`)).json.documents;
   assert.equal(docs.length, 2);
+  // Beside the tabs: the secretary sees only the documents they can open, the doctor how many of all of them wait for review.
+  assert.deepEqual((await sec.get(`/api/patients/${pid}/tab-counts`)).json.docs, { total: 1, waiting: 0 });
+  assert.equal((await sec.get(`/api/patients/${pid}/tab-counts`)).json.photos, null);
+  assert.deepEqual((await dr.get(`/api/patients/${pid}/tab-counts`)).json.docs, { total: 2, waiting: 1 });
+  const openings = async () => (await t.owner.query("select count(*)::int as n from record_openings where patient_id = $1", [pid])).rows[0].n;
+  const before = await openings();
+  await dr.get(`/api/patients/${pid}/tab-counts`);
+  assert.equal(await openings(), before);                          // counting again is not an opening of the record
   const rv = await dr.post(`/api/files/${lab.json.id}/review`, { expectedVersion: lab.json.row_version });
   assert.equal(rv.json.reviewed_by_name, "Dr Lina");
   assert.equal((await dr.get("/api/today")).json.find((r) => r.patient_id === pid).to_review, 0);
+  assert.deepEqual((await dr.get(`/api/patients/${pid}/tab-counts`)).json.docs, { total: 2, waiting: 0 });
   // A result the doctor adds is reviewed already.
   const own = await send(dr, `/api/patients/${pid}/files?kind=document&docKind=lab_result&title=CBC`, PDF);
   assert.ok(own.json.reviewed_at);

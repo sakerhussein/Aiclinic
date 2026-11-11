@@ -40,6 +40,31 @@ Who sees what follows the person's role in Accounts: doctors the whole chart; se
 - **Emergency contact** in three parts (name, relationship from the clinic's list, phone).
 - Server: `bash deploy/setup-records-files.sh` once, after migration 0022 is applied and the code is deployed.
 
-## Later phases
+## Phase C (design: `booking/design/records-phase-c.html`; database: migration `0023_records_phase_c.sql`)
 
-C: forms before the visit, prescriptions, treatment courses, the AI summary.
+Every part is off until the clinic switches it on in **Settings › Before and after the visit**, and every number is set there.
+
+- **Treatment courses** (`server/courses.js`): a series of sessions of one service, for one or more body areas (the
+  clinic's list, the same as Photos; required unless switched off in Settings, for reports by area) and an optional note. A session counts when a booking for that service is
+  completed in Booking, from the course's first day; booked ones show as booked, no-shows and cancellations don't count. "Book session
+  5" opens Booking's new-booking form with the patient, the service and the suggested date. Doctors start, change and end courses;
+  secretaries see them. Booking shows "session 4 of 6" on the booking and the visit note.
+- **Prescriptions** (`server/rx.js`), print only: written by a doctor, checked on a preview, printed (A5 or A4) with the clinic, the
+  doctor's licence number (Booking › Settings › Doctors; no number, no printing), the patient's allergies and a number per year.
+  Printed means locked; printing again counts a copy; a wrong one is marked in error. Afterwards the medicines are offered for
+  "Current medicines". No drug-interaction check. Booking's visit note has a "℞ Prescription" button.
+- **Forms before the visit** (`server/forms.js`, page `/f/<link>`): the clinic's forms go with a booking by service and first visit.
+  A private link for the booking (only its hash is kept; sending again ends the old one) is sent from the clinic's own WhatsApp for
+  now, from Booking's booking page or the chart's Forms tab; the message holds no health information. The patient fills the forms on
+  their phone without sign-in, until some hours after the visit. A signed consent is also kept as a locked picture in Documents.
+  List answers go on the chart as "patient-reported" until a doctor confirms, changes or sets each aside; specialty-field answers
+  wait in the Forms tab. Secretaries see that forms were filled, never the answers.
+- **AI summary before the visit** (`server/summary.js`): off until a model is chosen (Haiku 5.5 or Sonnet 5.5). Doctors only; made
+  from signed notes (through `records_signed_notes`, never drafts), the newest reviewed results and the chart, never photos. Each
+  line links to its source; lines pointing at anything else are dropped. Made the first time the chart is opened on the visit day,
+  again after a newer note is signed, and by hand; a number per doctor per day. Needs `ANTHROPIC_API_KEY` in Records' `.env`
+  (the same key as Booking's AI Scribe). Switch it on only after the legal review.
+
+## Later
+
+Sending prescriptions and the forms link through an approved WhatsApp (Meta) message, after the legal review.

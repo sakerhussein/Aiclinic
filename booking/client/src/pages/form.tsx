@@ -23,7 +23,7 @@ export function BookingForm() {
   const [patient, setPatient] = useState<Patient | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [np, setNp] = useState({ fullName: "", phone: "", language: "ar" as "ar" | "en", whatsappReminders: false });
-  const [serviceId, setServiceId] = useState("");
+  const [serviceId, setServiceId] = useState(q.get("service") || "");     // ?service=: "Book session 5" from a course in Records
   const ownDoctor = me.role === "doctor" ? me.doctorId : null;   // a doctor books for themselves
   const [doctorId, setDoctorId] = useState(ownDoctor || q.get("doctor") || "any");
   const [date, setDate] = useState(q.get("date") || (q.get("start") ? dayOf(q.get("start")!, tz) : todayIn(tz)));

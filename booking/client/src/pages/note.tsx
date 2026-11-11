@@ -7,6 +7,7 @@ import { fmtDateTime } from "../lib";
 import { useI18n } from "../i18n";
 import { useApp } from "../session";
 import { Banner, useAction } from "../ui";
+import { NoteVisitBar } from "../visit-lines";
 import { fill, useN } from "./notes-text";
 
 type Section = { key: string; en: string; ar: string; hint?: string };
@@ -58,6 +59,7 @@ export function VisitNote() {
         {note && <span className={`pill ${pill[note.status] ?? ""}`}>{n.states[note.status] ?? note.status}</span>}
       </div>
       <p className="hint">{fmtDateTime(a.starts_at, tz, lang)} · {lang === "ar" ? a.service_name_ar : a.service_name_en} · {lang === "ar" ? a.doctor_name_ar : a.doctor_name_en}</p>
+      {s.isTheDoctor && <NoteVisitBar id={a.id} patientId={a.patient_id} />}
       {s.isTheDoctor && <FromChart rows={v.chart ?? []} patientId={a.patient_id} />}
       {!note && !s.enabled && <Banner kind="warn">{n.off}</Banner>}
       {!note && s.enabled && !s.isTheDoctor && <Banner kind="warn">{n.notTheDoctor}</Banner>}

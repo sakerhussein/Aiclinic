@@ -323,3 +323,5 @@ html[dir="rtl"] input.mono{text-align:right}
 .ag-row.st-no_show,.ag-row.unchecked{background:var(--amber-tint);border-color:var(--amber)}
 .ag-row.src-whatsapp{border-inline-start:5px solid #25D366}
 @media (max-width:720px){.cal.wk{display:none}.agenda{display:flex}}
+/* Records phase C on the booking page: the forms link to send */
+.formlink{display:flex;flex-direction:column;gap:6px;margin-top:8px}

@@ -2,7 +2,7 @@
 // The assistant only proposes a time. The name and number are typed into a small form here and sent with the Yes press (or a
 // call-back request) straight to the clinic's page server; they are never part of a chat message, so they never reach the AI.
 import { Fragment, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { Banner, Fail, Shell, ShareLink, call, hm, icsHref, longDate, message, useLang, type Info, type Summary } from "./app";
+import { Banner, CalendarButtons, Fail, Shell, ShareLink, call, hm, longDate, message, useLang, type Info, type Summary } from "./app";
 import type { Lang, Tx } from "./text";
 
 type Proposal = { serviceEn: string; serviceAr: string; doctorEn: string; doctorAr: string; startsAt: string };
@@ -146,7 +146,7 @@ export function ChatPage({ slug }: { slug: string }) {
           <div className="ch-done"><span className="bk-ok" aria-hidden="true">✓</span><b>{x.doneTitle}</b></div>
           {s.waitingForCheck && <Banner kind="warn">{x.waiting.replace("{phone}", "⁦" + masked(details?.phone ?? "", o.countryCode) + "⁩")}</Banner>}
           {s.manageToken && <ShareLink s={s} x={x} lang={lang} link={link} />}
-          {s.manageToken && <a className="bk-btn outline" href={icsHref(s, lang, x, link)} download="appointment.ics">{x.addCal}</a>}
+          {s.manageToken && <CalendarButtons s={s} x={x} lang={lang} link={link} />}
         </div>;
       }
       case "callback": return it.sent ? null : <CallbackCard key={i} x={x} cc={o.countryCode} phone={c.phone} busy={busy} onSend={(d) => void callBack(i, d)} />;

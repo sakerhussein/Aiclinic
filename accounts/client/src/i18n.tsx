@@ -177,13 +177,46 @@ type Ctx = { lang: Lang; setLang: (l: Lang) => void; t: (key: Exclude<keyof type
 const I18n = createContext<Ctx>(null as never);
 export const useI18n = () => useContext(I18n);
 
+
+// Links to the other Limitsiz services (Accounts, Booking, Records: same site, another subdomain or port) carry the language.
+function sameSite(a: string, b: string) {
+  const local = (h: string) => h === "localhost" || h === "127.0.0.1";
+  if (local(a) || local(b)) return local(a) && local(b);
+  return a.split(".").slice(-2).join(".") === b.split(".").slice(-2).join(".");
+}
+function useCarryLang(lang: Lang) {
+  useEffect(() => {
+    const on = (e: MouseEvent) => {
+      const a = (e.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
+      if (!a) return;
+      try {
+        const u = new URL(a.href);
+        if (u.origin === window.location.origin || !/^https?:$/.test(u.protocol) || !sameSite(u.hostname, window.location.hostname)) return;
+        u.searchParams.set("lang", lang); a.href = u.toString();
+      } catch { /* ignore */ }
+    };
+    document.addEventListener("click", on, true); document.addEventListener("auxclick", on, true);
+    return () => { document.removeEventListener("click", on, true); document.removeEventListener("auxclick", on, true); };
+  }, [lang]);
+}
+
 function initialLang(): Lang {
+  // A link from another Limitsiz service brings ?lang= (each service is its own site, so its own saved language).
+  try {
+    const u = new URL(window.location.href); const q = u.searchParams.get("lang");
+    if (q === "ar" || q === "en") {
+      u.searchParams.delete("lang"); window.history.replaceState(window.history.state, "", u.pathname + u.search + u.hash);
+      try { localStorage.setItem("lc_lang", q); } catch { /* storage blocked */ }
+      return q;
+    }
+  } catch { /* ignore */ }
   try { const s = localStorage.getItem("lc_lang"); if (s === "ar" || s === "en") return s; } catch { /* storage blocked */ }
   return navigator.language?.toLowerCase().startsWith("ar") ? "ar" : "en";
 }
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>(initialLang);
+  useCarryLang(lang);
   useEffect(() => {
     document.documentElement.lang = lang;
     document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";

@@ -97,6 +97,37 @@ createScribe({ pool, drafter: sampleDrafter }).start();
       [t.clinicA, huda, kind, title, detail, alert]);
   }
   await t.owner.query("insert into chart_answers (patient_id, clinic_id, field_key, value, updated_by_name) values ($1,$2,'skin_type','III','Dr Lina')", [huda, t.clinicA]);
+  // Phase C, switched on for the demo clinic: a laser course for Huda (three sessions done), the clinic's favourites, two forms,
+  // a licence number for Dr Lina (Dr Omar has none, to show the warning), a signed note to summarise, and the AI summary with a
+  // stand-in that never calls Claude.
+  const laser = (await t.owner.query("select id from services where clinic_id = $1 order by (name_en ilike '%laser%') desc, sort limit 1", [t.clinicA])).rows[0].id;
+  const pastDay = (daysAgo, h) => new Date(Date.parse(`${today}T00:00:00Z`) - daysAgo * 86400000 + (h - 3) * 3600000).toISOString();
+  let lastPast = null;
+  for (const daysAgo of [126, 84, 42]) {
+    lastPast = (await t.owner.query("insert into appointments (clinic_id, doctor_id, service_id, patient_id, starts_at, ends_at, source, status) values ($1,$2,$3,$4,$5,$6,'staff','completed') returning id",
+      [t.clinicA, ids.lina, laser, huda, pastDay(daysAgo, 9), pastDay(daysAgo, 9.5)])).rows[0].id;
+  }
+  await t.owner.query(`insert into treatment_courses (clinic_id, patient_id, service_id, sessions, every_weeks, note, starts_on, created_by, created_by_name)
+                       values ($1,$2,$3,6,6,'Underarms',$4,'demo','Dr Lina')`, [t.clinicA, huda, laser, pastDay(127, 12).slice(0, 10)]);
+  await t.owner.query(
+    `insert into visit_notes (clinic_id, appointment_id, patient_id, doctor_id, kind, status, language, sections, content, signed_at, signed_by, signed_name, created_by)
+     values ($1,$2,$3,$4,'manual','signed','en',$5,$6,$7,'demo','Dr Lina','demo')`,
+    [t.clinicA, lastPast, huda, ids.lina, JSON.stringify([{ key: "assessment", en: "Assessment" }, { key: "plan", en: "Plan" }]),
+     JSON.stringify({ assessment: "Acne much better on isotretinoin 20 mg (month 4 of 6); mild lip dryness.", plan: "Laser hair removal, underarms: session 3 done, good response. Continue isotretinoin." }),
+     pastDay(42, 10)]);
+  await t.owner.query("update doctors set licence_no = 'JMC-18342' where id = $1", [ids.lina]);
+  await t.owner.query(`update record_settings set courses_on = true, rx_on = true, forms_on = true, summary_model = 'claude-haiku-5-5',
+      course_defaults = $2, rx_favourites = $3 where clinic_id = $1`, [t.clinicA, JSON.stringify([{ serviceId: laser, sessions: 6, weeks: 6 }]),
+      JSON.stringify([{ name: "Adapalene 0.1% gel", how: "Thin layer at night", days: 90, qty: "1 tube" }, { name: "Doxycycline 100 mg", how: "1 capsule daily after food", days: 30, qty: "30" },
+        { name: "Sunscreen SPF 50", how: "Every morning, again after 2 hours outdoors", days: null, qty: "1" }])]);
+  await t.owner.query(`insert into form_templates (clinic_id, title_en, title_ar, questions, minutes, sort) values ($1, 'Medical history', 'التاريخ الطبي', $2, 2, 1)`, [t.clinicA, JSON.stringify([
+    { key: "allergic", en: "Are you allergic to any medicine?", ar: "هل لديك حساسية من أي دواء؟", kind: "yesno_details", required: true, goesTo: "allergy" },
+    { key: "medicines", en: "Medicines you take now", ar: "الأدوية التي تأخذها حالياً", kind: "text", goesTo: "medicine" },
+    { key: "pregnant", en: "Are you pregnant or breastfeeding?", ar: "هل أنتِ حامل أو مرضعة؟", kind: "yesno", goesTo: "field:pregnant" },
+    { key: "goal", en: "What would you like from this visit?", ar: "ما الذي تريده من هذه الزيارة؟", kind: "text" }])]);
+  await t.owner.query(`insert into form_templates (clinic_id, title_en, title_ar, questions, consent, agree_en, agree_ar, minutes, sort) values
+    ($1, 'Laser consent', 'موافقة الليزر', $2, true, 'I agree to the laser treatment as explained to me, and that my answers are true.', 'أوافق على علاج الليزر كما شُرح لي، وأن إجاباتي صحيحة.', 1, 2)`,
+    [t.clinicA, JSON.stringify([{ key: "tan", en: "Have you had a tan in the last 4 weeks?", ar: "هل اسمرّت بشرتك في آخر 4 أسابيع؟", kind: "yesno", required: true }])]);
   const rpool = new pg.Pool({ connectionString: "postgresql://records_app:test@localhost:54329/accounts_test", max: 4 });
   const rConfig = { ...common, siteUrl: "http://localhost:3006", origin: "http://localhost:3006", accountsUrl: "http://localhost:3003", accountsInternalUrl: "http://127.0.0.1:3003",
     bookingUrl: "http://localhost:3004", clientSecret: RSECRET, sessionCookie: "lc_records", stateCookie: "lc_rstate" };
@@ -112,10 +143,17 @@ createScribe({ pool, drafter: sampleDrafter }).start();
   const rsvc = recordsService({ pool: rpool }), rstorage = createStorage(rConfig.storage);
   const rfiles = createFiles({ pool: rpool, svc: rsvc, storage: rstorage, secret: RSECRET, siteUrl: rConfig.siteUrl });
   const rbackups = createBackups({ pool: rpool, storage: rstorage, config: rConfig });
-  recordsApp({ svc: rsvc, config: rConfig, files: rfiles, backups: rbackups }).listen(3006, "127.0.0.1", () => console.log("READY  Records http://localhost:3006   (doctor: dr@demo.jo)"));
+  const { createCourses } = await import("../../records/server/courses.js");
+  const { createRx } = await import("../../records/server/rx.js");
+  const { createForms } = await import("../../records/server/forms.js");
+  const { createSummary, sampleSummarizer } = await import("../../records/server/summary.js");
+  const rphase = { courses: createCourses({ pool: rpool, svc: rsvc }), rx: createRx({ pool: rpool, svc: rsvc }),
+    forms: createForms({ pool: rpool, svc: rsvc, files: rfiles, siteUrl: rConfig.siteUrl }),
+    summary: createSummary({ pool: rpool, svc: rsvc, storage: rstorage, summarizer: sampleSummarizer }) };
+  recordsApp({ svc: rsvc, config: rConfig, files: rfiles, backups: rbackups, ...rphase }).listen(3006, "127.0.0.1", () => console.log("READY  Records http://localhost:3006   (doctor: dr@demo.jo)"));
   bkConfig.recordsUrl = "http://localhost:3006";
 }
-bookingApp({ svc: createService({ pool, auditPool, tidier: sampleTidier }), config: bkConfig }).listen(3004, "127.0.0.1", () =>
+bookingApp({ svc: createService({ pool, auditPool, tidier: sampleTidier, recordsUrl: bkConfig.recordsUrl }), config: bkConfig }).listen(3004, "127.0.0.1", () =>
   console.log(`READY  Booking http://localhost:3004   sign in: sec@demo.jo / ${GOOD}   (administrator admin@demo.jo needs two-step)`));
 console.log(`Administrator admin@demo.jo has two-step on. Current code:  node -e "import('../accounts/server/crypto.js').then(m=>console.log(m.totp('${P.admin.secret}')))"  (run it in the repo's accounts/ folder... see README)`);
 console.log(`ADMIN_SECRET=${P.admin.secret}`);

@@ -298,6 +298,8 @@ html[lang="ar"] .alert .k{font-family:var(--font-ar);letter-spacing:0;text-trans
 .ctabs{display:flex;gap:4px;border-bottom:1px solid var(--rule);overflow-x:auto}
 .ctabs button{font:inherit;padding:10px 14px;font-size:14px;color:var(--muted);background:none;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;cursor:pointer}
 .ctabs button.on{color:var(--text);border-bottom-color:var(--accent-ink);font-weight:600}
+.tcount{display:inline-block;margin-inline-start:6px;padding:0 7px;border-radius:999px;font-size:11.5px;font-weight:600;line-height:18px;background:var(--rule-soft);color:var(--muted);font-family:var(--font-mono)}
+.tcount.wait{background:var(--amber);color:#3d2400}
 .cgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;align-items:start}
 .ccard{background:#fff;border:1px solid var(--rule);border-radius:18px;padding:16px 18px;display:flex;flex-direction:column;gap:8px;min-width:0}
 .ccard h3{font-size:15px;display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -391,3 +393,80 @@ html[lang="ar"] .tli .when{font-family:var(--font-ar);font-size:13px}
 .shutter{width:68px;height:68px;border-radius:50%;background:#fff;border:0;box-shadow:0 0 0 5px #0A0F14,0 0 0 8px #fff;cursor:pointer}
 .shutter:disabled{opacity:.5}
 .cam-msg{display:flex;flex-direction:column;gap:16px;align-items:center;justify-content:center;flex:1;padding:24px;text-align:center;font-size:16px}
+
+/* ---------------------------------------------------------------- phase C (booking/design/records-phase-c.html) */
+.linkish{background:none;border:0;padding:0;font:inherit;color:var(--accent-ink);cursor:pointer;text-decoration:underline}
+/* the AI summary */
+.ai{border-style:dashed;margin-block-end:16px}
+.ai-pill{background:var(--ink);color:var(--accent);font:600 10px var(--font-mono);letter-spacing:.08em;padding:2px 7px;margin-inline-start:6px;vertical-align:middle}
+.ailines{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.ailines .src{font:500 11.5px var(--font-mono);color:var(--muted);margin-inline-start:6px;white-space:nowrap}
+.ailines a.src,.ailines button.src{color:var(--accent-ink)}
+/* treatment courses */
+.course{display:flex;flex-direction:column;gap:6px;padding-block:8px;border-top:1px solid var(--rule-soft)}
+.ccard h3+.course{border-top:0}
+.cbar{block-size:8px;border-radius:999px;background:var(--rule-soft);overflow:hidden}
+.cbar span{display:block;block-size:100%;background:var(--accent-ink);border-radius:999px}
+.sessions{display:flex;flex-direction:column;gap:6px}
+/* prescriptions */
+.rxwrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:900px){.rxwrap{grid-template-columns:1fr}}
+.rxline{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--rule-soft);border-radius:14px;background:var(--paper)}
+.rxcheck{display:flex;flex-direction:column;gap:12px}
+.rxsheet{position:relative;background:#fff;color:#0A0F14;border:1px solid var(--rule);border-radius:6px;padding:22px 24px;display:flex;flex-direction:column;gap:12px;font-size:13.5px;max-inline-size:148mm}
+.rxsheet.paper-A4{max-inline-size:210mm}
+.rxsheet header{display:flex;flex-direction:column;gap:2px;border-bottom:2px solid #0A0F14;padding-bottom:10px}
+.rxsheet header b{font-size:16px}
+.rxpat{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.rxallergy{border:1.5px solid #B42318;color:#7a1a12;border-radius:6px;padding:6px 10px;font-weight:600}
+.rxitems{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px}
+.rxitems li{display:flex;flex-direction:column;gap:2px}
+.rxsheet footer{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;border-top:1px solid var(--rule);padding-top:10px;font-size:12px;margin-top:18px}
+.rxsheet .sign{border-top:1px solid #0A0F14;padding-top:4px;min-inline-size:40%;text-align:center}
+.rxcopy{position:absolute;inset-block-start:12px;inset-inline-end:16px;border:2px solid #B42318;color:#B42318;font:700 13px var(--font-mono);padding:2px 8px;transform:rotate(-6deg)}
+.rxprint{display:none}
+@media print{
+  body>*:not(.rxprint){display:none!important}
+  body{background:#fff}
+  .rxprint{display:block}
+  .rxprint .rxsheet{border:0;max-inline-size:none;padding:0;font-size:12.5pt}
+}
+.okcard{border-color:var(--accent-ink);background:var(--accent-tint)}
+/* forms */
+.formlink{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.fresp{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.fresp h4{font-size:14px;margin:6px 0 0}
+.fresp .li .k{font:600 11px var(--font-mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.fresp .li input,.fresp .li select{font:inherit;min-height:36px;border:1px solid var(--field);border-radius:10px;padding:0 10px;background:#fff}
+.fsig img{max-inline-size:280px;block-size:auto;border:1px solid var(--rule-soft);border-radius:8px;background:#fff}
+/* Settings › Before and after the visit */
+.favrow{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1.4fr) 90px auto;gap:8px;align-items:center}
+.favrow input,.favrow select{font:inherit;min-height:42px;padding:0 12px;border:1px solid var(--field);border-radius:10px;background:#fff;min-inline-size:0}
+@media (max-width:640px){.favrow{grid-template-columns:1fr 1fr}}
+.qrow{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--rule-soft);border-radius:14px;background:#fff}
+.svcs{border:0;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:6px 18px}
+.svcs legend{font-size:14px;font-weight:600;margin-bottom:6px}
+/* the patient's phone */
+.fill{max-inline-size:560px;margin-inline:auto;padding:16px 16px 48px;display:flex;flex-direction:column;gap:14px}
+.fhead{display:flex;justify-content:space-between;align-items:center;gap:12px;font-weight:600}
+.flang{font:inherit;background:#fff;border:1px solid var(--rule);border-radius:999px;padding:6px 14px;min-block-size:40px;cursor:pointer}
+.fill h1{font-family:var(--font-display);font-weight:500;font-size:24px}
+html[lang="ar"] .fill h1{font-family:var(--font-ar);font-weight:600}
+.fsteps{list-style:none;margin:0;padding:0;display:flex;gap:6px;flex-wrap:wrap}
+.fsteps li{font-size:13px;padding:6px 12px;border-radius:999px;background:var(--rule-soft)}
+.fsteps li.on{background:var(--ink);color:#fff}.fsteps li.done{background:var(--accent-tint);color:var(--accent-ink)}
+.fcard{background:#fff;border:1px solid var(--rule);border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:16px}
+.fcard h2{font-size:18px}
+.ftext{font-size:16px}
+.fq{border:0;padding:0;margin:0;display:flex;flex-direction:column;gap:10px}
+.fq legend{font-size:16px;font-weight:600;margin-bottom:8px;padding:0}
+.fq.bad legend{color:var(--error)}
+.fyn{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fyn button{font:inherit;font-size:17px;min-block-size:54px;border-radius:14px;border:1.5px solid var(--rule);background:#fff;cursor:pointer}
+.fyn button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.fq input,.fq select,.fname input{font:inherit;font-size:16px;min-block-size:52px;padding:0 14px;border:1px solid var(--field);border-radius:12px;background:#fff;inline-size:100%}
+.fname{display:flex;flex-direction:column;gap:6px;font-weight:600}
+.ferr{color:var(--error);font-size:14px}
+.fpad{inline-size:100%;block-size:180px;border:1.5px dashed var(--field);border-radius:14px;background:#fff;touch-action:none}
+.fsend{font:inherit;font-size:18px;font-weight:600;min-block-size:56px;border:0;border-radius:16px;background:var(--accent);color:var(--ink);cursor:pointer}
+.fsend:disabled{opacity:.6}

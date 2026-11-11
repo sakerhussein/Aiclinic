@@ -7,6 +7,7 @@ import { useApp } from "../session";
 import { Banner, ExportButton, SendLinkButton, StatusPill, useAction } from "../ui";
 import { NOTE_PILL, useN } from "./notes-text";
 import { InsuranceLine } from "../insurance";
+import { VisitFacts } from "../visit-lines";
 
 export function BookingList() {
   const { t, lang, d } = useI18n();
@@ -120,6 +121,7 @@ export function BookingDetail() {
           <dt>{t("doctor")}</dt><dd>{lang === "ar" ? a.doctor_name_ar : a.doctor_name_en}</dd>
           <dt>{t("patient")}</dt><dd><Link to={`/patients/${a.patient_id}`}>{a.patient_name || "—"}</Link> <span className="mono">{a.patient_phone}</span></dd>
           <InsuranceLine patientId={a.patient_id} as="facts" />
+          <VisitFacts id={a.id} />
           <dt>{t("source")}</dt><dd>{d.sources[a.source] ?? a.source}{a.online_from ? ` · ${t("onlineFrom")} ${a.online_from}` : ""}{a.booked_for_other ? ` · ${t("forOther")}` : ""}</dd>
           {a.internal_note && <><dt>{t("note")}</dt><dd>{a.internal_note}</dd></>}
           {a.cancel_reason && <><dt>{t("reason")}</dt><dd>{a.cancel_reason}</dd></>}

@@ -52,12 +52,17 @@ export function createService({ pool, now = () => new Date() }) {
     insuranceInBooking: s.insurance_in_booking, insuranceRequired: s.insurance_required,
     relations: s.relations, photoAreas: s.photo_areas, docKinds: s.doc_kinds, photoConsentRequired: s.photo_consent_required,
     maxFileMb: s.max_file_mb, linkMinutes: s.link_minutes, phoneMinutes: s.phone_minutes,
+    // Phase C: before and after the visit.
+    coursesOn: s.courses_on, courseAreaRequired: s.course_area_required, courseDefaults: s.course_defaults, rxOn: s.rx_on, rxValidDays: s.rx_valid_days, rxPaper: s.rx_paper, rxFavourites: s.rx_favourites,
+    formsOn: s.forms_on, formLinkHours: s.form_link_hours, formMessageEn: s.form_message_en, formMessageAr: s.form_message_ar,
+    summaryModel: s.summary_model, summaryDaily: s.summary_daily,
   });
 
   async function lookups(ctx) {
     const clinic = await one(pool, "select id, slug, name_en, name_ar, timezone from clinics where id = $1", [ctx.clinicId]);
     const doctors = (await pool.query("select id, name_en, name_ar from doctors where clinic_id = $1 and active order by name_en", [ctx.clinicId])).rows;
-    return { clinic, doctors, settings: publicSettings(await settingsRow(pool, ctx.clinicId)) };
+    const services = (await pool.query("select id, name_en, name_ar from services where clinic_id = $1 order by name_en", [ctx.clinicId])).rows;
+    return { clinic, doctors, services, settings: publicSettings(await settingsRow(pool, ctx.clinicId)) };
   }
 
   // ---------------------------------------------------------------- who may be opened
@@ -280,7 +285,10 @@ export function createService({ pool, now = () => new Date() }) {
 
   // The clinic's specialty fields: the answer must fit the field (yes/no, one of the choices, or short text).
   async function setAnswer(ctx, patientId, key, value) {
-    return tx(ctx, async (c) => {
+    return tx(ctx, (c) => setAnswerIn(c, ctx, patientId, key, value));
+  }
+  async function setAnswerIn(c, ctx, patientId, key, value) {
+    {
       const s = await settingsRow(c, ctx.clinicId);
       await allowedPatient(c, ctx, patientId, s);
       const f = s.specialty_fields.find((x) => x.key === key);
@@ -293,7 +301,7 @@ export function createService({ pool, now = () => new Date() }) {
         `insert into chart_answers (patient_id, clinic_id, field_key, value, updated_at, updated_by_name) values ($1,$2,$3,$4,$5,$6)
          on conflict (patient_id, field_key) do update set value = excluded.value, updated_at = excluded.updated_at, updated_by_name = excluded.updated_by_name
          returning field_key, value, updated_at, updated_by_name`, [patientId, ctx.clinicId, key, val, now(), ctx.user.name]);
-    });
+    }
   }
 
   async function openings(ctx, patientId) {
@@ -313,10 +321,11 @@ export function createService({ pool, now = () => new Date() }) {
     for (const f of b.specialtyFields) if (f.kind === "choice" && !f.options?.length) throw bad("choice_needs_options");
     for (const list of [b.relations, b.photoAreas, b.docKinds]) if (list && new Set(list.map((x) => x.key)).size !== list.length) throw bad("duplicate_field");
     return tx(ctx, async (c) => {
-      // An area or a kind of document in use can't be removed (the photos and documents keep pointing at it).
+      // An area or a kind of document in use can't be removed (the photos, documents and treatment courses keep pointing at it).
       for (const [list, col, kind] of [[b.photoAreas, "area_key", "photo"], [b.docKinds, "doc_kind", "document"]]) {
         if (!list) continue;
         const used = (await c.query(`select distinct ${col} as k from record_files where clinic_id = $1 and kind = $2`, [ctx.clinicId, kind])).rows.map((r) => r.k);
+        if (kind === "photo") used.push(...(await c.query("select distinct unnest(areas) as k from treatment_courses where clinic_id = $1", [ctx.clinicId])).rows.map((r) => r.k));
         const gone = used.filter((k) => !list.some((x) => x.key === k));
         if (gone.length) throw bad("in_use", { keys: gone });
       }
@@ -334,6 +343,27 @@ export function createService({ pool, now = () => new Date() }) {
          b.fileNumbers, b.nextFileNo, b.fileNoDigits, b.requiredDetails, b.insuranceInBooking ?? null, b.insuranceRequired ?? null,
          b.relations ? JSON.stringify(b.relations) : null, b.photoAreas ? JSON.stringify(b.photoAreas) : null, b.docKinds ? JSON.stringify(b.docKinds) : null,
          b.photoConsentRequired ?? null, b.maxFileMb ?? null, b.linkMinutes ?? null, b.phoneMinutes ?? null]);
+      return publicSettings(await settingsRow(c, ctx.clinicId));
+    });
+  }
+
+  // Settings › Before and after the visit (phase C): each part on or off, and its numbers.
+  async function updateVisitSettings(ctx, b) {
+    return tx(ctx, async (c) => {
+      await settingsRow(c, ctx.clinicId, true);
+      if (b.courseDefaults.length) {
+        const ids = b.courseDefaults.map((x) => x.serviceId);
+        if (new Set(ids).size !== ids.length) throw bad("duplicate_field");
+        const n = (await one(c, "select count(*)::int as n from services where clinic_id = $1 and id = any($2::uuid[])", [ctx.clinicId, ids])).n;
+        if (n !== ids.length) throw bad("unknown_service");
+      }
+      await c.query(
+        `update record_settings set courses_on = $2, course_defaults = $3, rx_on = $4, rx_valid_days = $5, rx_paper = $6, rx_favourites = $7, forms_on = $8,
+                form_link_hours = $9, form_message_en = $10, form_message_ar = $11, summary_model = $12, summary_daily = $13, course_area_required = $14
+          where clinic_id = $1`,
+        [ctx.clinicId, b.coursesOn, JSON.stringify(b.courseDefaults), b.rxOn, b.rxValidDays, b.rxPaper,
+         JSON.stringify(b.rxFavourites.map((f) => ({ name: f.name.trim(), how: f.how?.trim() || "", days: f.days ?? null, qty: f.qty?.trim() || "" }))),
+         b.formsOn, b.formLinkHours, b.formMessageEn.trim(), b.formMessageAr.trim(), b.summaryModel, b.summaryDaily, b.courseAreaRequired]);
       return publicSettings(await settingsRow(c, ctx.clinicId));
     });
   }
@@ -381,6 +411,32 @@ export function createService({ pool, now = () => new Date() }) {
     });
   }
 
-  return { tx, settingsRow, allowedPatient, lookups, listPatients, today, chart, updateDetails, addEntry, updateEntry, markError, confirmEntry, setAnswer, openings,
-           getSettings, updateSettings, insurers, addInsurer, updateInsurer };
+  // The numbers beside the chart's tabs: how many this person can see, and how many wait for them (results to review, forms to go
+  // through, their own prescriptions not printed yet). A separate call, so counting again never adds an opening of the record.
+  async function tabCounts(ctx, patientId) {
+    const s = await settingsRow(pool, ctx.clinicId);
+    await allowedPatient(pool, ctx, patientId, s);
+    const kind = (k) => s.doc_kinds.find((x) => x.key === k);
+    const files = (await pool.query("select kind, doc_kind, reviewed_at from record_files where clinic_id = $1 and patient_id = $2 and error_at is null",
+      [ctx.clinicId, patientId])).rows;
+    const docs = files.filter((f) => f.kind === "document" && (ctx.canChart || (ctx.canDetails && !!kind(f.doc_kind)?.secretary)));
+    const out = {
+      photos: ctx.canPhotos ? { total: files.filter((f) => f.kind === "photo").length, waiting: 0 } : null,
+      docs: { total: docs.length, waiting: ctx.canChart ? docs.filter((f) => !f.reviewed_at && kind(f.doc_kind)?.review).length : 0 },
+      rx: null, forms: null,
+    };
+    if (ctx.canChart && s.rx_on) out.rx = await one(pool,
+      `select count(*)::int as total, count(*) filter (where status = 'draft' and doctor_id = $3)::int as waiting
+         from prescriptions where clinic_id = $1 and patient_id = $2 and error_at is null`,
+      [ctx.clinicId, patientId, ctx.doctorId ?? "00000000-0000-0000-0000-000000000000"]);
+    if (s.forms_on) {
+      const r = await one(pool, "select count(*)::int as total, count(*) filter (where reviewed_at is null)::int as waiting from form_responses where clinic_id = $1 and patient_id = $2",
+        [ctx.clinicId, patientId]);
+      out.forms = { total: r.total, waiting: ctx.canChart ? r.waiting : 0 };
+    }
+    return out;
+  }
+
+  return { tx, settingsRow, allowedPatient, lookups, listPatients, today, chart, tabCounts, updateDetails, addEntry, updateEntry, markError, confirmEntry, setAnswer, setAnswerIn, openings,
+           getSettings, updateSettings, updateVisitSettings, insurers, addInsurer, updateInsurer };
 }

@@ -13,7 +13,7 @@ import { useS, duration } from "./settings-text";
 const SWATCHES = ["#2EE6B5", "#0B7A64", "#3B6FD8", "#C2417A", "#0A0F14"];
 
 type Period = { weekday: number; start: string; end: string };
-type Doctor = { id: string; name_en: string; name_ar: string; title_en: string | null; title_ar: string | null; gender: "f" | "m" | null; active: boolean;
+type Doctor = { id: string; name_en: string; name_ar: string; title_en: string | null; title_ar: string | null; gender: "f" | "m" | null; licence_no: string | null; active: boolean;
   slot_minutes: number | null; buffer_minutes: number; service_ids: string[]; hours: Period[]; scribe_enabled: boolean };
 type ScribeSection = { key: string; en: string; ar: string; hint?: string };
 type Scribe = { enabled: boolean; note_language: "en" | "ar"; consent_en: string; consent_ar: string; sections: ScribeSection[]; max_recording_minutes: number;
@@ -280,13 +280,13 @@ function DoctorsTab({ data, reload }: P) {
 
 function DoctorForm({ doc, data, reload, onCreated }: { doc?: Doctor; onCreated?: (id: string) => void } & P) {
   const s = useS();
-  const [f, setF] = useState({ nameEn: doc?.name_en || "", nameAr: doc?.name_ar || "", titleEn: doc?.title_en || "", titleAr: doc?.title_ar || "", gender: doc?.gender || "",
+  const [f, setF] = useState({ nameEn: doc?.name_en || "", nameAr: doc?.name_ar || "", titleEn: doc?.title_en || "", titleAr: doc?.title_ar || "", gender: doc?.gender || "", licenceNo: doc?.licence_no || "",
     slotMinutes: doc?.slot_minutes ?? null as number | null, bufferMinutes: doc?.buffer_minutes ?? 0, active: doc?.active ?? true });
   const { a, ok, submit } = useSave(reload);
-  const inp = (k: "nameEn" | "nameAr" | "titleEn" | "titleAr") => ({ value: f[k], onChange: (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value }) });
+  const inp = (k: "nameEn" | "nameAr" | "titleEn" | "titleAr" | "licenceNo") => ({ value: f[k], onChange: (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value }) });
   return (
     <SForm className="panel stack" onSubmit={submit(async () => {
-      const body = { ...f, gender: f.gender || null };
+      const body = { ...f, gender: f.gender || null, licenceNo: f.licenceNo.trim() || null };
       if (doc) await patch(`/api/settings/doctors/${doc.id}`, body);
       else { const r = await post<{ id: string }>("/api/settings/doctors", body); await reload(); onCreated?.(r.id); }
     })}>
@@ -296,6 +296,7 @@ function DoctorForm({ doc, data, reload, onCreated }: { doc?: Doctor; onCreated?
         <Field label={s.nameAr}><input {...inp("nameAr")} required /></Field>
         <Field label={s.titleEn}><input {...inp("titleEn")} /></Field>
         <Field label={s.titleAr}><input {...inp("titleAr")} /></Field>
+        <Field label={s.licence} hint={s.licenceHint}><input dir="ltr" className="mono" maxLength={40} {...inp("licenceNo")} /></Field>
         <Field label={s.gender}><Pick value={f.gender} onChange={(v) => setF({ ...f, gender: v })} options={[["", "—"], ["f", s.female], ["m", s.male]]} /></Field>
         <Field label={s.interval} hint={s.intervalHint}><Pick value={f.slotMinutes ?? ""} onChange={(v) => setF({ ...f, slotMinutes: v ? Number(v) : null })}
           options={[["", `${s.clinicDefault} (${duration(data.profile.slot_step_minutes, s)})`], ...data.options.slotMinutes.map((m) => [m, duration(m, s)] as [number, string])]} /></Field>

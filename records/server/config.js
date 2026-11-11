@@ -24,6 +24,8 @@ export function loadConfig(env = process.env) {
     // The nightly encrypted copy on the VPS disk: the folder and the key file (made by deploy/setup-records-files.sh, never shown).
     // Not set: no backups run here (local testing).
     backup: env.BACKUP_DIR ? { dir: env.BACKUP_DIR, keyFile: env.BACKUP_KEY_FILE || `${env.BACKUP_DIR}/backup.key` } : null,
+    // The AI summary before the visit (phase C): the same key as Booking's AI Scribe. Not set: the summary stays off.
+    anthropicKey: env.ANTHROPIC_API_KEY || null,
     smtp: env.SMTP_HOST ? { host: env.SMTP_HOST, port: Number(env.SMTP_PORT || 587), user: env.SMTP_USER, pass: env.SMTP_PASS, from: env.MAIL_FROM || env.SMTP_USER } : null,
   };
 }

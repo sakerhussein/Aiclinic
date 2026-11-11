@@ -69,6 +69,16 @@ html[lang="ar"] .bk-title{font-family:var(--font-ar);font-weight:600}
 .bk-btn.ink{background:var(--ink);color:#fff}.bk-btn.accent{background:var(--accent);color:var(--ink)}
 .bk-btn.outline{border-color:var(--text);color:var(--text);background:#fff}.bk-btn.ghost{border-color:var(--rule);color:var(--text);background:#fff}
 .bk-btn.wa{background:#25D366;color:#06301a}
+.bk-cal{display:flex;flex-direction:column;gap:8px}.bk-cal-h{font-weight:600;font-size:14px}
+.bk-cal-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.bk-calbtn{min-height:52px;padding-inline:0}
+.bk-calico{display:inline-flex;inline-size:26px;block-size:26px}.bk-calico svg{inline-size:100%;block-size:100%}
+/* The name above the icon: under the mouse (screens that have one) or the keyboard. Centred, so the same both ways (RTL). */
+.bk-calbtn{position:relative}
+.bk-calbtn::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 8px);left:50%;transform:translate(-50%,4px);background:var(--ink);color:#fff;font-size:12.5px;font-weight:500;line-height:1;padding:7px 10px;border-radius:8px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .15s,transform .15s;z-index:2}
+.bk-calbtn:focus-visible::after{opacity:1;transform:translate(-50%,0)}
+@media (hover:hover){.bk-calbtn:hover::after{opacity:1;transform:translate(-50%,0)}}
+@media (prefers-reduced-motion:reduce){.bk-calbtn::after{transition:none}}
 .bk-find{margin:0;padding-top:12px;border-top:1px solid var(--rule-soft);font-size:14px}.bk-find span{color:var(--muted)}.bk-find a{font-weight:600}
 .bk-ok.wa{background:#E3F9EC;color:#128C4B}
 a.bk-choice{color:inherit;text-decoration:none}

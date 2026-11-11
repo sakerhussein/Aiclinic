@@ -8,6 +8,10 @@ import { createApp } from "../server/app.js";
 import { createStorage } from "../server/storage.js";
 import { createFiles } from "../server/files.js";
 import { createBackups } from "../server/backup.js";
+import { createCourses } from "../server/courses.js";
+import { createRx } from "../server/rx.js";
+import { createForms } from "../server/forms.js";
+import { createSummary, sampleSummarizer } from "../server/summary.js";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -36,7 +40,13 @@ export async function setup() {
   const mails = [];
   const files = createFiles({ pool, svc, storage, secret: SECRET, siteUrl: "", now });
   const backups = createBackups({ pool, storage, config, now, log: () => {}, sendMail: async (to, subject, text) => { mails.push({ to, subject, text }); return true; } });
-  const app = createApp({ svc, config, files, backups });
+  const courses = createCourses({ pool, svc, now });
+  const rx = createRx({ pool, svc, now });
+  const forms = createForms({ pool, svc, files, siteUrl: () => config.siteUrl, now });
+  // The summary's model: a stand-in that can be swapped per test (it records what it was given).
+  const summarizer = { calls: [], impl: sampleSummarizer, async summarize(x) { this.calls.push(x); return this.impl.summarize(x); } };
+  const summary = createSummary({ pool, svc, storage, summarizer, now });
+  const app = createApp({ svc, config, files, backups, courses, rx, forms, summary });
   const server = await new Promise((r) => { const s = app.listen(0, "127.0.0.1", () => r(s)); });
   const base = `http://127.0.0.1:${server.address().port}`;
   config.siteUrl = base; config.origin = base;
@@ -100,15 +110,19 @@ export async function setup() {
 
   async function reset() {
     await a.owner.query(`delete from record_openings; delete from chart_answers; delete from chart_entries; delete from patient_details;
+      delete from record_summaries; delete from form_responses; delete from form_templates; delete from form_links; delete from treatment_courses; delete from prescriptions;
       delete from phone_captures; delete from record_files; delete from backup_runs; delete from insurance_companies; delete from visit_notes; delete from appointments; delete from patients;
       update record_settings set doctors_scope = 'all', show_allergies = true, show_medicines = true, show_conditions = true, show_procedures = true,
         show_family = false, specialty_fields = default, file_numbers = 'auto', next_file_no = 1, file_no_digits = 5, required_details = '{}',
         insurance_in_booking = true, insurance_required = false, photo_areas = default, doc_kinds = default, relations = default,
-        photo_consent_required = true, max_file_mb = 20, link_minutes = 5, phone_minutes = 10;
+        photo_consent_required = true, max_file_mb = 20, link_minutes = 5, phone_minutes = 10,
+        courses_on = false, course_defaults = default, rx_on = false, rx_valid_days = 30, rx_paper = 'A5', rx_favourites = default, rx_year = null, rx_next = 1,
+        forms_on = false, form_link_hours = 24, summary_model = 'off', summary_daily = 20;
+      update doctors set licence_no = null;
       update backup_settings set run_at = '03:00', timezone = 'Asia/Amman', keep_daily = 30, keep_monthly = 12, restore_weekday = 0, alert_emails = 'owner@example.jo';`);
     mails.length = 0;
     await a.reset();
   }
-  return { ...a, reset, base, login, people, patient, booking, pool, bookingPool, jar, files, backups, storage, mails, tmp, config,
+  return { ...a, reset, base, login, summarizer, people, patient, booking, pool, bookingPool, jar, files, backups, storage, mails, tmp, config,
     async close() { server.close(); backups.stop(); await pool.end(); await bookingPool.end(); await a.close(); fs.rmSync(tmp, { recursive: true, force: true }); } };
 }

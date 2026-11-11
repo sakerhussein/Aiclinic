@@ -129,6 +129,9 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
     res.json(await svc.listAppointments(req.ctx, apptQuery(parse(apptFilter, req.query))));
   }));
   app.get("/api/appointments/:id", auth("booking.appointments.view"), wrap(async (req, res) => res.json(await svc.getAppointment(req.ctx, parse(uuid, req.params.id)))));
+  // From Records (phase C): the course line, the forms' state, and the forms link to send from the clinic's WhatsApp.
+  app.get("/api/appointments/:id/visit-lines", auth("booking.appointments.view"), wrap(async (req, res) => res.json(await svc.visit.lines(req.ctx, parse(uuid, req.params.id)))));
+  app.post("/api/appointments/:id/form-link", auth("booking.appointments.edit"), wrap(async (req, res) => res.status(201).json(await svc.visit.formLink(req.ctx, parse(uuid, req.params.id)))));
   app.get("/api/appointments/:id/history", auth("booking.appointments.view"), wrap(async (req, res) => res.json(await svc.history(req.ctx, parse(uuid, req.params.id)))));
 
   const newPatient = z.object({ fullName: z.string().trim().min(1).max(120), phone: z.string().max(30).nullish(), language: z.enum(["ar", "en"]).nullish(), whatsappReminders: z.boolean().optional() });
@@ -272,7 +275,7 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
   app.post("/api/settings/time-off", EDIT, wrap(async (req, res) => res.status(201).json(await S.addTimeOff(req.ctx, parse(timeOff, req.body)))));
   app.delete("/api/settings/time-off/:id", EDIT, wrap(async (req, res) => res.json(await S.removeTimeOff(req.ctx, parse(uuid, req.params.id)))));
 
-  const doctor = z.object({ nameEn: name, nameAr: name, titleEn: optText, titleAr: optText, gender: z.enum(["f", "m"]).nullish(),
+  const doctor = z.object({ nameEn: name, nameAr: name, titleEn: optText, titleAr: optText, gender: z.enum(["f", "m"]).nullish(), licenceNo: z.string().trim().max(40).nullish(),
     slotMinutes: pick(5, 10, 15, 20, 30, 60).nullish(), bufferMinutes: pick(0, 5, 10, 15).optional(), active: z.boolean().optional() });
   app.post("/api/settings/doctors", EDIT, wrap(async (req, res) => res.status(201).json(await S.createDoctor(req.ctx, parse(doctor, req.body)))));
   app.patch("/api/settings/doctors/:id", EDIT, wrap(async (req, res) => {

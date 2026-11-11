@@ -17,6 +17,6 @@ pool.on("error", (e) => console.error("database pool error", e.message));
 
 // Dictation tidies the doctor's words with Claude (the same key as the AI Scribe). Without the key, words go in as heard.
 const tidier = process.env.ANTHROPIC_API_KEY ? claudeTidier({ client: new Anthropic() }) : null;
-const app = createApp({ svc: createService({ pool, auditPool, audioDir: config.scribeAudioDir, tidier }), config });
+const app = createApp({ svc: createService({ pool, auditPool, audioDir: config.scribeAudioDir, tidier, recordsUrl: config.recordsUrl }), config });
 startNightly({ pool, send: createMailer(config), tz: config.nightlyTz, hour: config.nightlyHour });
 app.listen(config.port, "127.0.0.1", () => console.log(`Limitsiz Clinic Booking on 127.0.0.1:${config.port} (${config.siteUrl})`));
