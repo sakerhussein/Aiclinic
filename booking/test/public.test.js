@@ -210,7 +210,10 @@ test("Find my booking: off until WhatsApp is connected; the same answer for ever
   // Switched on, but WhatsApp is not connected: not offered, and refused.
   await turnOn({ findEnabled: true });
   const r = (await book()).json;
-  const find = (phone, opts) => t.pub("POST", `/api/c/${SLUG}/find`, { phone }, opts);
+  // The database's find looks for bookings after its own (real) clock, not the tests' frozen one: put this one a week ahead of
+  // the real time, so the test does not depend on the day it runs.
+  await t.owner.query("update appointments set starts_at = now() + interval '7 days', ends_at = now() + interval '7 days' + (ends_at - starts_at) where id = $1", [r.id]);
+  const find =(phone, opts) => t.pub("POST", `/api/c/${SLUG}/find`, { phone }, opts);
   const queued = async () => (await t.owner.query("select appointment_id::text as id, phone_e164 from link_requests order by created_at")).rows;
   assert.equal((await t.pub("GET", `/api/c/${SLUG}`)).json.options.findEnabled, false);
   assert.equal((await find("0791234567")).json.error, "find_not_available");
