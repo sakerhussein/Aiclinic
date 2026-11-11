@@ -131,6 +131,19 @@ test("the private link: see, move, cancel; only on its own clinic's page; not to
   assert.equal(m.status, 200); assert.equal(m.json.canCancel, true); assert.equal(m.json.canReschedule, true);
   assert.equal((await t.pub("POST", "/api/c/other-clinic/manage", { token })).status, 404);
   assert.equal((await t.pub("POST", `/api/c/${SLUG}/manage`, { token: "x".repeat(43) })).status, 404);
+  // "Add to calendar" (Apple and others): the entry comes back from a short-lived address as a real calendar file, only for this
+  // booking's own entry and only with its token.
+  const ics = (id) => `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:${id}@limitsiz\r\nSUMMARY:Visit\r\nEND:VEVENT\r\nEND:VCALENDAR`;
+  assert.equal((await t.pub("POST", `/api/c/${SLUG}/manage/ics`, { token, ics: ics(m.json.id) }, { origin: "https://evil.example" })).status, 403);
+  assert.equal((await t.pub("POST", `/api/c/${SLUG}/manage/ics`, { token: "x".repeat(43), ics: ics(m.json.id) })).status, 404);
+  assert.equal((await t.pub("POST", `/api/c/${SLUG}/manage/ics`, { token, ics: ics("00000000-0000-4000-8000-000000000000") })).json.error, "invalid_value");
+  const held = await t.pub("POST", `/api/c/${SLUG}/manage/ics`, { token, ics: ics(m.json.id) });
+  assert.equal(held.status, 201);
+  const file = await fetch(t.publicBase + held.json.url);
+  assert.equal(file.status, 200);
+  assert.match(file.headers.get("content-type"), /^text\/calendar/);
+  assert.equal(await file.text(), ics(m.json.id));
+  assert.equal((await fetch(t.publicBase + "/api/ics/AAAAAAAAAAAAAAAAAAAAAAAA.ics")).status, 404);
   const free = (await t.pub("POST", `/api/c/${SLUG}/manage/slots`, { token, date: DAY })).json.map((s) => s.startsAt);
   assert.ok(free.includes(at("10:00")), "its own time stays offered");
   const mv = await t.pub("POST", `/api/c/${SLUG}/manage/reschedule`, { token, startsAt: at("11:00") });

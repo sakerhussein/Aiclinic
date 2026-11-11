@@ -141,6 +141,32 @@ export function createPublicApp({ svc, config, now = Date.now }) {
     res.json(await svc.reschedule(slugOf(req), b.token, b.startsAt, req.ctx));
   }));
 
+  // ---- "Add to calendar" for Apple Calendar and other calendars. An iPhone adds an .ics file only when it comes from a server as
+  // text/calendar; a file made inside the page does nothing there. The page sends the entry it made, with the token (in the body,
+  // as above); once the token is checked, the entry is kept in this process's memory for two minutes under a random address, which
+  // the phone then opens. Nothing is written anywhere, and the address can't see or change the booking.
+  const held = new Map();
+  const HOLD_MS = 120_000;
+  app.post("/api/c/:slug/manage/ics", limit("manage"), wrap(async (req, res) => {
+    const b = parse(z.object({ ...tok, ics: z.string().max(6000) }), req.body);
+    const s = await svc.manage(slugOf(req), b.token);
+    if (!b.ics.startsWith("BEGIN:VCALENDAR\r\n") || !b.ics.endsWith("END:VCALENDAR") || !b.ics.includes(`\r\nUID:${s.id}@limitsiz\r\n`)) {
+      throw new HttpError(400, "invalid_value");
+    }
+    const t = now();
+    for (const [k, v] of held) if (v.until <= t) held.delete(k);
+    if (held.size >= 5000) throw new HttpError(429, "too_many_requests");
+    const id = crypto.randomBytes(18).toString("base64url");
+    held.set(id, { body: b.ics, until: t + HOLD_MS });
+    res.status(201).json({ url: `/api/ics/${id}.ics` });
+  }));
+  // Not one-time: the phone may open it twice (a preview, then "Add"). It ends after the two minutes.
+  app.get(/^\/api\/ics\/([A-Za-z0-9_-]{24})\.ics$/, (req, res) => {
+    const h = held.get(req.params[0]);
+    if (!h || h.until <= now()) return res.status(404).json({ error: "not_found" });
+    res.set({ "Content-Type": "text/calendar; charset=utf-8", "Content-Disposition": 'inline; filename="appointment.ics"' }).send(h.body);
+  });
+
   // ---- the page (its own small build, not the staff app)
   if (existsSync(dist)) {
     app.use(express.static(dist, { index: false, maxAge: "1h", setHeaders: (res, p) => { if (p.endsWith(".html")) res.set("Cache-Control", "no-store"); } }));

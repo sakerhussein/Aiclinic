@@ -72,7 +72,7 @@ function calEvent(s: Summary, l: Lang, x: Tx, link: string) {
 }
 const utc = (iso: string) => new Date(iso).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");   // 20261111T090000Z
 
-export function icsHref(s: Summary, l: Lang, x: Tx, link: string) {
+export function icsText(s: Summary, l: Lang, x: Tx, link: string) {
   const e = calEvent(s, l, x, link);
   const esc = (v: string) => v.replace(/[\\,;]/g, (c) => "\\" + c).replace(/\n/g, "\\n");
   // Lines longer than 75 bytes are folded (RFC 5545); 60 characters keeps Arabic under the limit too.
@@ -80,7 +80,20 @@ export function icsHref(s: Summary, l: Lang, x: Tx, link: string) {
   const body = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Limitsiz//Online booking//EN", "BEGIN:VEVENT", `UID:${s.id}@limitsiz`, `DTSTAMP:${utc(new Date().toISOString())}`,
     `DTSTART:${utc(s.startsAt)}`, `DTEND:${utc(s.endsAt)}`, `SUMMARY:${esc(e.title)}`, `LOCATION:${esc(e.where)}`,
     `DESCRIPTION:${esc(e.note)}`, `URL:${link}`, "END:VEVENT", "END:VCALENDAR"].map(fold).join("\r\n");
-  return "data:text/calendar;charset=utf-8," + encodeURIComponent(body);
+  return body;
+}
+const icsHref = (s: Summary, l: Lang, x: Tx, link: string) => "data:text/calendar;charset=utf-8," + encodeURIComponent(icsText(s, l, x, link));
+
+// Apple Calendar and "other calendars": the server hands the file back as a real calendar file, which an iPhone adds (it ignores a
+// file made inside the page). If that fails, the file made here is the fallback (computers and Android open it).
+async function openIcs(s: Summary, l: Lang, x: Tx, link: string) {
+  try {
+    const u = new URL(link), slug = u.pathname.split("/")[1] ?? "", token = u.hash.slice(1);
+    const r = await call<{ url: string }>("POST", `/api/c/${slug}/manage/ics`, { token, ics: icsText(s, l, x, link) });
+    window.location.href = r.url;
+  } catch {
+    const a = document.createElement("a"); a.href = icsHref(s, l, x, link); a.download = "appointment.ics"; document.body.append(a); a.click(); a.remove();
+  }
 }
 
 export function googleHref(s: Summary, l: Lang, x: Tx, link: string) {
@@ -111,15 +124,17 @@ const CAL_ICON = {
  *  calendars" take the .ics file. Apple comes first on an iPhone, iPad or Mac. */
 export function CalendarButtons({ s, x, lang, link }: { s: Summary; x: Tx; lang: Lang; link: string }) {
   const apple = /iPhone|iPad|Macintosh/.test(navigator.userAgent);
-  const ics = icsHref(s, lang, x, link);
-  const btn = (k: keyof typeof CAL_ICON, label: string, href: string, file: boolean) => (
-    <a key={k} className="bk-btn ghost bk-calbtn" href={href} aria-label={label} data-tip={label} {...(file ? { download: "appointment.ics" } : { target: "_blank", rel: "noreferrer" })}>
-      <span className="bk-calico">{CAL_ICON[k]}</span>
-    </a>);
-  const google = btn("google", x.calGoogle, googleHref(s, lang, x, link), false);
-  const outlook = btn("outlook", x.calOutlook, outlookHref(s, lang, x, link), false);
-  const appleBtn = btn("apple", x.calApple, ics, true);
-  const other = btn("other", x.calOther, ics, true);
+  const [busy, setBusy] = useState(false);
+  const icon = (k: keyof typeof CAL_ICON) => <span className="bk-calico">{CAL_ICON[k]}</span>;
+  const web = (k: "google" | "outlook", label: string, href: string) => (
+    <a key={k} className="bk-btn ghost bk-calbtn" href={href} target="_blank" rel="noreferrer" aria-label={label} data-tip={label}>{icon(k)}</a>);
+  const file = (k: "apple" | "other", label: string) => (
+    <button key={k} type="button" className="bk-btn ghost bk-calbtn" aria-label={label} data-tip={label} disabled={busy}
+      onClick={() => { setBusy(true); void openIcs(s, lang, x, link).finally(() => setBusy(false)); }}>{icon(k)}</button>);
+  const google = web("google", x.calGoogle, googleHref(s, lang, x, link));
+  const outlook = web("outlook", x.calOutlook, outlookHref(s, lang, x, link));
+  const appleBtn = file("apple", x.calApple);
+  const other = file("other", x.calOther);
   return (
     <div className="bk-cal" role="group" aria-label={x.addCal}>
       <span className="bk-cal-h">{x.addCal}</span>
@@ -129,18 +144,21 @@ export function CalendarButtons({ s, x, lang, link }: { s: Summary; x: Tx; lang:
 }
 
 // "Save the link": the phone's own share menu (WhatsApp, messages, notes, email); WhatsApp where there is none (computers).
+/** WhatsApp's mark (Simple Icons, CC0) on the buttons that go through WhatsApp. */
+export const WaIcon = () => (
+  <svg className="bk-waico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" /></svg>
+);
+
 export function ShareLink({ s, x, lang, link }: { s: Summary; x: Tx; lang: Lang; link: string }) {
   const [copied, setCopied] = useState(false);
   const clinic = lang === "ar" ? s.clinic.nameAr : s.clinic.nameEn;
   const when = `${longDate(s.startsAt, s.clinic.timezone, lang)}${lang === "ar" ? "، " : ", "}${hm(s.startsAt, s.clinic.timezone)}`;
   const text = x.shareText.replace("{clinic}", clinic).replace("{when}", when);
-  const share = async () => {
-    if (navigator.share) { try { await navigator.share({ title: clinic, text, url: link }); return; } catch (e) { if ((e as Error).name === "AbortError") return; } }
-    window.open(`https://wa.me/?text=${encodeURIComponent(`${text}\n${link}`)}`, "_blank", "noopener");
-  };
+  // Straight to WhatsApp (the patient picks a chat, such as "Message yourself"); "Copy" below is for any other way.
+  const wa = `https://wa.me/?text=${encodeURIComponent(`${text}\n${link}`)}`;
   return (
     <div className="bk-field">{x.privateLink}
-      <button type="button" className="bk-btn wa" onClick={() => void share()}>{x.saveLink}</button>
+      <a className="bk-btn wa" href={wa} target="_blank" rel="noreferrer"><WaIcon />{x.saveLink}</a>
       <div className="bk-link"><span className="mono">{link.replace(/^https?:\/\//, "")}</span>
         <button type="button" onClick={() => void navigator.clipboard?.writeText(link).then(() => setCopied(true))}>{copied ? x.copied : x.copy}</button></div>
       <small>{x.privateHint}</small>
@@ -502,7 +520,7 @@ export function FindPage({ slug }: { slug: string }) {
         <span className="bk-tel" dir="ltr"><span className="mono">+{o.countryCode}</span><input className="mono" type="tel" inputMode="tel" autoComplete="tel" required minLength={6} maxLength={30} value={phone} onChange={(e) => setPhone(e.target.value)} /></span>
       </label>
       <label className="hp" aria-hidden="true">Website<input tabIndex={-1} autoComplete="off" value={website} onChange={(e) => setWebsite(e.target.value)} /></label>
-      <button className="bk-btn wa" disabled={busy}>{busy ? x.sending : x.sendMyLink}</button>
+      <button className="bk-btn wa" disabled={busy}><WaIcon />{busy ? x.sending : x.sendMyLink}</button>
       <p className="bk-hint">{x.findNote}</p>
       <a className="bk-btn ghost" href={`/${slug}`}>{x.back}</a>
     </form>;

@@ -68,7 +68,7 @@ html[lang="ar"] .bk-title{font-family:var(--font-ar);font-weight:600}
 .bk-btn:disabled{opacity:.45;cursor:default}
 .bk-btn.ink{background:var(--ink);color:#fff}.bk-btn.accent{background:var(--accent);color:var(--ink)}
 .bk-btn.outline{border-color:var(--text);color:var(--text);background:#fff}.bk-btn.ghost{border-color:var(--rule);color:var(--text);background:#fff}
-.bk-btn.wa{background:#25D366;color:#06301a}
+.bk-btn.wa{background:#25D366;color:#06301a}.bk-waico{flex:none;inline-size:22px;block-size:22px}
 .bk-cal{display:flex;flex-direction:column;gap:8px}.bk-cal-h{font-weight:600;font-size:14px}
 .bk-cal-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 .bk-calbtn{min-height:52px;padding-inline:0}
