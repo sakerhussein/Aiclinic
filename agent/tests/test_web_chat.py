@@ -63,6 +63,23 @@ def test_a_repeated_answer_is_shown_once(conn, web):
     assert "do not write it again" in fake.calls[0]["system"]
 
 
+def test_a_tool_call_written_as_text_is_never_shown(conn, web):
+    # Seen live (2026-11-11): Claude wrote the show_buttons call out in its text, then said the same thing again at more length.
+    short = "عند د. لينا في هالأيام مواعيد متاحة. اختار واحد:"
+    leaked = 'show_buttons labels: ["الخميس 10:30", "الخميس 16:00", "السبت 10:00"]'
+    final = "عند د. لينا في هالأيام مواعيد متاحة لجلسة علاج حب الشباب (30 دقيقة). اختار واحد من الأزرار تحت، أو قلّي إذا بدك وقت ثاني."
+    graph, fake = web(msg(text(f"{short}\n\n{leaked}"), tool("show_buttons", labels=["الخميس 10:30", "الخميس 16:00"]), stop="tool_use"),
+                      msg(text(final)))
+    out = run_web_turn(graph, CLINIC, CHAT, "ok", language="ar")
+    assert out["reply"] == final
+    assert out["buttons"] == ["الخميس 10:30", "الخميس 16:00"]
+    assert "Never write a tool's name or its inputs in your text" in fake.calls[0]["system"]
+    # Text that only shares a few words with the later part is kept.
+    graph, _ = web(msg(text("Dr. Lina is in on Thursday."), tool("show_buttons", labels=["10:30"]), stop="tool_use"),
+                   msg(text("Which time suits you on Thursday?")))
+    assert run_web_turn(graph, CLINIC, CHAT, "Thursday?")["reply"] == "Dr. Lina is in on Thursday.\n\nWhich time suits you on Thursday?"
+
+
 def test_the_page_language_decides_the_reply_language(conn, web):
     graph, fake = web(msg(text("10:30 is free.")), msg(text("10:30 فاضي.")))
     run_web_turn(graph, CLINIC, CHAT, "10:30", language="en")

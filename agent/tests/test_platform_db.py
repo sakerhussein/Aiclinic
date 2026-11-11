@@ -79,8 +79,10 @@ def demo_appointment(conn, start_hour=10, minute=0, phone="+962791110001") -> tu
 def test_roles_apps_and_permissions_are_seeded(conn):
     roles = {r[0] for r in conn.execute("select key from accounts.roles").fetchall()}
     assert roles == {"clinic_admin", "secretary", "doctor", "readonly", "platform_admin"}
-    assert {r[0] for r in conn.execute("select key from accounts.apps").fetchall()} == {"accounts", "booking"}
-    assert conn.execute("select count(*) from accounts.permissions").fetchone()[0] == 20      # 19, plus booking.data.export (migration 0010)
+    assert {r[0] for r in conn.execute("select key from accounts.apps").fetchall()} == {"accounts", "booking", "records"}
+    # Up to migration 0023: Booking 14 + visit notes (0016); Accounts 6 + reset two-step (0018); Records 7 (0020) + 4 (0022) + 4 (0023).
+    counts = dict(conn.execute("select app_key, count(*)::int from accounts.permissions group by app_key").fetchall())
+    assert counts == {"accounts": 7, "booking": 17, "records": 15}
 
 
 def test_permission_matrix(conn):
@@ -93,18 +95,28 @@ def test_permission_matrix(conn):
     member(conn, ro, c, "readonly")
     member(conn, gone, c, "secretary", active=False)
 
-    assert perms(conn, sec, c) == {
+    def of(user, app):                                   # one service's part of a person's permissions
+        return {p for p in perms(conn, user, c) if p.startswith(app + ".")}
+
+    notes = {"booking.notes.read", "booking.notes.write", "booking.notes.sign"}             # visit notes: doctors only (0016)
+    assert of(sec, "booking") == {
         "booking.appointments.view", "booking.appointments.create", "booking.appointments.edit", "booking.appointments.cancel",
         "booking.appointments.void", "booking.patients.view", "booking.patients.edit", "booking.settings.view",
         "booking.conversations.view"}
-    assert perms(conn, doc, c) == {"booking.appointments.view", "booking.patients.view"}
-    assert perms(conn, doc_plus, c) == {
+    assert of(doc, "booking") == {"booking.appointments.view", "booking.patients.view"} | notes
+    assert of(doc_plus, "booking") == {
         "booking.appointments.view", "booking.appointments.create", "booking.appointments.edit", "booking.appointments.cancel",
-        "booking.appointments.void", "booking.patients.view", "booking.patients.edit"}
+        "booking.appointments.void", "booking.patients.view", "booking.patients.edit"} | notes
     assert perms(conn, ro, c) == {"booking.appointments.view", "booking.patients.view"}
     assert perms(conn, gone, c) == set()
     every = {r[0] for r in conn.execute("select key from accounts.permissions where key like 'booking.%' or key like 'accounts.users.%'").fetchall()}
-    assert perms(conn, admin, c) == every
+    assert of(admin, "booking") | of(admin, "accounts") == every - notes
+    # Records (0020, 0022, 0023): doctors the chart; secretaries and administrators the details; Read-only nothing.
+    front = {"records.details.view", "records.details.edit", "records.files.add", "records.courses.view", "records.forms.send"}
+    assert of(sec, "records") == front
+    assert of(doc, "records") == of(doc_plus, "records") == front | {
+        "records.chart.read", "records.chart.write", "records.photos.view", "records.courses.edit", "records.rx.write"}
+    assert of(admin, "records") == front | {"records.settings.view", "records.settings.edit", "records.openings.view", "records.backups.view"}
     # Only an administrator may restore, read the audit log or manage users.
     for p in ("booking.appointments.restore", "booking.audit.view", "booking.settings.edit", "accounts.users.invite"):
         assert all(p not in perms(conn, u, c) for u in (sec, doc, doc_plus, ro))
