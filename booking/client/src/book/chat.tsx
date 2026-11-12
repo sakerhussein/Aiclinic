@@ -12,7 +12,7 @@ type Item =
   | { k: "ai" | "me"; text: string }
   | { k: "buttons"; labels: string[]; used?: boolean }
   | { k: "details"; then: Proposal }
-  | { k: "confirm"; p: Proposal; done?: boolean }
+  | { k: "confirm"; p: Proposal; done?: boolean; refused?: boolean }
   | { k: "booked"; s: Summary & { manageToken?: string } }
   | { k: "callback"; sent?: boolean }
   | { k: "emergency"; text: string }
@@ -99,7 +99,12 @@ export function ChatPage({ slug }: { slug: string }) {
         { name: d.name, phone: d.phone, language: lang, agree: true, website: d.website });
       update(i, { k: "confirm", p, done: true });
       add({ k: "me", text: x.yesBook }, { k: "booked", s }, { k: "ai", text: x.anythingElse });
-    } catch (e) { fail(e); } finally { setBusy(false); }
+    } catch (e) {
+      const code = e instanceof Fail ? e.code : "";
+      if (code === "phone_not_accepted") update(i, { k: "confirm", p, refused: true });
+      else if (code === "nothing_to_book") { update(i, { k: "confirm", p, done: true }); add({ k: "ai", text: x.cardExpired }); }
+      else fail(e);
+    } finally { setBusy(false); }
   }
 
   async function callBack(i: number, d: { name: string; phone: string; website: string }) {
@@ -134,10 +139,10 @@ export function ChatPage({ slug }: { slug: string }) {
           <div className="bk-sum"><span>{x.doctor}</span><b>{doc}</b></div>
           <div className="bk-sum"><span>{x.when}</span><b>{longDate(it.p.startsAt, c.timezone, lang)}{lang === "ar" ? "، " : ", "}<span className="mono">{hm(it.p.startsAt, c.timezone)}</span></b></div>
           {details && <div className="bk-sum"><span>{x.name}</span><b>{details.name}</b></div>}
-          {!it.done && <>
+          {!it.done && (it.refused ? <Refused x={x} phone={c.phone} busy={busy} onCallBack={() => { update(i, { ...it, done: true }); add({ k: "callback" }); }} /> : <>
             <button type="button" className="bk-btn accent" disabled={busy || !details} onClick={() => details && void book(i, it.p, details)}>{x.yesBook}</button>
             <button type="button" className="bk-btn ghost" disabled={busy} onClick={() => { update(i, { ...it, done: true }); void send(x.noChangeText); }}>{x.noChange}</button>
-          </>}
+          </>)}
         </div>;
       }
       case "booked": {
@@ -187,6 +192,15 @@ export function ChatPage({ slug }: { slug: string }) {
       </form>}
     </Shell>
   );
+}
+
+// The clinic did not accept a booking for this number (its limits in Settings › Online booking). The same words as the booking
+// page; the clinic's phone and a call-back are one tap away.
+function Refused({ x, phone, busy, onCallBack }: { x: Tx; phone: string | null; busy: boolean; onCallBack: () => void }) {
+  return <>
+    <Banner kind="bad"><b>{x.phoneRefused}</b><br />{x.phoneRefused2}{phone && <> <a className="mono" dir="ltr" href={`tel:${phone.replace(/[^\d+]/g, "")}`}>{phone}</a></>}</Banner>
+    <button type="button" className="bk-btn ghost" disabled={busy} onClick={onCallBack}>{x.callMe}</button>
+  </>;
 }
 
 function PhoneField({ cc, value, onChange }: { cc: string; value: string; onChange: (v: string) => void }) {

@@ -157,7 +157,9 @@ export function createPublicService({ pool, now = () => new Date(), agent = null
         + "The patient got a private link to see the status, change or cancel it.");
       return r;
     } catch (e) {
-      await event(pool, chatId, `The booking could not be made (${e.code ?? "error"}). Nothing was booked.${e.code === "slot_taken" ? " The time was just taken; offer other times." : ""}`);
+      const why = e.code === "slot_taken" ? " The time was just taken; offer other times."
+        : e.code === "phone_not_accepted" ? " The clinic did not accept a booking for this number online. Offer a call-back or the clinic's phone." : "";
+      await event(pool, chatId, `The booking could not be made (${e.code ?? "error"}). Nothing was booked.${why}`);
       throw e;
     }
   }

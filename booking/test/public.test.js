@@ -357,3 +357,31 @@ test("Send booking link: the clinic's address and its message, from Settings", a
   assert.ok(l.messageEn.endsWith(`${t.publicBase}/${SLUG}?from=wa`));
   assert.ok(l.messageAr.includes("احجز"));
 });
+
+// Live bug, 2026-11-12: the chat's Yes on an in-clinic visit showed "Something went wrong" when the clinic refused the number
+// (its per-phone limits, Settings › Online booking). The server answers 409 phone_not_accepted; the card must say so, and the
+// assistant is told, so it can offer a call-back or the clinic's phone.
+test("the chat's Yes for a visit at the clinic: booked; a number at its limit gets the refusal (never a server error)", async () => {
+  const chat = (path, b) => t.pub("POST", `/api/c/${SLUG}/chat${path}`, b);
+  await turnOn({ chatEnabled: true });
+  const card = { name: "مومو", phone: "0791234567", language: "ar", agree: true };
+  const propose = async (id, time) => {
+    t.agent.next.push({ reply: "تفضّل راجع البطاقة.", proposal: { serviceId: svc().id, doctorId: ids.lina, startsAt: at(time), serviceEn: "Consultation",
+      serviceAr: "استشارة", doctorEn: "Dr. Lina", doctorAr: "د. لينا", summary: `Consultation with Dr. Lina at ${time}` } });
+    const r = await chat(`/${id}/message`, { text: time, language: "ar" });
+    assert.equal(r.status, 200); assert.equal(r.json.proposal.visitType ?? "in_clinic", "in_clinic");
+  };
+  const one = (await chat("", {})).json.chatId;
+  await propose(one, "10:00");
+  const ok = await chat(`/${one}/book`, card);
+  assert.equal(ok.status, 201, JSON.stringify(ok.json));
+  const a = (await t.owner.query("select visit_type, source, online_from, needs_check from appointments where id = $1", [ok.json.id])).rows[0];
+  assert.deepEqual(a, { visit_type: "in_clinic", source: "web", online_from: "chat", needs_check: true });
+  // The same number again: one unchecked booking per phone (the default), so the clinic refuses it.
+  const two = (await chat("", {})).json.chatId;
+  await propose(two, "11:00");
+  const no = await chat(`/${two}/book`, card);
+  assert.equal(no.status, 409); assert.equal(no.json.error, "phone_not_accepted");
+  await chat(`/${two}/message`, { text: "ليش؟", language: "ar" });
+  assert.ok(t.agent.calls.at(-1).events.some((e) => /did not accept a booking for this number/.test(e)), "the assistant is told why");
+});
