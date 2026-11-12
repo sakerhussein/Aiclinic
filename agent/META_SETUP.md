@@ -120,6 +120,44 @@ it cannot be switched on until the clinic's WhatsApp number is connected (step 4
 
 ---
 
+## Online visits: two templates (phase 2; do them with the others)
+
+Online visits on Microsoft Teams (Booking › Settings › Online visits). Until these are approved, staff send the
+"Join the visit" link from the clinic's own WhatsApp with one button on the booking (phase 1), and online visits get the
+usual reminder. Each starts working once its name is in `agent/.env` and the agent is restarted.
+
+1. **The visit link**, sent by itself when the clinic confirms an online visit whose patient chose WhatsApp.
+   WhatsApp Manager → **Message templates** → **Create template**: category **Utility**, name **`visit_link`**, language
+   **Arabic**, no buttons. Body: the Arabic message in Booking → Settings → Online visits → Texts, with `{clinic}`,
+   `{doctor}`, `{when}` and `{link}` written as `{{1}}`, `{{2}}`, `{{3}}`, `{{4}}`, between the lines `رابط زيارتك أونلاين`
+   and `ليست للطوارئ.` (Meta does not accept a template that starts or ends with a variable). With the default text:
+   `رابط زيارتك أونلاين`
+   `{{1}}: زيارتك أونلاين مع {{2}} {{3}}. ادخل من: {{4}}`
+   `ليست للطوارئ.`
+   Sample values: `عيادة Limitsiz التجريبية للجلدية`, `د. لينا حداد`, `الأربعاء 11/11 الساعة 17:10`,
+   `https://book.limitsiz.si/demo-derma/j#abc`.
+   **Add language** → **English**, same name:
+   `Your online visit link`
+   `{{1}}: your online visit with {{2}} on {{3}}. Join: {{4}}`
+   `Not for emergencies.`
+   If a clinic edits the message in Settings, submit the template again with the new wording.
+   On the server: `WA_VISIT_LINK_TEMPLATE=visit_link` in `agent/.env`.
+2. **The online-visit reminder**, sent instead of the usual reminder for an online visit, with a new Join link.
+   Category **Utility**, name **`online_reminder`**, language **Arabic**. Body:
+   `تذكير بزيارتك أونلاين: {{1}} مع {{2}}، يوم {{3}} الساعة {{4}}. ادخل الزيارة من هذا الرابط قرب الموعد: {{5}}`
+   `هل ستحضر؟ ليست للطوارئ.`
+   Sample values: `استشارة متابعة`, `د. لينا حداد`, `الأربعاء 11/11`, `17:10`, `https://book.limitsiz.si/demo-derma/j#abc`.
+   Buttons → **Quick reply** ×2, in this order: `تأكيد الموعد`, `تغيير الموعد`.
+   **Add language** → **English**, same name:
+   `Reminder of your online visit: {{1}} with {{2}} on {{3}} at {{4}}. Join from this link near the time: {{5}}`
+   `Will you attend? Not for emergencies.`
+   buttons `Confirm`, `Change`. On the server: `WA_ONLINE_REMINDER_TEMPLATE=online_reminder` in `agent/.env`.
+3. **Test with your own phone** (online visits on for the demo clinic, your number marked "Can book online visits" on
+   its patient profile): book an online visit on WhatsApp ("I'd like an online follow-up"), confirm it in Booking, and
+   within a minute the visit link arrives. On the booking, "Sent" shows it as sent automatically.
+
+---
+
 ## Round 2: the clinic's real number
 
 1. **Business verification:** business.facebook.com → Settings → **Security center** → **Start verification**

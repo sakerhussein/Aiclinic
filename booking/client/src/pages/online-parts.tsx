@@ -10,7 +10,7 @@ import { Banner, useAction } from "../ui";
 import { Cam } from "./form";
 import { fill, useOV } from "./online-text";
 
-type Sent = { id: string; channel: string; sent_to: string | null; sent_at: string; sent_by_name: string | null; first_opened_at: string | null; opens: number; stopped_at: string | null };
+type Sent = { id: string; channel: string; auto?: string | null; sent_to: string | null; sent_at: string; sent_by_name: string | null; first_opened_at: string | null; opens: number; stopped_at: string | null };
 type SendResult = { channel: string; url: string; message: string; phone?: string | null; sentTo?: string; language: "ar" | "en";
   slip?: { opensMinutes: number; size: "a6" | "a5"; languages: "patient" | "ar_en"; clinicPhone: string | null; howToEn: string; howToAr: string } };
 
@@ -56,7 +56,7 @@ export function OnlineBox({ a, onChange }: { a: Appt; onChange: (a: Appt) => voi
         {sent.length === 0 ? <p className="hint">{t.notSent}</p> : (
           <ul className="sentlog">{sent.map((x) => (
             <li key={x.id}><b>{x.channel === "copy" ? t.copy : name(x.channel)}</b>
-              <span className="hint">{fmtDateTime(x.sent_at, tz, lang)}{x.sent_to ? ` · ${x.sent_to}` : ""}{x.sent_by_name ? ` · ${x.sent_by_name}` : ""}</span>
+              <span className="hint">{fmtDateTime(x.sent_at, tz, lang)}{x.sent_to ? ` · ${x.sent_to}` : ""}{x.sent_by_name ? ` · ${x.sent_by_name}` : ""}{x.auto ? ` · ${x.auto === "reminder" ? t.autoReminder : t.autoSent}` : ""}</span>
               <span className="hint">· {x.stopped_at ? t.stopped : x.first_opened_at ? fill(t.opened, { when: fmtDateTime(x.first_opened_at, tz, lang) }) : t.notOpened}</span></li>))}</ul>)}
       </div>
       {active && <div className="row">

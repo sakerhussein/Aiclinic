@@ -18,7 +18,8 @@ export const OV_FIELDS = {
   emailSubjectEn: "email_subject_en", emailSubjectAr: "email_subject_ar",
 };
 export const PAY_FIELDS = { cliqEnabled: "cliq_enabled", cliqAlias: "cliq_alias", cliqName: "cliq_name", payWhen: "pay_when", forOnline: "for_online", noteEn: "note_en", noteAr: "note_ar" };
-// The ways a patient can get the link in phase 1 (SMS needs a provider: phase 2). Print is done at the desk only.
+// The ways a patient can get the link (SMS waits for a provider). Print is done at the desk only. WhatsApp also goes out by itself
+// from the assistant's number once the clinic's WhatsApp is connected and Meta approved the message (agent/whatsapp/visit_links.py).
 export const BUILT_CHANNELS = ["whatsapp", "email", "print"];
 
 const loc = (lang) => (lang === "ar" ? "ar-JO-u-nu-latn" : "en-GB");
@@ -111,7 +112,7 @@ export function createOnlineVisits({ pool, tx, now = () => new Date(), getAppoin
   // ---------------------------------------------------------------- the Join links of one booking (never the token)
   async function links(ctx, id) {
     await getAppointment(ctx, id);
-    return (await pool.query(`select id, channel, sent_to, sent_at, sent_by_name, first_opened_at, last_opened_at, opens, stopped_at
+    return (await pool.query(`select id, channel, auto, sent_to, sent_at, sent_by_name, first_opened_at, last_opened_at, opens, stopped_at
                                 from join_links where clinic_id = $1 and appointment_id = $2 order by sent_at`, [ctx.clinicId, id])).rows;
   }
 
@@ -162,15 +163,21 @@ export function createOnlineVisits({ pool, tx, now = () => new Date(), getAppoin
                                   values ($1, $2, $3, $4, $5, $6, $7)`, [ctx.clinicId, a.id, sha256hex(token), channel, to, ctx.user.id, ctx.user.name]));
   }
 
-  // After the clinic confirms an online visit: the link goes by email straight away when that is the patient's way and the clinic
-  // sends links on confirmation. Other ways are sent by staff from the booking (WhatsApp from the clinic's number, print).
+  // After the clinic confirms an online visit (or changes the time or doctor of a confirmed one): the link goes by email straight
+  // away when that is the patient's way, once for each time (appointments.link_sent_at, cleared by the database when the time or
+  // doctor changes). WhatsApp goes out by itself from the assistant (agent/whatsapp/visit_links.py) on the same mark; print and
+  // the clinic's own WhatsApp are sent by staff from the booking.
   async function afterConfirm(ctx, a, publicUrl) {
     if (a.visit_type !== "online" || a.status !== "confirmed" || a.link_channel !== "email" || !mail || !publicUrl) return null;
     const v = await settings(pool, ctx.clinicId);
     if (!v.enabled || v.link_when !== "confirmed" || !v.channels.includes("email")) return null;
-    const sent = await one(pool, "select 1 from join_links where appointment_id = $1 and channel = 'email' and stopped_at is null", [a.id]);
-    if (sent) return null;
-    try { return await send(ctx, a.id, { channel: "email" }, publicUrl); } catch { return null; }
+    const due = await one(pool, "select 1 from appointments where id = $1 and link_sent_at is null", [a.id]);
+    if (!due) return null;
+    try {
+      const sent = await send(ctx, a.id, { channel: "email" }, publicUrl);
+      await tx(ctx, (c) => c.query("update appointments set link_sent_at = now() where id = $1", [a.id]));
+      return sent;
+    } catch { return null; }
   }
 
   // ---------------------------------------------------------------- the identity tick, and the doctor's "next follow-up can be online"

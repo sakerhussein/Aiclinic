@@ -1,19 +1,22 @@
 // "Talk to the assistant" on the online booking page (design: booking/design/assistant-chat.html).
 // The assistant only proposes a time. The name and number are typed into a small form here and sent with the Yes press (or a
 // call-back request) straight to the clinic's page server; they are never part of a chat message, so they never reach the AI.
+// An online visit's card also holds the clinic's consent tick, video or audio (when the patient chooses) and how the Join link
+// comes; the page's server decides whether this number may book one (the assistant never learns the number).
 import { Fragment, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { Banner, CalendarButtons, Fail, Shell, ShareLink, call, hm, longDate, message, useLang, type Info, type Summary } from "./app";
+import { Banner, CalendarButtons, Fail, PaymentCard, Shell, ShareLink, call, hm, longDate, message, useLang, type Info, type Online, type Summary } from "./app";
 import type { Lang, Tx } from "./text";
 
-type Proposal = { serviceEn: string; serviceAr: string; doctorEn: string; doctorAr: string; startsAt: string };
+type Proposal = { serviceEn: string; serviceAr: string; doctorEn: string; doctorAr: string; startsAt: string; visitType?: string };
+type OnlineChoice = { consent: boolean; mode: string; channel: string; email: string };
 type Turn = { reply: string | null; buttons: string[] | null; proposal: Proposal | null; callback: boolean; emergency: boolean };
 type Details = { name: string; phone: string; agree: boolean; website: string };
 type Item =
   | { k: "ai" | "me"; text: string }
   | { k: "buttons"; labels: string[]; used?: boolean }
   | { k: "details"; then: Proposal }
-  | { k: "confirm"; p: Proposal; done?: boolean; refused?: boolean }
-  | { k: "booked"; s: Summary & { manageToken?: string } }
+  | { k: "confirm"; p: Proposal; done?: boolean; needMode?: boolean; refused?: boolean }
+  | { k: "booked"; s: Summary & { manageToken?: string }; channel?: string }
   | { k: "callback"; sent?: boolean }
   | { k: "emergency"; text: string }
   | { k: "unavailable"; limit?: boolean }
@@ -92,16 +95,20 @@ export function ChatPage({ slug }: { slug: string }) {
     } catch (e) { fail(e); } finally { setBusy(false); }
   }
 
-  async function book(i: number, p: Proposal, d: Details) {
+  async function book(i: number, p: Proposal, d: Details, oc?: OnlineChoice) {
     setBusy(true);
     try {
       const s = await call<Summary & { manageToken?: string }>("POST", `/api/c/${slug}/chat/${chatId}/book`,
-        { name: d.name, phone: d.phone, language: lang, agree: true, website: d.website });
+        { name: d.name, phone: d.phone, language: lang, agree: true, website: d.website,
+          ...(oc ? { onlineConsent: oc.consent, onlineMode: oc.mode || undefined, linkChannel: oc.channel || undefined,
+                     email: oc.channel === "email" ? oc.email.trim() || undefined : undefined } : {}) });
       update(i, { k: "confirm", p, done: true });
-      add({ k: "me", text: x.yesBook }, { k: "booked", s }, { k: "ai", text: x.anythingElse });
+      add({ k: "me", text: x.yesBook }, { k: "booked", s, channel: oc?.channel }, { k: "ai", text: x.anythingElse });
     } catch (e) {
       const code = e instanceof Fail ? e.code : "";
-      if (code === "phone_not_accepted") update(i, { k: "confirm", p, refused: true });
+      // Online: the card asks for video or audio when this patient chooses, or says the clinic did not accept an online visit.
+      if (oc && code === "choose_mode") update(i, { k: "confirm", p, needMode: true });
+      else if (code === "phone_not_accepted") update(i, { k: "confirm", p, refused: true });
       else if (code === "nothing_to_book") { update(i, { k: "confirm", p, done: true }); add({ k: "ai", text: x.cardExpired }); }
       else fail(e);
     } finally { setBusy(false); }
@@ -134,15 +141,23 @@ export function ChatPage({ slug }: { slug: string }) {
       }} />;
       case "confirm": {
         const { svc, doc } = nm(it.p);
+        const online = it.p.visitType === "online" && o.online?.enabled ? o.online : null;
         return <div key={i} className="ch-card">
           <div className="bk-sum"><span>{x.service}</span><b>{svc}</b></div>
           <div className="bk-sum"><span>{x.doctor}</span><b>{doc}</b></div>
           <div className="bk-sum"><span>{x.when}</span><b>{longDate(it.p.startsAt, c.timezone, lang)}{lang === "ar" ? "، " : ", "}<span className="mono">{hm(it.p.startsAt, c.timezone)}</span></b></div>
+          {online && <div className="bk-sum"><span>{x.visit}</span><b>{x.onlineWhere}</b></div>}
           {details && <div className="bk-sum"><span>{x.name}</span><b>{details.name}</b></div>}
-          {!it.done && (it.refused ? <Refused x={x} phone={c.phone} busy={busy} onCallBack={() => { update(i, { ...it, done: true }); add({ k: "callback" }); }} /> : <>
-            <button type="button" className="bk-btn accent" disabled={busy || !details} onClick={() => details && void book(i, it.p, details)}>{x.yesBook}</button>
-            <button type="button" className="bk-btn ghost" disabled={busy} onClick={() => { update(i, { ...it, done: true }); void send(x.noChangeText); }}>{x.noChange}</button>
-          </>)}
+          {!it.done && (online
+            ? <OnlineConfirm key={`o${i}`} on={online} x={x} lang={lang} busy={busy} ready={!!details} needMode={!!it.needMode} refused={!!it.refused} phone={c.phone}
+                onBook={(oc) => details && void book(i, it.p, details, oc)}
+                onClinic={() => { update(i, { ...it, done: true }); void send(x.atClinicText); }}
+                onNo={() => { update(i, { ...it, done: true }); void send(x.noChangeText); }} />
+            : it.refused ? <Refused x={x} phone={c.phone} busy={busy} onCallBack={() => { update(i, { ...it, done: true }); add({ k: "callback" }); }} />
+            : <>
+              <button type="button" className="bk-btn accent" disabled={busy || !details} onClick={() => details && void book(i, it.p, details)}>{x.yesBook}</button>
+              <button type="button" className="bk-btn ghost" disabled={busy} onClick={() => { update(i, { ...it, done: true }); void send(x.noChangeText); }}>{x.noChange}</button>
+            </>)}
         </div>;
       }
       case "booked": {
@@ -150,6 +165,9 @@ export function ChatPage({ slug }: { slug: string }) {
         return <div key={i} className="ch-card">
           <div className="ch-done"><span className="bk-ok" aria-hidden="true">✓</span><b>{x.doneTitle}</b></div>
           {s.waitingForCheck && <Banner kind="warn">{x.waiting.replace("{phone}", "⁦" + masked(details?.phone ?? "", o.countryCode) + "⁩")}</Banner>}
+          {s.visitType === "online" && <div className="bk-join wait"><b>{x.yourJoin}</b><span className="bk-hint">{it.channel === "whatsapp" || it.channel === "email"
+            ? x.joinComes.replace("{channel}", it.channel === "email" ? x.chEmail : x.chWhatsapp) : x.joinComesPage}</span></div>}
+          {s.visitType === "online" && <PaymentCard p={s.payment} x={x} lang={lang} />}
           {s.manageToken && <ShareLink s={s} x={x} lang={lang} link={link} />}
           {s.manageToken && <CalendarButtons s={s} x={x} lang={lang} link={link} />}
         </div>;
@@ -192,6 +210,36 @@ export function ChatPage({ slug }: { slug: string }) {
       </form>}
     </Shell>
   );
+}
+
+// The online part of the Yes card: the clinic's consent (Settings › Online visits), video or audio when the patient chooses it,
+// and how the Join link comes. The same choices as the booking page's details step.
+function OnlineConfirm({ on, x, lang, busy, ready, needMode, refused, phone, onBook, onClinic, onNo }: {
+  on: Online; x: Tx; lang: Lang; busy: boolean; ready: boolean; needMode: boolean; refused: boolean; phone: string | null;
+  onBook: (oc: OnlineChoice) => void; onClinic: () => void; onNo: () => void;
+}) {
+  const chans = on.channels ?? [];
+  const [oc, setOc] = useState<OnlineChoice>({ consent: false, mode: "", channel: chans.includes(on.defaultChannel ?? "") ? on.defaultChannel! : chans[0] ?? "", email: "" });
+  if (refused) return <>
+    <Banner kind="bad"><b>{x.onlineRefused}</b><br />{x.onlineRefused2}{phone && <> <a className="mono" dir="ltr" href={`tel:${phone.replace(/[^\d+]/g, "")}`}>{phone}</a></>}</Banner>
+    <button type="button" className="bk-btn ink" disabled={busy} onClick={onClinic}>{x.bookAtClinic}</button>
+  </>;
+  const modeMissing = (on.modeChoice || needMode) && !oc.mode;
+  const emailMissing = oc.channel === "email" && !/^\S+@\S+\.\S+$/.test(oc.email.trim());
+  return <form className="bk-stack" onSubmit={(e) => { e.preventDefault(); if (oc.consent && !modeMissing && !emailMissing) onBook(oc); }}>
+    {needMode && !oc.mode && <Banner kind="warn">{x.chooseMode}</Banner>}
+    {(on.modeChoice || needMode) && <div className="bk-field">{x.talkHow}
+      <div className="bk-chips" role="radiogroup">{(["video", "audio"] as const).map((m) => (
+        <button type="button" key={m} role="radio" aria-checked={oc.mode === m} className={oc.mode === m ? "on" : ""} onClick={() => setOc({ ...oc, mode: m })}>{m === "video" ? x.video : x.audio}</button>))}</div></div>}
+    {chans.length > 1 && <div className="bk-field">{x.sendLinkBy}
+      <div className="bk-chips" role="radiogroup">{chans.map((ch) => (
+        <button type="button" key={ch} role="radio" aria-checked={oc.channel === ch} className={oc.channel === ch ? "on" : ""} onClick={() => setOc({ ...oc, channel: ch })}>{ch === "email" ? x.chEmail : x.chWhatsapp}</button>))}</div>
+      <small>{x.linkByHint}</small></div>}
+    {oc.channel === "email" && <label className="bk-field">{x.email}<input type="email" dir="ltr" autoComplete="email" required maxLength={120} value={oc.email} onChange={(e) => setOc({ ...oc, email: e.target.value })} /><small>{x.emailHint}</small></label>}
+    <label className="bk-check"><input type="checkbox" required checked={oc.consent} onChange={(e) => setOc({ ...oc, consent: e.target.checked })} /><span>{lang === "ar" ? on.consentAr : on.consentEn}</span></label>
+    <button className="bk-btn accent" disabled={busy || !ready || !oc.consent || modeMissing || emailMissing}>{x.yesBook}</button>
+    <button type="button" className="bk-btn ghost" disabled={busy} onClick={onNo}>{x.noChange}</button>
+  </form>;
 }
 
 // The clinic did not accept a booking for this number (its limits in Settings › Online booking). The same words as the booking

@@ -1,6 +1,10 @@
 // Online visits on Microsoft Teams, phase 1 (design: booking/design/online-visits.html, migration 0024).
 import test, { before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { setup } from "./helpers.js";
 
 let t, ids, P, adm, sec;
@@ -230,4 +234,86 @@ test("confirming sends the link by email when that is the patient's way; the ide
   const manage = (await t.pub("POST", `/api/c/${SLUG}/manage`, { token: r.json.manageToken })).json;
   assert.equal(manage.join.state, "waiting");
   assert.equal(manage.payment.alias, "DEMODERMA");
+});
+
+// ---------------------------------------------------------------- phase 2: the assistants and the link again for a new time
+
+test("the chat: the assistant proposes an online visit; the card's consent and choices book it; an unmarked number is refused and the assistant is told", async () => {
+  await onlineOn();
+  assert.equal((await adm.patch("/api/settings/online", { ...PAGE, chatEnabled: true })).status, 200);
+  t.forgetPublic();
+  const chat = (p, body) => t.pub("POST", `/api/c/${SLUG}/chat${p}`, body);
+  const id = (await chat("", {})).json.chatId;
+  const times = await free();
+  t.agent.next.push({ reply: "Check the card, tick the consent and press Yes.", proposal: {
+    serviceId: svc().id, doctorId: ids.lina, startsAt: times[0], serviceEn: "Consultation", serviceAr: "استشارة", doctorEn: "Dr. Lina", doctorAr: "د. لينا",
+    summary: "Online visit: Consultation with Dr. Lina", visitType: "online" } });
+  const r = await chat(`/${id}/message`, { text: "An online follow-up please" });
+  assert.equal(r.json.proposal.visitType, "online");
+  const card = { name: "Huda Chat", phone: "0791234567", language: "en", agree: true };
+  assert.equal((await chat(`/${id}/book`, card)).json.error, "consent_needed", "the card's consent tick is needed");
+  const no = await chat(`/${id}/book`, { ...card, onlineConsent: true });
+  assert.equal(no.json.error, "phone_not_accepted");
+  await chat(`/${id}/message`, { text: "Why not?" });
+  assert.ok(t.agent.calls.at(-1).events.some((e) => /did not accept an online visit for this number/.test(e)), "the assistant is told");
+  const known = await sec.post("/api/patients", { fullName: "Huda Chat", phone: "0791234567" });
+  await sec.patch(`/api/patients/${known.json.id}`, { onlineAllowed: true });
+  assert.equal((await chat(`/${id}/book`, { ...card, onlineConsent: true, linkChannel: "email" })).json.error, "email_needed");
+  const ok = await chat(`/${id}/book`, { ...card, onlineConsent: true, linkChannel: "email", email: "huda@example.com" });
+  assert.equal(ok.status, 201, JSON.stringify(ok.json));
+  assert.equal(ok.json.visitType, "online");
+  const a = (await t.owner.query("select visit_type, online_mode, link_channel, link_email, online_consent_at is not null as consent, online_from from appointments where id = $1", [ok.json.id])).rows[0];
+  assert.deepEqual(a, { visit_type: "online", online_mode: "audio", link_channel: "email", link_email: "huda@example.com", consent: true, online_from: "chat" });
+  assert.ok(!JSON.stringify(t.agent.calls).includes("0791234567") && !JSON.stringify(t.agent.calls).includes("huda@example.com"), "never sent to the AI");
+});
+
+test("a confirmed online visit moved by staff: the email link goes again for the new time, once", async () => {
+  await onlineOn({}, { onlineMinNoticeMinutes: 0 });
+  const times = await free();
+  const a = (await staffBook(times[0], { linkChannel: "email", linkEmail: "omar@example.com" })).json;
+  const conf = (await sec.post(`/api/appointments/${a.id}/status`, { status: "confirmed", expectedVersion: a.row_version })).json;
+  assert.equal(t.patientMails.length, 1);
+  const kept = await sec.patch(`/api/appointments/${a.id}`, { expectedVersion: conf.row_version, internalNote: "Prefers audio" });
+  assert.equal(kept.status, 200, "sending the link is not an edit: the booking open on screen still saves");
+  assert.equal(kept.json.link_sent, undefined, "other edits send nothing");
+  const moved = await sec.patch(`/api/appointments/${a.id}`, { expectedVersion: kept.json.row_version, startsAt: times[2] });
+  assert.equal(moved.status, 200, JSON.stringify(moved.json));
+  assert.deepEqual(moved.json.link_sent, { channel: "email", sentTo: "omar@example.com" });
+  assert.equal(t.patientMails.length, 2);
+  const again = await sec.patch(`/api/appointments/${a.id}`, { expectedVersion: moved.json.row_version, startsAt: times[2] });
+  assert.equal(again.json.link_sent, undefined, "the same time again: nothing new to tell");
+  const links = (await sec.get(`/api/appointments/${a.id}/join-links`)).json;
+  assert.equal(links.length, 2); assert.ok(links.every((l) => l.auto === null), "emailed when staff confirmed or moved it: not automatic");
+});
+
+// The assistants and the page must offer the same online times (design: the 0-difference rule). Runs the agent's own code when its Python is here.
+const repo = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+const python = [path.join(repo, "agent", ".venv", "Scripts", "python.exe"), path.join(repo, "agent", ".venv", "bin", "python")].find(existsSync);
+test("online free times are identical on the page and in the assistants", { skip: !python && "the agent's Python is not installed" }, async () => {
+  await onlineOn({}, { onlineMinNoticeMinutes: 240 });
+  await adm.patch(`/api/settings/doctors/${ids.omar}/online`, { onlineEnabled: true, onlineMinNoticeMinutes: 30, teamsLink: LINK });
+  await staffBook((await free())[1]);
+  t.forgetPublic();
+  const mine = {};
+  for (const d of [ids.lina, ids.omar]) {
+    const r = await t.pub("GET", `/api/c/${SLUG}/slots?service=${svc().id}&doctor=${d}&date=2026-11-10&days=7&visit=online`);
+    assert.equal(r.status, 200, JSON.stringify(r.json));
+    mine[d] = r.json.map((x) => x.startsAt);
+  }
+  const script = `
+import json, sys, psycopg
+from datetime import datetime, date, timezone
+from limitsiz_agent.booking import find_slots
+out = {}
+with psycopg.connect("postgresql://postgres:test@localhost:54329/accounts_test", autocommit=True) as c:
+    for did in json.loads(sys.stdin.read()):
+        rows = find_slots(c, "${t.clinicA}", "${svc().id}", date_from=date(2026, 11, 10), days=7, doctor_id=did, visit="online",
+                          now=datetime(2026, 11, 10, 9, 0, tzinfo=timezone.utc))
+        out[did] = [s["starts_at"].astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z") for s in rows]
+print(json.dumps(out))`;
+  const theirs = JSON.parse(execFileSync(python, ["-c", script], { input: JSON.stringify(Object.keys(mine)), env: { ...process.env, PYTHONPATH: path.join(repo, "agent") }, maxBuffer: 1 << 24 }).toString());
+  let total = 0;
+  for (const d of Object.keys(mine)) { total += mine[d].length; assert.deepEqual([...mine[d]].sort(), [...theirs[d]].sort(), d); }
+  assert.ok(total > 50, `compared ${total} online times`);
+  assert.ok(mine[ids.lina].every((s) => Date.parse(s) >= Date.parse(at("16:00", "2026-11-10"))), "Dr. Lina's four-hour online notice");
 });

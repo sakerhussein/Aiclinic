@@ -122,6 +122,19 @@ def add_fixtures(conn, case: dict) -> None:
                values (%s, %s, %s, %s, %s, %s, 'staff')""",
             (CLINIC, grade.DOCTORS[a["doctor"]], grade.SERVICES[a["service"]], pid, start,
              start + timedelta(minutes=DURATION[a["service"]])))
+    # Online visits (Settings > Online visits): on for this case, with these services, doctors (and each doctor's earliest
+    # online booking in minutes), and the patient marked "Can book online visits" or not.
+    on = case.get("online")
+    if on:
+        conn.execute("update online_visits set enabled = true, who_can_book = %s, mode = %s where clinic_id = %s",
+                     (on.get("who_can_book", "marked"), on.get("mode", "audio"), CLINIC))
+        conn.execute("update services set online_allowed = (id = any(%s::uuid[])) where clinic_id = %s",
+                     ([grade.SERVICES[s] for s in on["services"]], CLINIC))
+        for d, notice in on["doctors"].items():
+            conn.execute("update doctors set online_enabled = true, online_min_notice_minutes = %s where id = %s", (notice, grade.DOCTORS[d]))
+        if on.get("marked"):
+            conn.execute("""insert into patients (clinic_id, phone_e164, online_allowed) values (%s, %s, true)
+                            on conflict (clinic_id, phone_e164) do update set online_allowed = true""", (CLINIC, PHONE))
     for a in case.get("existing", []):
         insert(a, PHONE, None)
     for a in case.get("existing_other", []):
@@ -130,11 +143,11 @@ def add_fixtures(conn, case: dict) -> None:
 
 def end_state(conn) -> tuple[list[dict], list[str], list[tuple]]:
     rows = conn.execute(
-        """select a.service_id::text, a.doctor_id::text, a.starts_at, a.status::text, p.phone_e164
+        """select a.service_id::text, a.doctor_id::text, a.starts_at, a.status::text, p.phone_e164, a.visit_type
            from appointments a join patients p on p.id = a.patient_id order by a.starts_at""").fetchall()
     mine = [{"service": s, "doctor": d, "date": t.astimezone(TZ).date().isoformat(), "time": t.astimezone(TZ).strftime("%H:%M"),
-             "status": st} for s, d, t, st, ph in rows if ph == PHONE]
-    others = sorted((s, d, t.isoformat(), st, ph) for s, d, t, st, ph in rows if ph != PHONE)
+             "status": st, "visit": v} for s, d, t, st, ph, v in rows if ph == PHONE]
+    others = sorted((s, d, t.isoformat(), st, ph) for s, d, t, st, ph, v in rows if ph != PHONE)
     handoffs = [r[0] for r in conn.execute(
         """select h.reason from handoffs h join conversations c on c.id = h.conversation_id
            where c.wa_phone = %s order by h.created_at""", (PHONE,)).fetchall()]

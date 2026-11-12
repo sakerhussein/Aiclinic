@@ -66,6 +66,8 @@ def _matches(e: dict, a: dict) -> bool:
         return False
     if "from" in e and not e["from"] <= a["time"] <= e["to"]:
         return False
+    if "visit" in e and a.get("visit", "in_clinic") != e["visit"]:      # 'online' or 'in_clinic'
+        return False
     return True
 
 

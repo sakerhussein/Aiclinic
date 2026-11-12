@@ -30,7 +30,7 @@ from .agent.web import build_web_agent, run_web_turn
 from .chat import load_env
 from . import web_chat
 from .staff import alert_new_handoffs, create_router
-from .whatsapp import links, reminders
+from .whatsapp import links, reminders, visit_links
 from .whatsapp.client import WhatsAppClient
 from .whatsapp.processor import Processor
 from .whatsapp.webhook import parse, signature_ok
@@ -103,15 +103,19 @@ def create_app(env: dict) -> FastAPI:
             try:
                 if conn.closed:
                     conn = connect()
+                site = env.get("BOOK_SITE_URL") or "https://book.limitsiz.si"
                 if wa:
                     n = reminders.send_due_reminders(conn, wa, env.get("WA_REMINDER_TEMPLATE") or "appointment_reminder",
-                                                     datetime.now(timezone.utc))
+                                                     datetime.now(timezone.utc), env.get("WA_ONLINE_REMINDER_TEMPLATE") or None, site)
                     if n:
                         log.info("sent %d reminders", n)
-                    n = links.send_due_links(conn, wa, env.get("WA_LINK_TEMPLATE") or "booking_link", datetime.now(timezone.utc),
-                                             env.get("BOOK_SITE_URL") or "https://book.limitsiz.si")
+                    n = links.send_due_links(conn, wa, env.get("WA_LINK_TEMPLATE") or "booking_link", datetime.now(timezone.utc), site)
                     if n:
                         log.info("sent %d booking links", n)
+                    if env.get("WA_VISIT_LINK_TEMPLATE"):      # online visits, phase 2: off until Meta approved the message
+                        n = visit_links.send_due_visit_links(conn, wa, env["WA_VISIT_LINK_TEMPLATE"], datetime.now(timezone.utc), site)
+                        if n:
+                            log.info("sent %d visit links", n)
                 links.forget_old_requests(conn, datetime.now(timezone.utc))
                 web_chat.alert_web_callbacks(conn, smtp, env.get("STAFF_ALERT_EMAIL"))
                 web_chat.forget_old_chats(conn, datetime.now(timezone.utc))

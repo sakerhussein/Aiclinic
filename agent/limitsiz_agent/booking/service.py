@@ -56,17 +56,18 @@ def normalize_phone(raw: str, default_country: str = "962") -> str:
 
 
 def clinic_info(conn: psycopg.Connection, clinic_id: UUID | str) -> dict:
-    """Everything the agent may tell a patient: clinic details, services, doctors with their hours, FAQs."""
+    """Everything the agent may tell a patient: clinic details, services, doctors with their hours, FAQs, and online visits
+    when the clinic has them on (never a Teams address)."""
     with conn.cursor(row_factory=dict_row) as cur:
         clinic = _clinic(cur, clinic_id)
         cur.execute(
-            """select id, name_en, name_ar, description_en, description_ar, duration_minutes, price_jod, price_is_from
+            """select id, name_en, name_ar, description_en, description_ar, duration_minutes, price_jod, price_is_from, online_allowed
                from services where clinic_id = %s and active order by sort, name_en""",
             (clinic_id,),
         )
         services = cur.fetchall()
         cur.execute(
-            """select d.id, d.name_en, d.name_ar, d.title_en, d.title_ar, d.gender,
+            """select d.id, d.name_en, d.name_ar, d.title_en, d.title_ar, d.gender, d.online_enabled, d.online_min_notice_minutes,
                       coalesce(array_agg(ds.service_id) filter (where ds.service_id is not null), '{}') as service_ids
                from doctors d left join doctor_services ds on ds.doctor_id = d.id
                where d.clinic_id = %s and d.active group by d.id order by d.name_en""",
@@ -86,10 +87,12 @@ def clinic_info(conn: psycopg.Connection, clinic_id: UUID | str) -> dict:
             (clinic_id,),
         )
         faqs = cur.fetchall()
+        online = _online_settings(cur, clinic_id)
     keys = ("id", "name_en", "name_ar", "timezone", "phone", "address_en", "address_ar", "maps_url",
             "default_language", "booking_window_days", "min_notice_minutes", "cancel_notice_minutes",
             "after_hours_message_en", "after_hours_message_ar")
-    return {**{k: clinic[k] for k in keys}, "services": services, "doctors": doctors, "faqs": faqs, "opening_hours": hours}
+    return {**{k: clinic[k] for k in keys}, "services": services, "doctors": doctors, "faqs": faqs, "opening_hours": hours,
+            "online": _online_public(online) if online and online["enabled"] else None}
 
 
 def find_slots(
@@ -101,16 +104,20 @@ def find_slots(
     days: int = 7,
     doctor_id: UUID | str | None = None,
     gender: str | None = None,
+    visit: str = "clinic",
     now: datetime | None = None,
 ) -> list[dict]:
     """Free start times for a service over `days` days from `date_from` (default today), for every doctor
-    who offers it, or only `doctor_id`, or only female/male doctors (`gender` 'f' or 'm')."""
+    who offers it, or only `doctor_id`, or only female/male doctors (`gender` 'f' or 'm').
+    visit 'online': only a service and doctors offered online, after each doctor's earliest online booking (Settings)."""
     now = _now(now)
     with conn.cursor(row_factory=dict_row) as cur:
         clinic = _clinic(cur, clinic_id)
         tz = ZoneInfo(clinic["timezone"])
         service = _service(cur, clinic_id, service_id)
         doctors = _doctors_for(cur, clinic_id, service_id, doctor_id, gender)
+        if visit == "online":
+            doctors = _online_doctors(cur, clinic_id, service, doctors)
         earliest, latest = _window(clinic, now)
         today = now.astimezone(tz).date()
         day_from = max(date_from or today, today)
@@ -118,7 +125,8 @@ def find_slots(
         duration = timedelta(minutes=service["duration_minutes"])
         out = []
         for d in doctors:
-            for t in _doctor_slots(cur, clinic, d["id"], duration, day_from, day_to, earliest, latest):
+            first = _online_earliest(earliest, d, now) if visit == "online" else earliest
+            for t in _doctor_slots(cur, clinic, d["id"], duration, day_from, day_to, first, latest):
                 out.append({
                     "doctor_id": d["id"], "doctor_name_en": d["name_en"], "doctor_name_ar": d["name_ar"],
                     "starts_at": t, "ends_at": t + duration,
@@ -153,9 +161,16 @@ def book(
     full_name: str | None = None,
     language: str | None = None,
     source: str = "whatsapp",
+    visit: str = "clinic",
+    online_mode: str | None = None,
     now: datetime | None = None,
 ) -> dict:
-    """Books a free slot (as returned by find_slots) and returns the appointment."""
+    """Books a free slot (as returned by find_slots) and returns the appointment.
+
+    visit 'online' (Settings > Online visits): who may book one themselves is the clinic's setting (the profile mark, seen
+    before, or everyone) or the doctor's one-time "next follow-up can be online"; online_visit_check decides, in the
+    database. The patient agrees to the clinic's consent text with the same yes that confirms the booking (the assistant
+    shows the text in that message), so it is recorded with the booking. The link comes on WhatsApp, where they are."""
     phone = normalize_phone(phone)
     now = _now(now)
     _require_aware(starts_at)
@@ -163,9 +178,24 @@ def book(
         set_actor(cur, clinic_id)
         clinic = _clinic(cur, clinic_id)
         service = _service(cur, clinic_id, service_id)
-        _doctors_for(cur, clinic_id, service_id, doctor_id, None)
+        doctors = _doctors_for(cur, clinic_id, service_id, doctor_id, None)
         duration = timedelta(minutes=service["duration_minutes"])
-        _check_slot(cur, clinic, doctor_id, starts_at, duration, now)
+        online = check = None
+        if visit == "online":
+            online = _online_settings(cur, clinic_id)
+            doctor = _online_doctors(cur, clinic_id, service, doctors)[0]
+            _check_slot(cur, clinic, doctor_id, starts_at, duration, now, notice=doctor["online_min_notice_minutes"])
+            cur.execute("select * from public.online_visit_check(%s, %s)", (clinic_id, phone))
+            check = cur.fetchone()
+            if not check["allowed"]:
+                raise BookingError("online_not_allowed", "this patient may not book an online visit themselves")
+            if check["mode"] == "patient":
+                if online_mode not in ("video", "audio"):
+                    raise BookingError("choose_mode", "the patient chooses video or audio")
+            else:
+                online_mode = check["mode"]
+        else:
+            _check_slot(cur, clinic, doctor_id, starts_at, duration, now)
 
         cur.execute(
             """insert into patients (clinic_id, phone_e164, full_name, preferred_language, whatsapp_reminders)
@@ -182,13 +212,19 @@ def book(
 
         try:
             cur.execute(
-                """insert into appointments (clinic_id, doctor_id, service_id, patient_id, starts_at, ends_at, source)
-                   values (%s, %s, %s, %s, %s, %s, %s) returning id""",
-                (clinic_id, doctor_id, service_id, patient_id, starts_at, starts_at + duration, source),
+                """insert into appointments (clinic_id, doctor_id, service_id, patient_id, starts_at, ends_at, source,
+                                             visit_type, online_mode, link_channel, online_consent_at, online_consent_version)
+                   values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) returning id""",
+                (clinic_id, doctor_id, service_id, patient_id, starts_at, starts_at + duration, source,
+                 "online" if online else "in_clinic", online_mode if online else None, "whatsapp" if online else None,
+                 now if online else None, online["consent_version"] if online else None),
             )
         except psycopg.errors.ExclusionViolation as e:
             raise BookingError("slot_taken", "someone else booked it a moment ago") from e
-        return _appointment(cur, cur.fetchone()["id"])
+        appointment_id = cur.fetchone()["id"]
+        if check and check["next_from"]:
+            cur.execute("select public.online_visit_use(%s, %s)", (check["next_from"], appointment_id))
+        return _appointment(cur, appointment_id)
 
 
 def cancel(
@@ -237,9 +273,12 @@ def reschedule(
         _check_change_notice(clinic, appt["starts_at"], now)
         doctor_id = doctor_id or appt["doctor_id"]
         service = _service(cur, clinic_id, appt["service_id"])
-        _doctors_for(cur, clinic_id, appt["service_id"], doctor_id, None)
+        doctors = _doctors_for(cur, clinic_id, appt["service_id"], doctor_id, None)
         duration = timedelta(minutes=service["duration_minutes"])
-        _check_slot(cur, clinic, doctor_id, new_starts_at, duration, now, exclude_id=appt["id"])
+        notice = 0
+        if appt["visit_type"] == "online":                 # an online visit stays online: the online rules apply to its new time
+            notice = _online_doctors(cur, clinic_id, service, doctors)[0]["online_min_notice_minutes"]
+        _check_slot(cur, clinic, doctor_id, new_starts_at, duration, now, exclude_id=appt["id"], notice=notice)
         _check_patient_free(cur, clinic, appt["patient_id"], new_starts_at, new_starts_at + duration, now,
                             exclude_id=appt["id"], counting_new=False)
         try:
@@ -288,7 +327,8 @@ def hand_off(
 _APPOINTMENT_SELECT = """
     select a.id, a.status::text as status, a.starts_at, a.ends_at, a.doctor_id, a.service_id, a.patient_id,
            d.name_en as doctor_name_en, d.name_ar as doctor_name_ar,
-           s.name_en as service_name_en, s.name_ar as service_name_ar, s.price_jod, s.price_is_from
+           s.name_en as service_name_en, s.name_ar as service_name_ar, s.price_jod, s.price_is_from,
+           a.visit_type, a.online_mode
     from appointments a
     join doctors d on d.id = a.doctor_id
     join services s on s.id = a.service_id
@@ -337,7 +377,7 @@ def _doctors_for(cur, clinic_id, service_id, doctor_id, gender) -> list[dict]:
         if not cur.fetchone():
             raise BookingError("unknown_doctor", str(doctor_id))
     cur.execute(
-        """select d.id, d.name_en, d.name_ar, d.gender from doctors d
+        """select d.id, d.name_en, d.name_ar, d.gender, d.online_enabled, d.online_min_notice_minutes from doctors d
            join doctor_services ds on ds.doctor_id = d.id and ds.service_id = %s
            where d.clinic_id = %s and d.active
              and (%s::uuid is null or d.id = %s::uuid) and (%s::text is null or d.gender = %s::text)
@@ -348,6 +388,35 @@ def _doctors_for(cur, clinic_id, service_id, doctor_id, gender) -> list[dict]:
     if doctor_id is not None and not doctors:
         raise BookingError("doctor_does_not_offer_service", str(doctor_id))
     return doctors
+
+
+def _online_settings(cur, clinic_id) -> dict | None:
+    cur.execute("select * from online_visits where clinic_id = %s", (clinic_id,))
+    return cur.fetchone()
+
+
+def _online_public(o: dict) -> dict:
+    """What the assistant may know of Settings > Online visits: never a Teams address."""
+    keys = ("mode", "who_can_book", "consent_en", "consent_ar", "how_to_en", "how_to_ar", "join_opens_minutes", "consent_version")
+    return {k: o[k] for k in keys}
+
+
+def _online_doctors(cur, clinic_id, service: dict, doctors: list[dict]) -> list[dict]:
+    """An online visit: online visits on, the service offered online, and only the doctors who take online visits."""
+    o = _online_settings(cur, clinic_id)
+    if not o or not o["enabled"]:
+        raise BookingError("online_visits_off", "this clinic does not offer online visits")
+    if not service.get("online_allowed"):
+        raise BookingError("service_not_online", "this service is only at the clinic")
+    online = [d for d in doctors if d["online_enabled"]]
+    if not online:
+        raise BookingError("doctor_not_online", "this doctor does not take online visits")
+    return online
+
+
+def _online_earliest(earliest: datetime, doctor: dict, now: datetime) -> datetime:
+    """The doctor's earliest online booking (Settings > Doctors), on top of the clinic's minimum notice."""
+    return max(earliest, now + timedelta(minutes=doctor["online_min_notice_minutes"] or 0))
 
 
 def _window(clinic, now: datetime) -> tuple[datetime, datetime]:
@@ -394,10 +463,14 @@ def _doctor_slots(cur, clinic, doctor_id, duration, day_from, day_to, earliest, 
     )
 
 
-def _check_slot(cur, clinic, doctor_id, starts_at, duration, now, exclude_id=None) -> None:
+def _check_slot(cur, clinic, doctor_id, starts_at, duration, now, exclude_id=None, notice: int = 0) -> None:
+    """`notice`: the doctor's earliest online booking in minutes, for an online visit (on top of the clinic's notice)."""
     earliest, latest = _window(clinic, now)
     if starts_at < earliest:
         raise BookingError("too_soon", f"needs {clinic['min_notice_minutes']} minutes notice")
+    if starts_at < now + timedelta(minutes=notice):
+        raise BookingError("inside_online_notice", f"the doctor takes online visits from {notice} minutes ahead")
+    earliest = max(earliest, now + timedelta(minutes=notice))
     if starts_at > latest:
         raise BookingError("outside_booking_window", f"up to {clinic['booking_window_days']} days ahead")
     day = starts_at.astimezone(ZoneInfo(clinic["timezone"])).date()

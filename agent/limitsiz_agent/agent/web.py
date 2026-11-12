@@ -33,7 +33,7 @@ from ..booking import BookingError, clinic_info, find_slots
 from .graph import CLINIC_INFO_TTL_SECONDS, FALLBACK_BETA, MAX_TOOL_ROUNDS, SORRY, _result, _say
 from .prompt import build_system_prompt
 from .safety import emergency_reply, is_emergency, message_language
-from .tools import TOOLS, WEEKDAYS_EN, ToolBox, ToolInputError, _parse_date, _validate
+from .tools import _VISIT, TOOLS, WEEKDAYS_EN, ToolBox, ToolInputError, _parse_date, _validate
 
 _ID = {"type": "string", "description": "An ID exactly as given in the clinic details or a tool result."}
 
@@ -49,6 +49,7 @@ WEB_TOOLS = [
                 "service_id": _ID, "doctor_id": _ID,
                 "date": {"type": "string", "description": "Clinic local date, YYYY-MM-DD."},
                 "time": {"type": "string", "description": "Clinic local start time, HH:MM, exactly as listed by find_available_times."},
+                "visit": {**_VISIT, "description": "'online' for an online visit, with a time from find_available_times with visit 'online'."},
             },
             "required": ["service_id", "doctor_id", "date", "time"],
             "additionalProperties": False,
@@ -133,6 +134,13 @@ do not write it again: add only what is new, or nothing.
 """
 
 
+# Only for a clinic with online visits on (Settings > Online visits).
+WEB_ONLINE_RULES = """- Online visits (Microsoft Teams): this clinic offers them for some services and doctors (see the details below). Offer one when the patient asks for an online, video or phone visit, or asks whether they must come in; otherwise book at the clinic. Use visit "online" with find_available_times and propose_booking; online times can differ. On the card the patient agrees to the clinic's consent and chooses how to get the "Join the visit" link, which comes after the clinic confirms.
+- Never say whether an online visit is right for a medical problem: "the doctor decides; for a new problem a visit at the clinic may be needed". Never give or invent a Teams address or meeting link. Online visits are not for emergencies.
+- The system checks on the card whether the patient may book online visits themselves (some clinics offer them only to patients the doctor agreed it with). If a system message says the clinic did not accept the booking for this number, explain kindly and offer a visit at the clinic or a call-back.
+"""
+
+
 def page_settings(conn: psycopg.Connection, clinic_id: str) -> dict:
     """What the clinic's online page shows, so the assistant says the same: prices, and whether "Find my booking" is there."""
     row = conn.execute("select o.show_prices, public.online_find_available(o.clinic_id) from online_booking o where o.clinic_id = %s",
@@ -151,6 +159,8 @@ def build_web_prompt(info: dict, page: dict | None = None) -> str:
     if not page["find"]:                              # "Find my booking" is not on the page (it needs WhatsApp): never mention it
         rules = rules.replace('the private link they received when they booked, "Find my booking" on the page, or call the clinic',
                               "the private link they received when they booked, or call the clinic")
+    if info.get("online"):
+        rules += WEB_ONLINE_RULES
     if not page["show_prices"]:
         rules += "- This page does not show prices. If asked, say the clinic will tell them by phone or at the visit, and never " \
                  "give a price, even one from the questions and answers below.\n"
@@ -349,7 +359,9 @@ def _proposal(conn, info: dict, clinic_id: str, args: dict, tz: ZoneInfo, now: d
         starts = datetime(day.year, day.month, day.day, hh, mm, tzinfo=tz)
     except (ValueError, ToolInputError):
         raise ToolInputError("date must be YYYY-MM-DD and time HH:MM") from None
-    free = find_slots(conn, clinic_id, args["service_id"], date_from=day, days=1, doctor_id=args["doctor_id"], now=now)
+    online = args.get("visit") == "online"
+    free = find_slots(conn, clinic_id, args["service_id"], date_from=day, days=1, doctor_id=args["doctor_id"],
+                      visit="online" if online else "clinic", now=now)
     if not any(s["starts_at"] == starts for s in free):
         raise BookingError("slot_not_available", "That time is not free. Call find_available_times and offer another.")
     svc = next(s for s in info["services"] if str(s["id"]) == args["service_id"])
@@ -357,5 +369,7 @@ def _proposal(conn, info: dict, clinic_id: str, args: dict, tz: ZoneInfo, now: d
     return {
         "serviceId": args["service_id"], "doctorId": args["doctor_id"], "startsAt": starts.astimezone(timezone.utc).isoformat(),
         "serviceEn": svc["name_en"], "serviceAr": svc["name_ar"], "doctorEn": doc["name_en"], "doctorAr": doc["name_ar"],
-        "summary": f"{svc['name_en']} with {doc['name_en']} on {WEEKDAYS_EN[day.weekday()]} {day.isoformat()} at {args['time']}",
+        "summary": f"{'Online visit: ' if online else ''}{svc['name_en']} with {doc['name_en']} on {WEEKDAYS_EN[day.weekday()]} "
+                   f"{day.isoformat()} at {args['time']}",
+        "visitType": "online" if online else "in_clinic",
     }

@@ -38,6 +38,12 @@ SORRY = {
     "ar": "عذراً، حدث خلل تقني. يرجى إرسال رسالتك مرة أخرى بعد قليل.",
     "en": "Sorry, something went wrong on our side. Please send your message again in a moment.",
 }
+# Under the message that asks the patient's yes for an online visit: the clinic's own consent text (Settings > Online visits),
+# added by the system word for word, so the yes that books the visit is also the patient's agreement to it.
+CONSENT_LEAD = {
+    "ar": "الضغط على «نعم» يعني الموافقة أيضاً على ما يلي:",
+    "en": "By pressing “Yes” you also agree to this:",
+}
 PASSED_TO_TEAM = {
     "ar": "سأحوّل محادثتك إلى فريق العيادة، وسيردّون عليك هنا قريباً.",
     "en": "I'm passing your conversation to the clinic team. They will reply here soon.",
@@ -146,6 +152,11 @@ def build_agent(
         if not has_tools and not text:
             content.append({"type": "text", "text": SORRY[language]})
             text = SORRY[language]
+        if not has_tools:
+            note = consent_note(state.get("pending"), clinic(clinic_id)[0], language)
+            if note:
+                content.append({"type": "text", "text": note})
+                text = f"{text}\n\n{note}"
         return {"messages": [{"role": "assistant", "content": content}], "reply": None if has_tools else text}
 
     def tools(state: State, config) -> dict:
@@ -219,6 +230,14 @@ def run_turn(graph, clinic_id: str, phone: str, text: str) -> tuple[str | None, 
 
 
 # ---------------------------------------------------------------- helpers
+
+
+def consent_note(pending: dict | None, info: dict, language: str) -> str | None:
+    """The consent lines for a booking of an online visit that waits for the patient's yes, or None."""
+    online = info.get("online")
+    if not pending or pending["tool"] != "book_appointment" or pending["args"].get("visit") != "online" or not online:
+        return None
+    return f"{CONSENT_LEAD[language]}\n_{online['consent_ar' if language == 'ar' else 'consent_en']}_"
 
 
 def _say(text: str) -> dict:

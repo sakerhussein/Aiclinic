@@ -48,20 +48,25 @@ const pubConfig = { siteUrl: "http://localhost:3005", origin: "http://localhost:
 // It offers the first free times of the first service, proposes a typed HH:MM, and shows the emergency and call-back cases.
 const local = (iso) => new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Amman", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(iso));
 const demo = {};
-const demoAgent = async ({ text }) => {
+// "online" / "أونلاين" in a message: the chat offers and proposes online visit times from then on (online visits, phase 2).
+const onlineChats = new Set();
+const demoAgent = async ({ text, chat_id }) => {
+  if (/online|أونلاين/i.test(text)) onlineChats.add(chat_id);
+  const visit = onlineChats.has(chat_id) ? "online" : undefined;
   const ar = /[؀-ۿ]/.test(text), L = (en, a) => (ar ? a : en);
   if (/chest|can't breathe|صدر|اتنفس/i.test(text)) return { emergency: true, reply: L("This may be an emergency. Please call 911 now or go to the nearest emergency department. I have also alerted the clinic team.", "قد تكون هذه حالة طارئة. يرجى الاتصال على 911 فوراً أو التوجه إلى أقرب قسم طوارئ. وقد أبلغت فريق العيادة أيضاً.") };
   if (/person|cream|pregnan|شخص|كريم|حامل/i.test(text)) return { reply: L("That's a question for the doctor, and I can't give medical advice. Leave your number and the clinic will call you back.", "هذا سؤال للطبيب، ولا أستطيع تقديم نصائح طبية. اترك رقمك وستتصل بك العيادة."), callback: { reason: "medical_question", summary: "Demo: a medical question." } };
   if (/cancel|ألغي|الغي/i.test(text)) return { reply: L("For your privacy I can't see or change existing bookings on this page. Use the private link you got when you booked, or call the clinic.", "حفاظاً على خصوصيتك لا أستطيع رؤية الحجوزات السابقة أو تعديلها من هذه الصفحة. استخدم الرابط الخاص الذي وصلك عند الحجز، أو اتصل بالعيادة."), buttons: [L("Call the clinic", "اتصل بالعيادة")] };
   const info = await demo.svc.info("demo-derma"), s = info.services[0];
   const from = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-  const slots = await demo.svc.slots("demo-derma", { serviceId: s.id, from, days: 3 });
+  const slots = await demo.svc.slots("demo-derma", { serviceId: s.id, from, days: 3, visit });
   const hit = text.match(/\b(\d{1,2}):(\d{2})\b/);
   const pick = hit && slots.find((x) => local(x.startsAt) === `${hit[1].padStart(2, "0")}:${hit[2]}`);
   if (pick) {
     const d = info.doctors.find((x) => x.id === pick.doctorId);
     return { reply: L("Please check the card, add your name and number, and press Yes.", "يرجى مراجعة البطاقة وإضافة اسمك ورقمك ثم الضغط على «نعم»."),
-      proposal: { serviceId: s.id, doctorId: d.id, startsAt: pick.startsAt, serviceEn: s.name_en, serviceAr: s.name_ar, doctorEn: d.name_en, doctorAr: d.name_ar, summary: `${s.name_en} with ${d.name_en} at ${local(pick.startsAt)}` } };
+      proposal: { serviceId: s.id, doctorId: d.id, startsAt: pick.startsAt, serviceEn: s.name_en, serviceAr: s.name_ar, doctorEn: d.name_en, doctorAr: d.name_ar, summary: `${visit ? "Online visit: " : ""}${s.name_en} with ${d.name_en} at ${local(pick.startsAt)}`,
+                  ...(visit ? { visitType: "online" } : {}) } };
   }
   const first = slots.slice(0, 4);
   return { reply: L(`*${s.name_en}* (${s.duration_minutes} min). The first free times:`, `*${s.name_ar}* (${s.duration_minutes} دقيقة). أول الأوقات المتاحة:`), buttons: first.map((x) => local(x.startsAt)) };

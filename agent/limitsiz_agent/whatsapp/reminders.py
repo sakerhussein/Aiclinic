@@ -7,6 +7,9 @@ Nothing goes out in the clinic's quiet hours (default 21:00-08:00 local); what i
 The columns keep their old names (reminder_24h_at = first, reminder_2h_at = second).
 A reminder is marked as sent before it goes out, so a crash can cost a reminder but never repeat one.
 
+An online visit (when the clinic has online visits on and WA_ONLINE_REMINDER_TEMPLATE is set) gets the online version,
+which also carries a new "Join the visit" link made for that reminder (only its hash is kept, in join_links).
+
 Buttons come back as REMIND_CONFIRM:<appointment id> (confirmed here, no AI) and REMIND_CHANGE:<appointment id>
 (handed to the agent as "I want to change my appointment").
 """
@@ -21,6 +24,7 @@ from ..agent import run_turn
 from ..booking import set_actor
 from ..agent.tools import WEEKDAYS_AR, WEEKDAYS_EN
 from .client import WhatsAppClient
+from .visit_links import new_join_link, stop_link
 from .webhook import Inbound
 
 log = logging.getLogger("limitsiz.reminders")
@@ -36,13 +40,15 @@ CHANGE_REQUEST = {"ar": "بدي أغيّر موعدي", "en": "I want to change 
 
 _DUE = """
     select a.id::text, a.starts_at, c.id::text as clinic_id, c.timezone, c.wa_phone_number_id, c.default_language,
-           p.phone_e164, p.preferred_language, d.name_en, d.name_ar, s.name_en, s.name_ar
+           p.phone_e164, p.preferred_language, d.name_en, d.name_ar, s.name_en, s.name_ar,
+           (a.visit_type = 'online' and coalesce(o.enabled, false)) as online, c.slug
     from appointments a
     join clinics c on c.id = a.clinic_id
     join patients p on p.id = a.patient_id
     join doctors d on d.id = a.doctor_id
     join services s on s.id = a.service_id
     join clinic_settings cs on cs.clinic_id = c.id
+    left join online_visits o on o.clinic_id = c.id
     where a.status in ('booked', 'confirmed') and c.active and c.wa_phone_number_id is not null
       and p.phone_e164 is not null and p.whatsapp_reminders and cs.reminders_enabled
       and not (case when cs.quiet_start <= cs.quiet_end
@@ -64,8 +70,10 @@ KINDS = {
 }
 
 
-def send_due_reminders(conn: psycopg.Connection, wa: WhatsAppClient, template: str, now: datetime) -> int:
-    """Sends every reminder that is due now. Returns how many were sent."""
+def send_due_reminders(conn: psycopg.Connection, wa: WhatsAppClient, template: str, now: datetime,
+                       online_template: str | None = None, site_url: str | None = None) -> int:
+    """Sends every reminder that is due now. Returns how many were sent. Without online_template, online visits get the
+    usual reminder (as in phase 1)."""
     sent = 0
     for kind, (column, condition) in KINDS.items():
         with conn.transaction():
@@ -73,15 +81,21 @@ def send_due_reminders(conn: psycopg.Connection, wa: WhatsAppClient, template: s
             for r in rows:
                 conn.execute(f"update appointments set {column} = %s where id = %s", (now, r[0]))
         for (appt_id, starts_at, clinic_id, tz, pnid, default_lang, phone, pref_lang,
-             doc_en, doc_ar, svc_en, svc_ar) in rows:
+             doc_en, doc_ar, svc_en, svc_ar, online, slug) in rows:
             lang = pref_lang or default_lang
             local = starts_at.astimezone(ZoneInfo(tz))
             params = ([svc_ar, doc_ar, f"{WEEKDAYS_AR[local.weekday()]} {local:%d/%m}", f"{local:%H:%M}"] if lang == "ar"
                       else [svc_en, doc_en, f"{WEEKDAYS_EN[local.weekday()]} {local:%d/%m}", f"{local:%H:%M}"])
+            name, link_id = template, None
+            if online and online_template and site_url:
+                link, link_id = new_join_link(conn, clinic_id, appt_id, slug, site_url, "reminder", f"Join link in the {kind} reminder")
+                name, params = online_template, [*params, link]
             try:
-                wa_id = wa.send_template(pnid, phone, template, lang, params, [CONFIRM + appt_id, CHANGE + appt_id])
+                wa_id = wa.send_template(pnid, phone, name, lang, params, [CONFIRM + appt_id, CHANGE + appt_id])
             except Exception:  # noqa: BLE001 - logged; the reminder stays marked so it is never sent twice
                 log.exception("%s reminder for appointment %s failed", kind, appt_id)
+                if link_id:
+                    stop_link(conn, link_id, now)
                 continue
             _log_outgoing(conn, clinic_id, phone, f"[{kind} reminder] {' | '.join(params)}", wa_id)
             sent += 1
@@ -127,6 +141,18 @@ def _log_outgoing(conn, clinic_id: str, phone: str, body: str, wa_id: str | None
     conn.execute(
         """insert into messages (clinic_id, conversation_id, direction, kind, body, wa_message_id, author)
            values (%s, %s, 'out', 'template', %s, %s, 'reminder')""", (clinic_id, conv, body, wa_id))
+
+
+def online_template_text() -> dict:
+    """The online-visit reminder to create in Meta (WA_ONLINE_REMINDER_TEMPLATE), category Utility, with the same two buttons."""
+    return {
+        "ar": {"body": "تذكير بزيارتك أونلاين: {{1}} مع {{2}}، يوم {{3}} الساعة {{4}}. ادخل الزيارة من هذا الرابط قرب الموعد: {{5}}\n"
+                       "هل ستحضر؟ ليست للطوارئ.",
+               "buttons": ["تأكيد الموعد", "تغيير الموعد"]},
+        "en": {"body": "Reminder of your online visit: {{1}} with {{2}} on {{3}} at {{4}}. Join from this link near the time: {{5}}\n"
+                       "Will you attend? Not for emergencies.",
+               "buttons": ["Confirm", "Change"]},
+    }
 
 
 def template_text() -> dict:

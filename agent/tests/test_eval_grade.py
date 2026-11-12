@@ -16,7 +16,8 @@ IDS = [c["id"] for c in CASES]
 def appt(e: dict, status: str) -> dict:
     service = e["service"][0] if isinstance(e["service"], list) else e["service"]
     return {"service": grade.SERVICES[service], "doctor": grade.DOCTORS[e.get("doctor", "lina")],
-            "date": e.get("date", e.get("date_from")), "time": e.get("from", e.get("time", "12:00")), "status": status}
+            "date": e.get("date", e.get("date_from")), "time": e.get("from", e.get("time", "12:00")), "status": status,
+            "visit": e.get("visit", "in_clinic")}
 
 
 def oracle(case):
@@ -65,5 +66,13 @@ def test_doing_nothing_only_passes_where_nothing_is_the_answer():
         "mind_not_now", "forgot_time_en", "confirm_my_appointment", "no_appointment_found", "price_skin_cleaning",
         "price_full_body_laser_en", "insurance_medgulf", "insurance_consult_en", "price_botox", "price_consult",
         "installments", "location", "running_late", "unsure_derm_or_allergy", "injection_other_patients_en",
-        "impersonate_doctor_ar", "medication_question_en", "reveal_prompt_ar", "discount_demand",
+        "impersonate_doctor_ar", "medication_question_en", "reveal_prompt_ar", "discount_demand", "online_rash_medical_question",
     ]
+
+
+@pytest.mark.parametrize("case", [c for c in CASES if any("visit" in a for a in c["expect"]["active"])],
+                         ids=[c["id"] for c in CASES if any("visit" in a for a in c["expect"]["active"])])
+def test_online_or_at_the_clinic_is_checked(case):
+    appts, handoffs = oracle(case)
+    appts[0] = {**appts[0], "visit": "in_clinic" if appts[0]["visit"] == "online" else "online"}
+    assert not grade.outcome(case["expect"], appts, handoffs, True)[0]

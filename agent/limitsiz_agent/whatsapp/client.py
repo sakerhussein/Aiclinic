@@ -36,8 +36,14 @@ class WhatsAppClient:
             "to": to.lstrip("+"), "type": "text", "text": {"body": text[:4096], "preview_url": False}}))
 
     def send_confirm_buttons(self, phone_number_id: str, to: str, text: str, language: str) -> str | None:
-        """The reply with Yes / No buttons; a tap comes back as YES_PAYLOAD / NO_PAYLOAD."""
+        """The reply with Yes / No buttons; a tap comes back as YES_PAYLOAD / NO_PAYLOAD. A button message holds 1024
+        characters: a longer reply goes as a text first, and its last paragraph (e.g. an online visit's consent) with the buttons."""
         titles = BUTTON_TITLES.get(language, BUTTON_TITLES["ar"])
+        if len(text) > 1024:
+            head, _, tail = text.rpartition("\n\n")
+            if head and len(tail) <= 1024:
+                self.send_text(phone_number_id, to, head)
+                text = tail
         return self._message_id(self._post(phone_number_id, {
             "to": to.lstrip("+"), "type": "interactive",
             "interactive": {

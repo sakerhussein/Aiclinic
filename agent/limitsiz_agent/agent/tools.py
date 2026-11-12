@@ -25,6 +25,8 @@ WEEKDAYS_AR = ["الاثنين", "الثلاثاء", "الأربعاء", "الخ
 _ID = {"type": "string", "description": "An ID exactly as given in the clinic details or a tool result."}
 _DATE = {"type": "string", "description": "Clinic local date, YYYY-MM-DD."}
 _TIME = {"type": "string", "description": "Clinic local start time, HH:MM (24-hour), exactly as listed by find_available_times."}
+_VISIT = {"type": "string", "enum": ["clinic", "online"],
+          "description": "'online' for an online visit (Microsoft Teams), only when the clinic offers them. Default: at the clinic."}
 
 TOOLS = [
     {
@@ -39,6 +41,7 @@ TOOLS = [
                 "days": {"type": "integer", "minimum": 1, "maximum": 7, "description": "How many days to search. Default 3."},
                 "doctor_id": {**_ID, "description": "Only this doctor. Leave out for any doctor."},
                 "doctor_gender": {"type": "string", "enum": ["f", "m"], "description": "Only female (f) or male (m) doctors."},
+                "visit": {**_VISIT, "description": "'online' for times of an online visit (they can differ). Default: at the clinic."},
             },
             "required": ["service_id"],
             "additionalProperties": False,
@@ -61,6 +64,9 @@ TOOLS = [
                 "date": _DATE,
                 "time": _TIME,
                 "patient_name": {"type": "string", "description": "The patient's name, if they gave it."},
+                "visit": {**_VISIT, "description": "'online' for an online visit, with a time from find_available_times with visit 'online'."},
+                "online_mode": {"type": "string", "enum": ["video", "audio"],
+                                "description": "Online visits only, when the tool result asks the patient to choose (choose_mode)."},
             },
             "required": ["service_id", "doctor_id", "date", "time"],
             "additionalProperties": False,
@@ -140,10 +146,10 @@ class ToolBox:
 
     # ------------------------------------------------------------ tools
 
-    def find_available_times(self, service_id, date_from=None, days=3, doctor_id=None, doctor_gender=None):
+    def find_available_times(self, service_id, date_from=None, days=3, doctor_id=None, doctor_gender=None, visit="clinic"):
         slots = find_slots(
             self.conn, self.clinic_id, service_id, date_from=_parse_date(date_from) if date_from else None,
-            days=days, doctor_id=doctor_id, gender=doctor_gender, now=self.now,
+            days=days, doctor_id=doctor_id, gender=doctor_gender, visit=visit, now=self.now,
         )
         by_day: dict[date, dict] = {}
         for s in slots:
@@ -160,14 +166,15 @@ class ToolBox:
                 for d, docs in sorted(by_day.items())
             ],
             "note": "No free times in this range." if not slots else "Times are clinic local time.",
+            **({"visit": "online"} if visit == "online" else {}),
         }
 
     def list_my_appointments(self):
         return {"appointments": [self._appointment(a) for a in my_appointments(self.conn, self.clinic_id, self.phone, now=self.now)]}
 
-    def book_appointment(self, service_id, doctor_id, date, time, patient_name=None):
+    def book_appointment(self, service_id, doctor_id, date, time, patient_name=None, visit="clinic", online_mode=None):
         a = book(self.conn, self.clinic_id, self.phone, service_id, doctor_id, self._at(date, time),
-                 full_name=patient_name, now=self.now)
+                 full_name=patient_name, visit=visit, online_mode=online_mode, now=self.now)
         return {"appointment": self._appointment(a)}
 
     def cancel_appointment(self, appointment_id, reason=None):
@@ -200,6 +207,7 @@ class ToolBox:
             "time": start.strftime("%H:%M"), "ends": a["ends_at"].astimezone(self.tz).strftime("%H:%M"),
             "doctor_en": a["doctor_name_en"], "doctor_ar": a["doctor_name_ar"],
             "service_en": a["service_name_en"], "service_ar": a["service_name_ar"], "price": price,
+            **({"visit": "online (Microsoft Teams)", "online_mode": a.get("online_mode")} if a.get("visit_type") == "online" else {}),
         }
 
 

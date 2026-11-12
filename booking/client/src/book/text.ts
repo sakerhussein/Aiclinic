@@ -70,7 +70,7 @@ const EN = {
   joinOff: "Online visits are paused at the moment. Please call the clinic:", notEmergency: "Not for emergencies. In an emergency call 911.",
   yourOnlineVisit: "Your online visit", onlyJoins: "This link only joins the visit.",
   onlineRefused: "We couldn't book an online visit for this number.", onlineRefused2: "Online visits are for patients the clinic has invited. You can book a visit at the clinic, or call us:",
-  cardExpired: "That card has expired. Tell me the time you'd like and I'll show it again.", bookAtClinic: "Book at the clinic instead",
+  cardExpired: "That card has expired. Tell me the time you'd like and I'll show it again.", bookAtClinic: "Book at the clinic instead", atClinicText: "I'd like a visit at the clinic instead",
   consentNeeded: "Please agree to the online visit.", emailNeeded: "Please type your email address, or choose WhatsApp.", onlineOff: "Online visits are not available. Please book at the clinic or call us.",
   statuses: { booked: "Booked", waiting: "Waiting for the clinic", confirmed: "Confirmed", cancelled: "Cancelled", completed: "Completed", no_show: "Missed", voided: "Cancelled" } as Record<string, string>,
 };
@@ -142,7 +142,7 @@ const AR: typeof EN = {
   joinOff: "الزيارات أونلاين متوقفة حالياً. يرجى الاتصال بالعيادة:", notEmergency: "ليست للطوارئ. في حالة الطوارئ اتصل بـ 911.",
   yourOnlineVisit: "زيارتك أونلاين", onlyJoins: "هذا الرابط للدخول إلى الزيارة فقط.",
   onlineRefused: "تعذّر حجز زيارة أونلاين لهذا الرقم.", onlineRefused2: "الزيارات أونلاين للمرضى الذين دعتهم العيادة. تستطيع حجز زيارة في العيادة، أو الاتصال بنا:",
-  cardExpired: "انتهت صلاحية هذه البطاقة. احكيلي الوقت اللي بدك إياه وبرجع بعرضها.", bookAtClinic: "احجز في العيادة بدلاً من ذلك",
+  cardExpired: "انتهت صلاحية هذه البطاقة. احكيلي الوقت اللي بدك إياه وبرجع بعرضها.", bookAtClinic: "احجز في العيادة بدلاً من ذلك", atClinicText: "بدي زيارة بالعيادة بدل هيك",
   consentNeeded: "يرجى الموافقة على الزيارة أونلاين.", emailNeeded: "اكتب بريدك الإلكتروني، أو اختر واتساب.", onlineOff: "الزيارات أونلاين غير متاحة. احجز في العيادة أو اتصل بنا.",
   statuses: { booked: "محجوز", waiting: "بانتظار العيادة", confirmed: "مؤكّد", cancelled: "ملغى", completed: "مكتمل", no_show: "لم يحضر", voided: "ملغى" },
 };

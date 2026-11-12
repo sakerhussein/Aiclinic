@@ -9,7 +9,7 @@ Supabase project, so a problem here never takes the website down.
 1. **Data model** (`supabase/`). Done.
 2. **Booking functions** (`limitsiz_agent/booking/`). Done.
 3. **LangGraph agent** (`limitsiz_agent/agent/`). Done; works against the real Claude API.
-4. **Eval** (`evals/booking_chats/`): 51 approved cases, runner and grader. Pilot of 5 passed; the full baseline
+4. **Eval** (`evals/booking_chats/`): 51 approved cases plus 4 for online visits (tag `online`), runner and grader. Pilot of 5 passed; the full baseline
    run and the grading sign-off are still to do.
 5. **WhatsApp** (`limitsiz_agent/whatsapp/`, `server.py`). Built and tested offline; goes live with the steps below.
 6. **Reminders** (`limitsiz_agent/whatsapp/reminders.py`). Built; needs the approved template.
@@ -57,6 +57,13 @@ One process (port 3002, behind Nginx):
   When a change waits for the patient's yes, the reply carries **Yes / No buttons**.
 - Every minute: **reminders** (template `appointment_reminder`, 24 h and 2 h before, once each, buttons Confirm /
   Change; Confirm is handled without AI, Change goes to the agent) and **email alerts** for new hand-offs.
+- **Online visits on Microsoft Teams** (phase 2, migration 0025; design `booking/design/online-visits.html`): when a clinic
+  has them on (Booking › Settings › Online visits), the assistant and the web chat book them (`visit: "online"`) under
+  the clinic's rules, which the database checks (`online_visit_check`). On WhatsApp the clinic's consent text goes under
+  the yes message, so that yes is the patient's agreement. Every minute, `whatsapp/visit_links.py` sends the "Join the
+  visit" link of each confirmed online visit whose patient chose WhatsApp (template `WA_VISIT_LINK_TEMPLATE`), and online
+  visits get the online reminder with a new Join link (`WA_ONLINE_REMINDER_TEMPLATE`). Both stay off until set; see
+  `META_SETUP.md`. Only a link's hash is stored.
 - `/staff` (user `staff`, password `STAFF_PASSWORD`): today's appointments (Done / No-show), the hand-off inbox,
   each chat with a reply box (only within WhatsApp's 24-hour window), "Take over" and "Hand back to the AI".
 - `GET /health`.

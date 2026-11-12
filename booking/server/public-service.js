@@ -141,7 +141,8 @@ export function createPublicService({ pool, now = () => new Date(), agent = null
       [chatId, out.proposal ? JSON.stringify(out.proposal) : null, out.callback ? JSON.stringify(out.callback) : null]);
     const p = out.proposal;
     return { reply: out.reply ?? null, buttons: out.buttons ?? null, emergency: !!out.emergency, callback: !!out.callback,
-             proposal: p ? { serviceEn: p.serviceEn, serviceAr: p.serviceAr, doctorEn: p.doctorEn, doctorAr: p.doctorAr, startsAt: p.startsAt } : null };
+             proposal: p ? { serviceEn: p.serviceEn, serviceAr: p.serviceAr, doctorEn: p.doctorEn, doctorAr: p.doctorAr, startsAt: p.startsAt,
+                             visitType: p.visitType === "online" ? "online" : "in_clinic" } : null };
   }
 
   async function chatBook(slug, chatId, ctx, b) {
@@ -150,16 +151,21 @@ export function createPublicService({ pool, now = () => new Date(), agent = null
     const p = chat.proposal;
     if (!p) throw new HttpError(409, "nothing_to_book");
     try {
+      const online = p.visitType === "online";
       const r = await book(slug, ctx, { serviceId: p.serviceId, doctorId: p.doctorId, startsAt: p.startsAt, name: b.name, phone: b.phone,
-        language: b.language, from: "chat", reminders: false, forOther: false });
+        language: b.language, from: "chat", reminders: false, forOther: false,
+        ...(online ? { visitType: "online", onlineConsent: b.onlineConsent, onlineMode: b.onlineMode, linkChannel: b.linkChannel, email: b.email } : {}) });
       await pool.query("update web_chats set appointment_id = $2, proposal = null where id = $1", [chatId, r.id]);
       await event(pool, chatId, `The booking was made: ${p.summary}. ${r.waitingForCheck ? "The clinic will check it and may call or message the patient." : ""} `
         + "The patient got a private link to see the status, change or cancel it.");
       return r;
     } catch (e) {
+      // What the assistant is told; the card shows its own message, and asks again for a choice it still needs (video or audio).
       const why = e.code === "slot_taken" ? " The time was just taken; offer other times."
-        : e.code === "phone_not_accepted" ? " The clinic did not accept a booking for this number online. Offer a call-back or the clinic's phone." : "";
-      await event(pool, chatId, `The booking could not be made (${e.code ?? "error"}). Nothing was booked.${why}`);
+        : e.code === "phone_not_accepted" && p.visitType === "online"
+          ? " The clinic did not accept an online visit for this number (it may offer them only to patients the doctor agreed it with). Offer a visit at the clinic or a call-back."
+          : e.code === "phone_not_accepted" ? " The clinic did not accept a booking for this number online. Offer a call-back or the clinic's phone." : "";
+      if (e.code !== "choose_mode") await event(pool, chatId, `The booking could not be made (${e.code ?? "error"}). Nothing was booked.${why}`);
       throw e;
     }
   }

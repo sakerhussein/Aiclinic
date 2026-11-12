@@ -155,7 +155,10 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
       expectedVersion: z.number().int(), serviceId: uuid.optional(), doctorId: uuid.optional(), patientId: uuid.optional(),
       startsAt: z.string().max(40).optional(), internalNote: z.string().max(500).nullish(), override: z.boolean().optional(), ...visitFields,
     }), req.body);
-    res.json(await svc.updateAppointment(req.ctx, parse(uuid, req.params.id), b));
+    const a = await svc.updateAppointment(req.ctx, parse(uuid, req.params.id), b);
+    // A confirmed online visit at a new time or with another doctor: the patient gets the link again by email (WhatsApp: the assistant).
+    const sent = a.status === "confirmed" ? await svc.online.afterConfirm(req.ctx, a, config.publicBookingUrl) : null;
+    res.json(sent ? { ...a, link_sent: { channel: sent.channel, sentTo: sent.sentTo } } : a);
   }));
   // One door for every status change, with the permission each needs.
   const NEEDS = { confirmed: "booking.appointments.edit", completed: "booking.appointments.edit", no_show: "booking.appointments.edit",

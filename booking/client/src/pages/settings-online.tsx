@@ -17,7 +17,7 @@ export type PaySettings = { cliq_enabled: boolean; cliq_alias: string | null; cl
 export type OVData = { visits: OVSettings; payment: PaySettings; mailReady: boolean; builtChannels: string[] };
 type Svc = { id: string; name_en: string; name_ar: string; duration_minutes: number; active: boolean; online_allowed?: boolean };
 type Doc = { id: string; name_en: string; name_ar: string; online_enabled?: boolean; online_min_notice_minutes?: number; teams_link?: string | null };
-type P = { data: { onlineVisits: OVData; services: Svc[]; options: { joinOpensMinutes: number[]; joinClosesMinutes: number[]; onlineNoticeMinutes: number[] } }; reload: () => Promise<unknown> };
+type P = { data: { onlineVisits: OVData; services: Svc[]; online: { whatsapp_connected: boolean }; options: { joinOpensMinutes: number[]; joinClosesMinutes: number[]; onlineNoticeMinutes: number[] } }; reload: () => Promise<unknown> };
 
 const CHANNELS = ["whatsapp", "sms", "email", "print"] as const;
 
@@ -89,7 +89,8 @@ export function OnlineVisitsTab({ data, reload }: P) {
                     <Field label={t.printLangs}><Pick value={f.printLanguages} onChange={(x) => setF({ ...f, printLanguages: x as typeof f.printLanguages })} options={(["patient", "ar_en"] as const).map((m) => [m, t.langsOpt[m]])} /></Field>
                   </div>}</div>
                 {!built ? <span className="pill">{t.phase2}</span>
-                  : c === "email" ? <span className={`pill ${data.onlineVisits.mailReady ? "ok" : "warn"}`}>{data.onlineVisits.mailReady ? t.mailReady : t.mailNotReady}</span> : <span />}
+                  : c === "email" ? <span className={`pill ${data.onlineVisits.mailReady ? "ok" : "warn"}`}>{data.onlineVisits.mailReady ? t.mailReady : t.mailNotReady}</span>
+                  : c === "whatsapp" ? <span className={`pill ${data.online.whatsapp_connected ? "ok" : "warn"}`}>{data.online.whatsapp_connected ? t.waAuto : t.waManual}</span> : <span />}
               </div>);
           })}
         </div>

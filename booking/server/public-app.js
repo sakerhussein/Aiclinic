@@ -119,6 +119,9 @@ export function createPublicApp({ svc, config, now = Date.now }) {
     const b = parse(z.object({
       name: z.string().trim().min(2).max(120), phone: z.string().trim().min(6).max(30), language: z.enum(["ar", "en"]),
       agree: z.literal(true), website: z.string().max(200).optional(),
+      // an online visit proposed by the assistant: the card's consent tick and choices (the visit type comes from the proposal)
+      onlineMode: z.enum(["video", "audio"]).optional(), linkChannel: z.enum(["whatsapp", "email"]).optional(),
+      email: z.string().trim().toLowerCase().email().max(120).optional(), onlineConsent: z.boolean().optional(),
     }), req.body);
     if (b.website) return res.status(201).json({ ok: true });
     res.status(201).json(await svc.chatBook(slugOf(req), chatIdOf(req), req.ctx, b));
