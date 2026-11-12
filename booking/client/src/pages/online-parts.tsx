@@ -160,7 +160,10 @@ function Slip({ r, a, onClose }: { r: SendResult; a: Appt; onClose: () => void }
         <div className={`slip ${r.slip?.size === "a5" ? "a5" : ""}`}>
           <div className="top"><img src="/logo/limitsiz-mark-ink.svg" alt="" width="28" height="14" /><b>{langs.map((l) => (l === "ar" ? me.clinic.nameAr : me.clinic.nameEn)).join(" · ")}</b></div>
           {langs.map((l) => <SlipText key={l} l={l} a={a} when={when(l)} r={r} />)}
-          <div className="qrz"><canvas ref={canvas} /><span className="mono" style={{ fontSize: 11, wordBreak: "break-all" }}>{r.url.replace(/^https?:\/\//, "").replace(/#.*/, "")}</span></div>
+          {/* Only the QR code holds the whole link (its private part can't be typed by hand), so no address is printed: a patient
+              without a camera asks the clinic to send it. */}
+          <div className="qrz"><canvas ref={canvas} /><span className="noqr">{langs.map((l) => <span key={l} dir={l === "ar" ? "rtl" : "ltr"} lang={l}>
+            {l === "ar" ? "لا توجد كاميرا؟ اطلب من العيادة إرسال الرابط لك على واتساب أو بالبريد الإلكتروني." : "No camera? Ask the clinic to send you the link on WhatsApp or by email."}</span>)}</span></div>
           <div className="foot"><span>{langs.map((l) => (l === "ar" ? "ليست للطوارئ" : "Not for emergencies")).join(" · ")}</span>{r.slip?.clinicPhone && <span className="mono">{r.slip.clinicPhone}</span>}</div>
         </div>
         <div className="row noprint" style={{ justifyContent: "center", marginTop: 12 }}>

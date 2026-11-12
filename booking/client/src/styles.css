@@ -378,3 +378,4 @@ html[lang="ar"] .slip [lang="en"]{font-family:var(--font-body)}
   .noprint{display:none!important}
 }
 .onlinebox select,.nextbox select{font:inherit;min-height:38px;border:1px solid var(--field);border-radius:10px;padding:0 8px;background:#fff}
+.slip .noqr{display:flex;flex-direction:column;gap:6px;font-size:12px;line-height:1.45}
