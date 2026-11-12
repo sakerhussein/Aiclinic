@@ -9,6 +9,7 @@ import { useApp } from "../session";
 import { Banner, useAction } from "../ui";
 import { NoteVisitBar } from "../visit-lines";
 import { fill, useN } from "./notes-text";
+import { NextVisitBox } from "./online-parts";
 
 type Section = { key: string; en: string; ar: string; hint?: string };
 type Flag = { section: string; text: string; kind: "unsure" | "medicine" };
@@ -69,6 +70,7 @@ export function VisitNote() {
       {(note?.status === "processing" || note?.status === "failed") && <Waiting note={note} doctor={s.isTheDoctor} onChange={setNote} onDiscarded={load} />}
       {note?.status === "draft" && <Draft v={v} note={note} onChange={setNote} onDiscarded={load} />}
       {note?.status === "signed" && <Signed v={v} note={note} onChange={setNote} />}
+      {note?.status === "signed" && <NextVisitBox id={a.id} />}
       <Link to={`/bookings/${a.id}`} state={state} className="link">{n.back}</Link>
     </main>
   );

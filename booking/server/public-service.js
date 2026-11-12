@@ -8,6 +8,7 @@ import crypto from "node:crypto";
 import { HttpError, bad, notFound } from "./http.js";
 import { normalizePhone } from "./service.js";
 import { freeStarts, addDays, MIN } from "./slots.js";
+import { paymentNote } from "./online-visits.js";
 
 const ACTIVE = ["booked", "confirmed"];
 const DAY = 86400000;
@@ -47,16 +48,41 @@ export function createPublicService({ pool, now = () => new Date(), agent = null
     return k ?? null;
   }
 
+  // ---------------------------------------------------------------- online visits (Settings › Online visits, Settings › Payment)
+  const onlineOf = (c, clinicId) => one(c, "select * from online_visits where clinic_id = $1", [clinicId]);
+  const paymentOf = (c, clinicId) => one(c, "select * from clinic_payment where clinic_id = $1", [clinicId]);
+  // The ways the patient can pick on the page: WhatsApp (sent by the clinic) and email. SMS waits for a provider; print is at the desk.
+  const pageChannels = (ov) => ov.channels.filter((c) => c === "whatsapp" || c === "email");
+  async function payment(c, clinicId, price) {
+    const p = await paymentOf(c, clinicId);
+    const en = paymentNote(p, price, "en");
+    return en ? { noteEn: en, noteAr: paymentNote(p, price, "ar"), alias: p.cliq_alias, name: p.cliq_name, when: p.pay_when } : null;
+  }
+  // The way into Teams for this visit, from the private link or a Join link (the database decides: confirmed, inside the window).
+  async function joinInfo(c, hash, count = false) {
+    const j = await one(c, "select * from public.online_join($1, $2, $3)", [hash, count, now()]);
+    return j ? { state: j.state, opensAt: j.opens_at, closesAt: j.closes_at, url: j.url, appointmentId: j.appointment_id, clinicId: j.clinic_id } : null;
+  }
+
   async function info(slug) {
     const k = await clinicBySlug(pool, slug);
     const services = (await pool.query(
-      `select s.id, s.name_en, s.name_ar, s.description_en, s.description_ar, s.duration_minutes, s.price_jod, s.price_is_from
+      `select s.id, s.name_en, s.name_ar, s.description_en, s.description_ar, s.duration_minutes, s.price_jod, s.price_is_from, s.online_allowed
          from services s where s.clinic_id = $1 and s.active
           and exists (select 1 from doctor_services ds join doctors d on d.id = ds.doctor_id and d.active where ds.service_id = s.id)
         order by s.sort, s.name_en`, [k.id])).rows.map((s) => (k.show_prices ? s : { ...s, price_jod: null, price_is_from: false }));
     const doctors = (await pool.query(
-      `select d.id, d.name_en, d.name_ar, d.title_en, d.title_ar, coalesce(array_agg(ds.service_id) filter (where ds.service_id is not null), '{}') as service_ids
+      `select d.id, d.name_en, d.name_ar, d.title_en, d.title_ar, d.online_enabled, d.online_min_notice_minutes,
+              coalesce(array_agg(ds.service_id) filter (where ds.service_id is not null), '{}') as service_ids
          from doctors d left join doctor_services ds on ds.doctor_id = d.id where d.clinic_id = $1 and d.active group by d.id order by d.name_en`, [k.id])).rows;
+    // Online visits are offered when they are on and at least one service offered online has a doctor who offers them.
+    const ov = await onlineOf(pool, k.id);
+    const onlineOn = !!ov?.enabled && services.some((s) => s.online_allowed && doctors.some((d) => d.online_enabled && d.service_ids.includes(s.id)));
+    const chans = onlineOn ? pageChannels(ov) : [];
+    const online = onlineOn ? { enabled: true, modeChoice: ov.mode === "patient", consentEn: ov.consent_en, consentAr: ov.consent_ar, consentVersion: ov.consent_version,
+      howToEn: ov.how_to_en, howToAr: ov.how_to_ar, channels: ov.patient_picks ? chans : [], defaultChannel: chans.includes(ov.default_channel) ? ov.default_channel : chans[0] ?? null,
+      linkWhen: ov.link_when, whoCanBook: ov.who_can_book } : { enabled: false };
+    const pay = onlineOn ? await paymentOf(pool, k.id) : null;
     return {
       clinic: { slug: k.slug, nameEn: k.name_en, nameAr: k.name_ar, phone: k.phone, addressEn: k.address_en, addressAr: k.address_ar, mapsUrl: k.maps_url,
                 timezone: k.timezone, defaultLanguage: k.default_language, weekStart: k.week_start },
@@ -65,7 +91,8 @@ export function createPublicService({ pool, now = () => new Date(), agent = null
                  daysPerPage: k.days_per_page, windowDays: k.window_days, countryCode: k.default_country_code,
                  introEn: k.intro_en, introAr: k.intro_ar, doneNoteEn: k.done_note_en, doneNoteAr: k.done_note_ar, privacyUrl: k.privacy_url,
                  findEnabled: (await one(pool, "select public.online_find_available($1) as ok", [k.id])).ok,
-                 chatEnabled: !!(k.chat_enabled && agent) },
+                 chatEnabled: !!(k.chat_enabled && agent), online,
+                 payment: pay?.cliq_enabled && pay.for_online ? { alias: pay.cliq_alias, name: pay.cliq_name, when: pay.pay_when } : null },
     };
   }
 
@@ -170,23 +197,39 @@ export function createPublicService({ pool, now = () => new Date(), agent = null
   async function doctorsFor(c, k, serviceId, doctorId) {
     if (!doctorId && !k.allow_any_doctor) throw bad("choose_a_doctor");
     const { rows } = await c.query(
-      `select d.id from doctors d join doctor_services ds on ds.doctor_id = d.id and ds.service_id = $2
+      `select d.id, d.online_enabled, d.online_min_notice_minutes from doctors d join doctor_services ds on ds.doctor_id = d.id and ds.service_id = $2
         where d.clinic_id = $1 and d.active and ($3::uuid is null or d.id = $3::uuid) order by d.name_en`, [k.id, serviceId, doctorId ?? null]);
     if (!rows.length) throw bad("doctor_does_not_offer_service");
     return rows;
   }
-  async function slots(slug, { serviceId, doctorId, from, days }) {
+  // An online visit: online visits on, the service offered online, and only doctors who offer them.
+  async function onlineDoctors(c, k, s, docs) {
+    const ov = await onlineOf(c, k.id);
+    if (!ov?.enabled) throw new HttpError(409, "online_visits_off");
+    if (!(await one(c, "select online_allowed from services where id = $1", [s.id]))?.online_allowed) throw bad("service_not_online");
+    const online = docs.filter((d) => d.online_enabled);
+    if (!online.length) throw bad("doctor_not_online");
+    return { ov, docs: online };
+  }
+  // The doctor's "earliest online booking" (Settings › Doctors), on top of the clinic's minimum notice for patients.
+  const boundsFor = (k, d, isOnline) => {
+    const b = bounds(k);
+    return isOnline ? { ...b, earliest: Math.max(b.earliest, now().getTime() + (d.online_min_notice_minutes ?? 0) * MIN) } : b;
+  };
+  async function slots(slug, { serviceId, doctorId, from, days, visit }) {
     const k = await clinicBySlug(pool, slug), s = await service(pool, k, serviceId);
-    const docs = await doctorsFor(pool, k, serviceId, doctorId);
+    let docs = await doctorsFor(pool, k, serviceId, doctorId);
+    const isOnline = visit === "online";
+    if (isOnline) docs = (await onlineDoctors(pool, k, s, docs)).docs;
     const n = Math.min(days ?? k.days_per_page, k.days_per_page), out = [];
     for (const d of docs) {
-      for (const t of await freeStarts(pool, k, d.id, s.duration_minutes, from, addDays(from, n - 1), bounds(k))) out.push({ doctorId: d.id, startsAt: new Date(t).toISOString() });
+      for (const t of await freeStarts(pool, k, d.id, s.duration_minutes, from, addDays(from, n - 1), boundsFor(k, d, isOnline))) out.push({ doctorId: d.id, startsAt: new Date(t).toISOString() });
     }
     return out.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
   }
-  async function isFree(c, k, doctorId, durationMin, startsAt, excludeId = null) {
+  async function isFree(c, k, doctor, durationMin, startsAt, excludeId = null, isOnline = false) {
     const day = startsAt.toISOString().slice(0, 10);
-    const free = await freeStarts(c, k, doctorId, durationMin, addDays(day, -1), addDays(day, 1), { ...bounds(k), excludeId });
+    const free = await freeStarts(c, k, doctor.id, durationMin, addDays(day, -1), addDays(day, 1), { ...boundsFor(k, doctor, isOnline), excludeId });
     return free.includes(startsAt.getTime());
   }
 
@@ -201,12 +244,29 @@ export function createPublicService({ pool, now = () => new Date(), agent = null
     const phone = normalizePhone(b.phone, k.default_country_code);
     if (b.forOther && !k.allow_for_other) throw bad("invalid_input");
     const token = crypto.randomBytes(32).toString("base64url");
+    const isOnline = b.visitType === "online";
     try {
       return await tx(ctx, k.id, async (c) => {
         const s = await service(c, k, b.serviceId);
-        const docs = await doctorsFor(c, k, b.serviceId, b.doctorId ?? null);
+        let docs = await doctorsFor(c, k, b.serviceId, b.doctorId ?? null);
+        // Online: who may book it themselves is the clinic's setting (the profile mark, seen before, or everyone), or the doctor's
+        // one-time "next follow-up can be online". A number that may not gets the same answer as every other refusal.
+        let ov = null, check = null, mode = null, channel = null, email = null;
+        if (isOnline) {
+          ({ ov, docs } = await onlineDoctors(c, k, s, docs));
+          if (b.onlineConsent !== true) throw bad("consent_needed");
+          check = await one(c, "select * from public.online_visit_check($1, $2)", [k.id, phone]);
+          if (!check.allowed) throw phoneRefused();
+          mode = check.mode === "patient" ? b.onlineMode : check.mode;
+          if (!mode) throw new HttpError(409, "choose_mode");
+          const chans = pageChannels(ov);
+          channel = ov.patient_picks && b.linkChannel ? b.linkChannel : chans.includes(ov.default_channel) ? ov.default_channel : chans[0] ?? ov.default_channel;
+          if (ov.patient_picks && b.linkChannel && !chans.includes(b.linkChannel)) throw bad("channel_off");
+          email = channel === "email" ? b.email?.trim().toLowerCase() || null : null;
+          if (channel === "email" && !email) throw bad("email_needed");
+        }
         let doctorId = null;
-        for (const d of docs) if (await isFree(c, k, d.id, s.duration_minutes, startsAt)) { doctorId = d.id; break; }
+        for (const d of docs) if (await isFree(c, k, d, s.duration_minutes, startsAt, null, isOnline)) { doctorId = d.id; break; }
         if (!doctorId) throw new HttpError(409, "slot_taken");
         const patientId = (await one(c, "select public.online_patient($1, $2, $3, $4, $5) as id",
           [k.id, phone, b.name.trim(), b.language, !!(b.reminders && k.offer_reminders)])).id;
@@ -224,9 +284,14 @@ export function createPublicService({ pool, now = () => new Date(), agent = null
         if (k.max_upcoming && counts.upcoming >= k.max_upcoming) throw phoneRefused();
         if (counts.same_time) throw phoneRefused();
         const r = await one(c, `insert into appointments (clinic_id, doctor_id, service_id, patient_id, starts_at, ends_at, source, online_from, booked_name,
-            booked_for_other, needs_check, manage_token_hash) values ($1,$2,$3,$4,$5,$6,'web',$7,$8,$9,$10,$11) returning id`,
-          [k.id, doctorId, s.id, patientId, startsAt, endsAt, b.from ?? null, b.name.trim(), !!b.forOther, k.staff_check, sha256hex(token)]);
-        return { ...(await summary(c, r.id)), manageToken: token };
+            booked_for_other, needs_check, manage_token_hash, visit_type, online_mode, link_channel, link_email, online_consent_at, online_consent_version)
+            values ($1,$2,$3,$4,$5,$6,'web',$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) returning id`,
+          [k.id, doctorId, s.id, patientId, startsAt, endsAt, b.from ?? null, b.name.trim(), !!b.forOther, k.staff_check, sha256hex(token),
+           isOnline ? "online" : "in_clinic", mode, channel, email, isOnline ? now() : null, isOnline ? ov.consent_version : null]);
+        if (check?.next_from) await c.query("select public.online_visit_use($1, $2)", [check.next_from, r.id]);
+        const out = { ...(await summary(c, r.id)), manageToken: token };
+        if (isOnline) out.join = await joinInfo(c, sha256hex(token));
+        return out;
       });
     } catch (e) {
       if (e.constraint === "no_overlapping_appointments") throw new HttpError(409, "slot_taken");
@@ -237,6 +302,7 @@ export function createPublicService({ pool, now = () => new Date(), agent = null
   // What the patient may see of a booking: never the phone number or the clinic's notes.
   async function summary(c, id) {
     const a = await one(c, `select a.id, a.clinic_id, a.starts_at, a.ends_at, a.status, a.needs_check, a.checked_at, a.booked_name, a.moved_online_at,
+        a.visit_type, a.online_mode, s.price_jod,
         s.id as service_id, s.name_en as service_name_en, s.name_ar as service_name_ar, s.duration_minutes,
         d.id as doctor_id, d.name_en as doctor_name_en, d.name_ar as doctor_name_ar, d.title_en as doctor_title_en, d.title_ar as doctor_title_ar
       from appointments a join services s on s.id = a.service_id join doctors d on d.id = a.doctor_id where a.id = $1`, [id]);
@@ -254,17 +320,42 @@ export function createPublicService({ pool, now = () => new Date(), agent = null
       clinic: { slug: k.slug, nameEn: k.name_en, nameAr: k.name_ar, phone: k.phone, addressEn: k.address_en, addressAr: k.address_ar, mapsUrl: k.maps_url,
                 timezone: k.timezone, doneNoteEn: k.done_note_en, doneNoteAr: k.done_note_ar, daysPerPage: k.days_per_page, windowDays: k.window_days },
       changeNoticeMinutes: k.change_notice_minutes,
+      visitType: a.visit_type, onlineMode: a.online_mode,
+      ...(a.visit_type === "online" ? await onlineExtras(c, a) : {}),
       canCancel: k.enabled && k.allow_cancel && active && future && inTime,
       canReschedule: k.enabled && k.allow_reschedule && active && future && inTime,
       tooLateToChange: active && future && !inTime,
     };
   }
 
+  // How to join and how to pay, for an online visit (the clinic's texts).
+  async function onlineExtras(c, a) {
+    const ov = await onlineOf(c, a.clinic_id);
+    return { howToEn: ov.how_to_en, howToAr: ov.how_to_ar, payment: await payment(c, a.clinic_id, a.price_jod) };
+  }
+
+  // ---------------------------------------------------------------- "Join the visit": book.limitsiz.si/<clinic>/j#<token>
+  // Only joins: nothing here can change or cancel. The database says whether the Teams address may be shown now.
+  async function join(slug, token) {
+    if (typeof token !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(token)) throw notFound("link_not_found");
+    const j = await joinInfo(pool, sha256hex(token), true);
+    if (!j) throw notFound("link_not_found");
+    const k = await clinicById(pool, j.clinicId);
+    if (!k || k.slug !== slug) throw notFound("link_not_found");
+    const a = await one(pool, `select a.id, a.starts_at, a.ends_at, a.status, a.booked_name, a.online_mode, s.name_en as service_name_en, s.name_ar as service_name_ar, s.price_jod,
+        d.name_en as doctor_name_en, d.name_ar as doctor_name_ar from appointments a join services s on s.id = a.service_id join doctors d on d.id = a.doctor_id where a.id = $1`, [j.appointmentId]);
+    const ov = await onlineOf(pool, k.id);
+    return { state: j.state, opensAt: j.opensAt, closesAt: j.closesAt, url: j.url, startsAt: a.starts_at, endsAt: a.ends_at, name: a.booked_name, onlineMode: a.online_mode,
+             service: { nameEn: a.service_name_en, nameAr: a.service_name_ar }, doctor: { nameEn: a.doctor_name_en, nameAr: a.doctor_name_ar },
+             clinic: { slug: k.slug, nameEn: k.name_en, nameAr: k.name_ar, phone: k.phone, timezone: k.timezone, defaultLanguage: k.default_language },
+             howToEn: ov.how_to_en, howToAr: ov.how_to_ar, payment: await payment(pool, k.id, a.price_jod) };
+  }
+
   // ---------------------------------------------------------------- the private link
   async function byToken(c, slug, token, lock = false) {
     if (typeof token !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(token)) throw notFound("link_not_found");
     // The link works only on its own clinic's page.
-    const a = await one(c, `select a.id, a.clinic_id, a.doctor_id, a.service_id, a.patient_id, a.starts_at, a.status from appointments a
+    const a = await one(c, `select a.id, a.clinic_id, a.doctor_id, a.service_id, a.patient_id, a.starts_at, a.status, a.visit_type from appointments a
                              where a.manage_token_hash = $1 and a.source = 'web' and a.clinic_id = (select id from clinics where slug = $2)${lock ? " for update of a" : ""}`,
       [sha256hex(token), slug]);
     if (!a) {
@@ -274,7 +365,13 @@ export function createPublicService({ pool, now = () => new Date(), agent = null
     }
     return a;
   }
-  async function manage(slug, token) { const a = await byToken(pool, slug, token); return summary(pool, a.id); }
+  async function manage(slug, token) {
+    const a = await byToken(pool, slug, token);
+    const s = await summary(pool, a.id);
+    if (a.visit_type === "online") s.join = await joinInfo(pool, sha256hex(token));
+    return s;
+  }
+  const doctorRow = (c, id) => one(c, "select id, online_enabled, online_min_notice_minutes from doctors where id = $1", [id]);
 
   async function cancel(slug, token, ctx) {
     const a0 = await byToken(pool, slug, token);
@@ -291,7 +388,8 @@ export function createPublicService({ pool, now = () => new Date(), agent = null
     const k = await clinicById(pool, a.clinic_id);
     if (!k.enabled) throw notFound("link_not_found");
     const s = await service(pool, k, a.service_id);
-    const starts = await freeStarts(pool, k, a.doctor_id, s.duration_minutes, from, addDays(from, k.days_per_page - 1), { ...bounds(k), excludeId: a.id });
+    const starts = await freeStarts(pool, k, a.doctor_id, s.duration_minutes, from, addDays(from, k.days_per_page - 1),
+      { ...boundsFor(k, await doctorRow(pool, a.doctor_id), a.visit_type === "online"), excludeId: a.id });
     return starts.map((t) => ({ doctorId: a.doctor_id, startsAt: new Date(t).toISOString() }));
   }
 
@@ -306,7 +404,7 @@ export function createPublicService({ pool, now = () => new Date(), agent = null
         const a = await byToken(c, slug, token, true);
         if (!(await summary(c, a.id)).canReschedule) throw new HttpError(409, "cannot_reschedule");
         const k = await clinicById(c, a.clinic_id), s = await service(c, k, a.service_id);
-        if (!(await isFree(c, k, a.doctor_id, s.duration_minutes, startsAt, a.id))) throw new HttpError(409, "slot_taken");
+        if (!(await isFree(c, k, await doctorRow(c, a.doctor_id), s.duration_minutes, startsAt, a.id, a.visit_type === "online"))) throw new HttpError(409, "slot_taken");
         await c.query("update appointments set starts_at = $2, ends_at = $3 where id = $1", [a.id, startsAt, new Date(startsAt.getTime() + s.duration_minutes * MIN)]);
         return summary(c, a.id);
       });
@@ -317,5 +415,5 @@ export function createPublicService({ pool, now = () => new Date(), agent = null
   }
 
   const ping = () => pool.query("select 1");
-  return { info, slots, book, find, manage, cancel, manageSlots, reschedule, limits, ping, chatStart, chatMessage, chatBook, chatCallback };
+  return { info, slots, book, find, manage, cancel, manageSlots, reschedule, limits, ping, chatStart, chatMessage, chatBook, chatCallback, join };
 }

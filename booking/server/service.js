@@ -10,6 +10,7 @@ import { bookingsFile, patientsFile, todayIn, MAX_EXPORT_ROWS } from "./export.j
 import { freeStarts, MIN } from "./slots.js";
 import { createNotes } from "./notes.js";
 import { createVisitLines } from "./visit-lines.js";
+import { createOnlineVisits, TEAMS_RE } from "./online-visits.js";
 
 const ACTIVE = ["booked", "confirmed"];
 
@@ -24,7 +25,7 @@ export function normalizePhone(raw, country = "962") {
   return "+" + n;
 }
 
-export function createService({ pool, auditPool, now = () => new Date(), audioDir, speech, tidier, recordsUrl = "" }) {
+export function createService({ pool, auditPool, now = () => new Date(), audioDir, speech, tidier, recordsUrl = "", mail = null }) {
   // ---------------------------------------------------------------- transactions with an audit actor
   async function tx(ctx, fn) {
     const c = await pool.connect();
@@ -43,18 +44,23 @@ export function createService({ pool, auditPool, now = () => new Date(), audioDi
   async function lookups(ctx) {
     const clinic = await one(pool, `select id, slug, name_en, name_ar, timezone, slot_step_minutes, default_language, week_start from clinics where id = $1`, [ctx.clinicId]);
     const doctors = (await pool.query(
-      `select d.id, d.name_en, d.name_ar, d.title_en, d.title_ar, d.gender,
+      `select d.id, d.name_en, d.name_ar, d.title_en, d.title_ar, d.gender, d.online_enabled, d.online_min_notice_minutes, (d.teams_link is not null) as has_teams_link,
               coalesce((select array_agg(ds.service_id) from doctor_services ds where ds.doctor_id = d.id), '{}') as service_ids,
               coalesce((select json_agg(json_build_object('weekday', w.weekday, 'start', to_char(w.start_time, 'HH24:MI'), 'end', to_char(w.end_time, 'HH24:MI')) order by w.weekday, w.start_time)
                           from working_hours w where w.doctor_id = d.id), '[]') as hours
          from doctors d where d.clinic_id = $1 and d.active order by d.name_en`, [ctx.clinicId])).rows;
     const services = (await pool.query(
-      `select id, name_en, name_ar, duration_minutes, price_jod, price_is_from from services where clinic_id = $1 and active order by sort, name_en`, [ctx.clinicId])).rows;
+      `select id, name_en, name_ar, duration_minutes, price_jod, price_is_from, online_allowed from services where clinic_id = $1 and active order by sort, name_en`, [ctx.clinicId])).rows;
     const openingHours = (await pool.query(
       `select weekday, to_char(start_time, 'HH24:MI') as start, to_char(end_time, 'HH24:MI') as "end" from clinic_hours where clinic_id = $1 order by weekday, start_time`, [ctx.clinicId])).rows;
     // Visit notes (Settings > AI Scribe): whether the booking page offers "Start visit note" at all.
     const notesEnabled = !!(await one(pool, "select enabled from scribe_settings where clinic_id = $1", [ctx.clinicId]))?.enabled;
-    return { clinic, doctors, services, openingHours, rules: await staffRules(pool, ctx), notesEnabled };
+    // Online visits (Settings › Online visits): what the booking form, the booking page and the calendar need.
+    const ov = await one(pool, `select enabled, mode, staff_change_mode, link_when, channels, default_channel, next_visit_days, join_opens_minutes
+                                  from online_visits where clinic_id = $1`, [ctx.clinicId]);
+    const online = ov ? { enabled: ov.enabled, mode: ov.mode, staffChangeMode: ov.staff_change_mode, linkWhen: ov.link_when, channels: ov.channels,
+                          defaultChannel: ov.default_channel, nextVisitDays: ov.next_visit_days, joinOpensMinutes: ov.join_opens_minutes, mailReady: !!mail } : { enabled: false };
+    return { clinic, doctors, services, openingHours, rules: await staffRules(pool, ctx), notesEnabled, online };
   }
 
   // Closures and leave touching one local day, for the calendar.
@@ -75,7 +81,8 @@ export function createService({ pool, auditPool, now = () => new Date(), audioDi
       `select count(*) filter (where a.status not in ('cancelled', 'voided'))::int as booked,
               count(*) filter (where a.status in ('booked', 'confirmed') and ((a.needs_check and a.checked_at is null) or a.moved_online_at is not null and a.status = 'booked'))::int as not_checked,
               count(*) filter (where a.status = 'completed')::int as completed,
-              count(*) filter (where a.status = 'no_show')::int as no_show
+              count(*) filter (where a.status = 'no_show')::int as no_show,
+              count(*) filter (where a.status in ('booked', 'confirmed', 'completed') and a.visit_type = 'online')::int as online
          from appointments a join clinics c on c.id = a.clinic_id
         where a.clinic_id = $1 and (a.starts_at at time zone c.timezone)::date = $2::date and ($3::uuid is null or a.doctor_id = $3)`,
       [ctx.clinicId, today, ctx.onlyDoctor ?? null]);
@@ -86,7 +93,7 @@ export function createService({ pool, auditPool, now = () => new Date(), audioDi
       const free = await slots(ctx, { serviceId: shortest.id, doctorId: ctx.onlyDoctor ?? undefined, from: today }).catch(() => []);
       nextFree = free.find((s) => Date.parse(s.startsAt) > now().getTime())?.startsAt ?? null;
     }
-    return { date: today, booked: c.booked, notChecked: c.not_checked, completed: c.completed, noShow: c.no_show, nextFree };
+    return { date: today, booked: c.booked, notChecked: c.not_checked, completed: c.completed, noShow: c.no_show, online: c.online, nextFree };
   }
 
   // The rules for staff, from Settings -> Booking rules (the WhatsApp assistant reads the "patient" row).
@@ -108,7 +115,7 @@ export function createService({ pool, auditPool, now = () => new Date(), audioDi
   }
   async function doctorsFor(c, ctx, serviceId, doctorId) {
     const { rows } = await c.query(
-      `select d.id, d.name_en from doctors d join doctor_services ds on ds.doctor_id = d.id and ds.service_id = $2
+      `select d.id, d.name_en, d.online_enabled, d.online_min_notice_minutes from doctors d join doctor_services ds on ds.doctor_id = d.id and ds.service_id = $2
         where d.clinic_id = $1 and d.active and ($3::uuid is null or d.id = $3::uuid) order by d.name_en`, [ctx.clinicId, serviceId, doctorId ?? null]);
     if (!rows.length) throw bad("doctor_does_not_offer_service");
     return rows;
@@ -139,7 +146,12 @@ export function createService({ pool, auditPool, now = () => new Date(), audioDi
       (a.needs_check and a.checked_at is null) as unchecked,
       a.moved_online_at, (a.moved_online_at is not null and a.status = 'booked') as moved_by_patient,
       (a.booked_name is not null and lower(trim(a.booked_name)) is distinct from lower(trim(p.full_name))) as name_differs,
-      vn.status as note_status, (vn.status = 'signed' and not vn.ai_drafted) as note_by_hand
+      vn.status as note_status, (vn.status = 'signed' and not vn.ai_drafted) as note_by_hand,
+      a.visit_type, a.online_mode, a.link_channel, a.link_email, a.meeting_url, a.online_consent_at, a.online_consent_version,
+      a.identity_checked_at, a.identity_checked_by_name, a.next_online, a.next_online_mode, a.next_online_by_name, a.next_online_at, a.next_online_used_by,
+      (select u.starts_at from appointments u where u.id = a.next_online_used_by) as next_online_used_at,
+      p.email as patient_email, p.preferred_language, d.online_enabled as doctor_online, (d.teams_link is not null) as doctor_has_link, s.online_allowed as service_online,
+      case when a.visit_type = 'online' then coalesce(a.meeting_url, d.teams_link) end as join_url
     from appointments a
     join patients p on p.clinic_id = a.clinic_id and p.id = a.patient_id
     join doctors d on d.clinic_id = a.clinic_id and d.id = a.doctor_id
@@ -156,6 +168,7 @@ export function createService({ pool, auditPool, now = () => new Date(), audioDi
     if (q.doctorId) add("a.doctor_id = ?", q.doctorId);
     if (q.patientId) add("a.patient_id = ?", q.patientId);
     if (q.source) add("a.source = ?", q.source);
+    if (q.visit) add("a.visit_type = ?", q.visit);
     // Online bookings waiting for the clinic: the person not checked yet, or a new time chosen by the patient not confirmed yet.
     if (q.unchecked) where.push("((a.needs_check and a.checked_at is null and a.status in ('booked','confirmed')) or (a.moved_online_at is not null and a.status = 'booked'))");
     // Visit note (AI Scribe): none yet, not signed (recording, making the draft, draft, failed), or signed.
@@ -221,8 +234,8 @@ export function createService({ pool, auditPool, now = () => new Date(), audioDi
         const ex = await one(cc, "select id, full_name from patients where clinic_id = $1 and phone_e164 = $2", [ctx.clinicId, phone]);
         if (ex) throw new HttpError(409, "patient_exists", ctx.onlyDoctor ? { patientId: ex.id } : { patientId: ex.id, fullName: ex.full_name });
       }
-      return one(cc, `insert into patients (clinic_id, full_name, phone_e164, preferred_language, whatsapp_reminders)
-                      values ($1,$2,$3,$4,$5) returning *`, [ctx.clinicId, b.fullName.trim(), phone, b.language ?? null, !!(b.whatsappReminders && phone)]);
+      return one(cc, `insert into patients (clinic_id, full_name, phone_e164, preferred_language, whatsapp_reminders, email)
+                      values ($1,$2,$3,$4,$5,$6) returning *`, [ctx.clinicId, b.fullName.trim(), phone, b.language ?? null, !!(b.whatsappReminders && phone), b.email?.trim().toLowerCase() || null]);
     };
     return c ? run(c) : tx(ctx, run);
   }
@@ -234,10 +247,17 @@ export function createService({ pool, auditPool, now = () => new Date(), audioDi
         const ex = await one(c, "select id from patients where clinic_id = $1 and phone_e164 = $2 and id <> $3", [ctx.clinicId, phone, id]);
         if (ex) throw new HttpError(409, "patient_exists", { patientId: ex.id });
       }
-      return one(c, `update patients set full_name = $3, phone_e164 = $4, preferred_language = $5, whatsapp_reminders = $6
+      // "Can book online visits" (the profile mark) remembers who set it and when; the doctor or staff change it here.
+      const allowed = b.onlineAllowed ?? cur.online_allowed, markChanged = allowed !== cur.online_allowed;
+      return one(c, `update patients set full_name = $3, phone_e164 = $4, preferred_language = $5, whatsapp_reminders = $6, email = $7,
+                        online_allowed = $8, online_mode = $9,
+                        online_allowed_by = case when $10 then (case when $8 then $11::uuid end) else online_allowed_by end,
+                        online_allowed_by_name = case when $10 then (case when $8 then $12 end) else online_allowed_by_name end,
+                        online_allowed_at = case when $10 then (case when $8 then now() end) else online_allowed_at end
                       where clinic_id = $1 and id = $2 returning *`,
         [ctx.clinicId, id, b.fullName?.trim() ?? cur.full_name, phone, b.language === undefined ? cur.preferred_language : b.language,
-         phone ? (b.whatsappReminders ?? cur.whatsapp_reminders) : false]);
+         phone ? (b.whatsappReminders ?? cur.whatsapp_reminders) : false, b.email === undefined ? cur.email : b.email?.trim().toLowerCase() || null,
+         allowed, b.onlineMode === undefined ? cur.online_mode : b.onlineMode, markChanged, ctx.user.id, ctx.user.name]);
     });
   }
   async function searchPatients(ctx, q, limit = 50) {
@@ -254,7 +274,11 @@ export function createService({ pool, auditPool, now = () => new Date(), audioDi
   async function getPatient(ctx, id) {
     const p = await visiblePatient(pool, ctx, id);
     const appts = await listAppointments(ctx, { patientId: id, includeVoided: true });
-    return { patient: p, appointments: appts.reverse() };
+    // A doctor's "next follow-up can be online" not used yet: shown on the profile next to the standing mark.
+    const next = appts.filter((a) => a.next_online && !a.next_online_used_by && a.status !== "voided")
+      .sort((x, y) => String(y.next_online_at).localeCompare(String(x.next_online_at)))[0] ?? null;
+    return { patient: p, appointments: appts.reverse(),
+             nextOnline: next && { appointmentId: next.id, byName: next.next_online_by_name, at: next.next_online_at, mode: next.next_online_mode, visitAt: next.starts_at } };
   }
 
   // ---------------------------------------------------------------- creating and changing bookings
@@ -290,6 +314,40 @@ export function createService({ pool, auditPool, now = () => new Date(), audioDi
     return cur;
   }
 
+  // ---------------------------------------------------------------- online visits (Settings › Online visits)
+  // An online booking needs online visits on, a service offered online and a doctor who offers them. Staff are only warned inside
+  // the doctor's "earliest online booking" (allowInsideBuffer books anyway); patients on the page can't book there at all.
+  async function onlineCheck(c, ctx, b, serviceId) {
+    const v = await one(c, "select * from online_visits where clinic_id = $1", [ctx.clinicId]);
+    if (!v?.enabled) throw new HttpError(409, "online_visits_off");
+    if (!(await one(c, "select online_allowed from services where clinic_id = $1 and id = $2", [ctx.clinicId, serviceId]))?.online_allowed) throw bad("service_not_online");
+    if (b.meetingUrl && !TEAMS_RE.test(b.meetingUrl)) throw bad("invalid_teams_link");
+    if (b.linkChannel && (b.linkChannel === "sms" || !v.channels.includes(b.linkChannel))) throw bad("channel_off");
+    return v;
+  }
+  function checkOnlineBuffer(doctor, startsAt, allow) {
+    if (!allow && doctor.online_min_notice_minutes && startsAt.getTime() < now().getTime() + doctor.online_min_notice_minutes * MIN) {
+      throw new HttpError(409, "inside_online_buffer", { minutes: doctor.online_min_notice_minutes });
+    }
+  }
+  // Video or audio: the most specific setting wins (the doctor's "next follow-up" tick, then the patient's profile, then the clinic).
+  // Staff may choose for one booking when Settings allows it; "patient chooses" falls back to what staff picked, or audio.
+  async function onlineMode(c, ctx, v, patientId, asked) {
+    const p = patientId ? await one(c, "select online_mode from patients where clinic_id = $1 and id = $2", [ctx.clinicId, patientId]) : null;
+    const tick = patientId ? await pendingTick(c, ctx, patientId) : null;
+    const chosen = tick?.next_online_mode ?? p?.online_mode ?? v.mode;
+    if (v.staff_change_mode && asked) return asked;
+    return chosen === "patient" ? asked ?? "audio" : chosen;
+  }
+  const pendingTick = (c, ctx, patientId, except = null) => one(c,
+    `select id, next_online_mode from appointments where clinic_id = $1 and patient_id = $2 and next_online and next_online_used_by is null
+        and status <> 'voided' and ($3::uuid is null or id <> $3) order by next_online_at desc nulls last limit 1`, [ctx.clinicId, patientId, except]);
+  // The doctor's one-time tick is used up by the next online booking of that patient.
+  async function useTick(c, ctx, patientId, newId) {
+    const t = await pendingTick(c, ctx, patientId, newId);
+    if (t) await c.query("update appointments set next_online_used_by = $2 where id = $1", [t.id, newId]);
+  }
+
   async function createAppointment(ctx, input) {
     if (ctx.onlyDoctor && input.doctorId !== "any" && input.doctorId !== ctx.onlyDoctor) throw denied("own_bookings_only");
     const b = ctx.onlyDoctor ? { ...input, doctorId: ctx.onlyDoctor } : input;
@@ -299,16 +357,24 @@ export function createService({ pool, auditPool, now = () => new Date(), audioDi
       const rules = await staffRules(c, ctx);
       checkTime(rules, startsAt, b.source);
       const clinic = await clinicRow(c, ctx), service = await serviceRow(c, ctx, b.serviceId);
-      const docs = await doctorsFor(c, ctx, b.serviceId, b.doctorId === "any" ? null : b.doctorId);
+      const isOnline = b.visitType === "online";
+      const ov = isOnline ? await onlineCheck(c, ctx, b, b.serviceId) : null;
+      let docs = await doctorsFor(c, ctx, b.serviceId, b.doctorId === "any" ? null : b.doctorId);
+      if (isOnline) { docs = docs.filter((d) => d.online_enabled); if (!docs.length) throw bad("doctor_not_online"); }
       let doctor = null, other = false;
       for (const d of docs) {                                  // "any available": the first doctor with this time free
         try { other = await checkFree(c, ctx, clinic, rules, d.id, service, startsAt, b.override, null); doctor = d; break; }
         catch (e) { if (!(e instanceof HttpError) || docs.length === 1 || b.doctorId !== "any") throw e; }
       }
       if (!doctor) throw new HttpError(409, "slot_unavailable");
+      if (isOnline) checkOnlineBuffer(doctor, startsAt, b.allowInsideBuffer);
       let patientId = b.patientId;
       if (b.newPatient) patientId = (await createPatient(ctx, b.newPatient, c)).id;
       else await patientRow(c, ctx, patientId);      // any patient of the clinic: a doctor reaches an existing one from "this phone number exists"
+      const mode = isOnline ? await onlineMode(c, ctx, ov, patientId, b.onlineMode) : null;
+      const email = isOnline && b.linkChannel === "email" ? (b.linkEmail?.trim().toLowerCase()
+        || (await one(c, "select email from patients where id = $1", [patientId]))?.email) : null;
+      if (isOnline && b.linkChannel === "email" && !email) throw bad("email_needed");
       const dup = await one(c, `select 1 from appointments where patient_id = $1 and status in ('booked','confirmed') and starts_at < $3 and ends_at > $2`,
         [patientId, startsAt, new Date(startsAt.getTime() + service.duration_minutes * MIN)]);
       if (dup) throw new HttpError(409, "patient_already_booked_then");
@@ -317,9 +383,12 @@ export function createService({ pool, auditPool, now = () => new Date(), audioDi
         if (n >= rules.maxUpcoming) throw new HttpError(409, "over_max_upcoming", { limit: rules.maxUpcoming });
       }
       try {
-        const r = await one(c, `insert into appointments (clinic_id, doctor_id, service_id, patient_id, starts_at, ends_at, source, internal_note, created_by, updated_by)
-          values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$9) returning id`,
-          [ctx.clinicId, doctor.id, b.serviceId, patientId, startsAt, new Date(startsAt.getTime() + service.duration_minutes * MIN), b.source, b.internalNote || null, ctx.user.id]);
+        const r = await one(c, `insert into appointments (clinic_id, doctor_id, service_id, patient_id, starts_at, ends_at, source, internal_note, created_by, updated_by,
+            visit_type, online_mode, link_channel, link_email, meeting_url)
+          values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$9,$10,$11,$12,$13,$14) returning id`,
+          [ctx.clinicId, doctor.id, b.serviceId, patientId, startsAt, new Date(startsAt.getTime() + service.duration_minutes * MIN), b.source, b.internalNote || null, ctx.user.id,
+           isOnline ? "online" : "in_clinic", mode, isOnline ? b.linkChannel ?? ov.default_channel : null, email, isOnline ? b.meetingUrl?.trim() || null : null]);
+        if (isOnline) await useTick(c, ctx, patientId, r.id);
         return { ...(await getAppointment(ctx, r.id, c)), outside_hours: other };
       } catch (e) {
         if (e.constraint === "no_overlapping_appointments") throw new HttpError(409, "slot_taken");
@@ -352,11 +421,31 @@ export function createService({ pool, auditPool, now = () => new Date(), audioDi
       }
       const patientId = b.patientId ?? cur.patient_id;
       if (patientId !== cur.patient_id) await visiblePatient(c, ctx, patientId);
+      // Online or at the clinic. Becoming online (or moving an online visit) follows the same rules as a new online booking.
+      const visitType = b.visitType ?? cur.visit_type, isOnline = visitType === "online", becameOnline = isOnline && cur.visit_type !== "online";
+      let mode = null, channel = null, email = null, meetingUrl = null;
+      if (isOnline) {
+        const ov = await onlineCheck(c, ctx, b, serviceId);
+        const doc = (await doctorsFor(c, ctx, serviceId, doctorId))[0];
+        if (!doc.online_enabled) throw bad("doctor_not_online");
+        if (moved || becameOnline) checkOnlineBuffer(doc, startsAt, b.allowInsideBuffer);
+        mode = b.onlineMode ?? (becameOnline ? await onlineMode(c, ctx, ov, patientId, null) : cur.online_mode);
+        if (!ov.staff_change_mode && b.onlineMode && b.onlineMode !== cur.online_mode && !becameOnline) mode = cur.online_mode;
+        channel = b.linkChannel ?? cur.link_channel ?? ov.default_channel;
+        email = b.linkEmail === undefined ? cur.link_email : b.linkEmail?.trim().toLowerCase() || null;
+        if (channel === "email" && !email) email = (await one(c, "select email from patients where id = $1", [patientId]))?.email ?? null;
+        if (channel === "email" && !email) throw bad("email_needed");
+        meetingUrl = b.meetingUrl === undefined ? cur.meeting_url : b.meetingUrl?.trim() || null;
+      }
       try {
-        await c.query(`update appointments set doctor_id=$3, service_id=$4, patient_id=$5, starts_at=$6, ends_at=$7, internal_note=$8, updated_by=$9
+        await c.query(`update appointments set doctor_id=$3, service_id=$4, patient_id=$5, starts_at=$6, ends_at=$7, internal_note=$8, updated_by=$9,
+                          visit_type=$10, online_mode=$11, link_channel=$12, link_email=$13, meeting_url=$14
                         where clinic_id=$1 and id=$2`,
           [ctx.clinicId, id, doctorId, serviceId, patientId, startsAt, new Date(startsAt.getTime() + service.duration_minutes * MIN),
-           b.internalNote === undefined ? cur.internal_note : b.internalNote || null, ctx.user.id]);
+           b.internalNote === undefined ? cur.internal_note : b.internalNote || null, ctx.user.id, visitType, mode, channel, email, meetingUrl]);
+        // Back to the clinic: the Join links stop. Newly online: the doctor's one-time tick is used up.
+        if (!isOnline && cur.visit_type === "online") await c.query("update join_links set stopped_at = now() where appointment_id = $1 and stopped_at is null", [id]);
+        if (becameOnline) await useTick(c, ctx, patientId, id);
       } catch (e) {
         if (e.constraint === "no_overlapping_appointments") throw new HttpError(409, "slot_taken");
         throw e;
@@ -452,6 +541,7 @@ export function createService({ pool, auditPool, now = () => new Date(), audioDi
   const exportBookings = (ctx, q, lang) => exportFile(ctx, "bookings", (n) => listAppointments(ctx, q, n), bookingsFile, q, lang);
   const exportPatients = (ctx, q, lang) => exportFile(ctx, "patients", (n) => searchPatients(ctx, q, n), patientsFile, q ? { q } : {}, lang);
   const visit = createVisitLines({ pool, tx, getAppointment, recordsUrl, now });
-  return { settings, audit, notes, visit, lookups, timeOffOn, slots, listAppointments, getAppointment, history, createAppointment, updateAppointment, setStatus, restore, markChecked, onlineLink,
+  const online = createOnlineVisits({ pool, tx, now, getAppointment, mail });
+  return { settings, audit, notes, visit, online, lookups, timeOffOn, slots, listAppointments, getAppointment, history, createAppointment, updateAppointment, setStatus, restore, markChecked, onlineLink,
            searchPatients, exportBookings, exportPatients, getPatient, insurance, todayLine, createPatient: (ctx, b) => createPatient(ctx, b), updatePatient, tx };
 }

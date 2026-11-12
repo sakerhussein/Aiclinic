@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { get, patch, post, type Appt, type Patient } from "../api";
+import { ApiError, get, patch, post, type Appt, type Patient } from "../api";
 import { backTo, dayOf, fmtDateTime, hm, localToIso, todayIn } from "../lib";
 import { useI18n } from "../i18n";
 import { useApp } from "../session";
 import { Banner, Field, useAction } from "../ui";
+import { fill, useOV } from "./online-text";
+import { duration, useS } from "./settings-text";
 
 type Slot = { doctorId: string; startsAt: string };
 
@@ -34,12 +36,24 @@ export function BookingForm() {
   const [slots, setSlots] = useState<Slot[]>([]);
   const [done, setDone] = useState("");
   const a = useAction();
+  // Online visits (design: booking/design/online-visits.html). ?online=1&mode=: from "Book the next visit".
+  const ov = useOV(); const ss = useS();
+  const on = look.online?.enabled ? look.online : null;
+  const [visit, setVisit] = useState<"in_clinic" | "online">(q.get("online") === "1" ? "online" : "in_clinic");
+  const askedMode = q.get("mode");
+  const [mode, setMode] = useState<"video" | "audio" | "">(askedMode === "video" || askedMode === "audio" ? askedMode : "");
+  const [channel, setChannel] = useState("");
+  const [linkEmail, setLinkEmail] = useState("");
+  const [meetingUrl, setMeetingUrl] = useState(""); const [ownLink, setOwnLink] = useState(false);
+  const isOnline = visit === "online";
 
   useEffect(() => {
     if (!id) return;
     get<Appt>(`/api/appointments/${id}`).then((x) => {
       setOrig(x); setServiceId(x.service_id); setDoctorId(x.doctor_id); setDate(dayOf(x.starts_at, tz)); setStartsAt(x.starts_at);
-      setNote(x.internal_note || ""); setPatient({ id: x.patient_id, full_name: x.patient_name, phone_e164: x.patient_phone, preferred_language: null, whatsapp_reminders: x.whatsapp_reminders });
+      setNote(x.internal_note || ""); setPatient({ id: x.patient_id, full_name: x.patient_name, phone_e164: x.patient_phone, preferred_language: null, whatsapp_reminders: x.whatsapp_reminders, email: x.patient_email });
+      setVisit(x.visit_type === "online" ? "online" : "in_clinic"); setMode(x.online_mode ?? ""); setChannel(x.link_channel ?? ""); setLinkEmail(x.link_email ?? "");
+      setMeetingUrl(x.meeting_url ?? ""); setOwnLink(!!x.meeting_url);
     }).catch(() => nav(`/bookings/${id}`, { replace: true, state }));     // the booking page says it is not available
   }, [id, tz]);                                                    // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -54,8 +68,8 @@ export function BookingForm() {
     return () => window.clearTimeout(h);
   }, [patientQ]);
 
-  const doctorsFor = look.doctors.filter((x) => (!ownDoctor || x.id === ownDoctor) && (!serviceId || x.service_ids.includes(serviceId)));
-  const services = look.services.filter((s) => !ownDoctor || look.doctors.find((x) => x.id === ownDoctor)?.service_ids.includes(s.id));
+  const doctorsFor = look.doctors.filter((x) => (!ownDoctor || x.id === ownDoctor) && (!serviceId || x.service_ids.includes(serviceId)) && (!isOnline || x.online_enabled));
+  const services = look.services.filter((s) => (!ownDoctor || look.doctors.find((x) => x.id === ownDoctor)?.service_ids.includes(s.id)) && (!isOnline || s.online_allowed));
   useEffect(() => {
     if (!serviceId) { setSlots([]); return; }
     const qs = `service=${serviceId}&date=${date}${doctorId !== "any" ? `&doctor=${doctorId}` : ""}`;
@@ -66,15 +80,26 @@ export function BookingForm() {
   const chosen = other && otherHm ? localToIso(date, Number(otherHm.slice(0, 2)), Number(otherHm.slice(3, 5)), tz) : startsAt;
   const isOther = !!chosen && !times.includes(chosen);
   const service = look.services.find((s) => s.id === serviceId);
+  // Video or audio: the most specific choice (the patient's profile, then the clinic). Staff may change it when Settings allows.
+  const profileMode = patient?.online_mode ?? null;
+  const defaultMode = ((profileMode ?? on?.mode) === "video" ? "video" : "audio") as "video" | "audio";
+  const shownMode = mode || defaultMode;
+  const linkWay = channel || on?.defaultChannel || "whatsapp";
+  const doctor = doctorId !== "any" ? look.doctors.find((x) => x.id === doctorId) : null;
+  const insideBuffer = isOnline && !!chosen && !!doctor?.online_min_notice_minutes && Date.parse(chosen) < Date.now() + doctor.online_min_notice_minutes * 60000;
+  const onlineBody = (bufferOk = false) => (isOnline ? { visitType: "online", onlineMode: shownMode, linkChannel: linkWay, linkEmail: linkWay === "email" ? linkEmail.trim() || patient?.email || null : null,
+    meetingUrl: ownLink ? meetingUrl.trim() || null : null, allowInsideBuffer: insideBuffer || allowBuffer || bufferOk } : editing ? { visitType: "in_clinic" } : {});
+  const [allowBuffer, setAllowBuffer] = useState(false);
 
-  async function save(allowOverLimit = false, existingPatient = "") {
+  async function save(allowOverLimit = false, existingPatient = "", bufferOk = false) {
+    if (isOnline && linkWay === "email" && !linkEmail.trim() && !patient?.email) throw new ApiError(400, "email_needed");
     if (!chosen) throw new Error("no time");
     if (editing && orig) {
       const r = await patch<Appt>(`/api/appointments/${orig.id}`, { expectedVersion: orig.row_version, serviceId, doctorId: doctorId === "any" ? undefined : doctorId,
-        startsAt: chosen, internalNote: note || null, override: isOther });
+        startsAt: chosen, internalNote: note || null, override: isOther, ...onlineBody(bufferOk) });
       nav(`/bookings/${r.id}`, { state });
     } else {
-      const body: Record<string, unknown> = { serviceId, doctorId, startsAt: chosen, source, internalNote: note || null, override: isOther, allowOverLimit };
+      const body: Record<string, unknown> = { serviceId, doctorId, startsAt: chosen, source, internalNote: note || null, override: isOther, allowOverLimit, ...onlineBody(bufferOk) };
       if (existingPatient) body.patientId = existingPatient;
       else if (isNew) body.newPatient = { fullName: np.fullName, phone: np.phone || null, language: np.language, whatsappReminders: np.whatsappReminders };
       else body.patientId = patient!.id;
@@ -113,6 +138,30 @@ export function BookingForm() {
 
         <section className="stack">
           <h2>{t("details")}</h2>
+          {(on || isOnline) && <div className="stack">
+            <b className="lbl">{ov.visit}</b>
+            <div className="seg" role="radiogroup" aria-label={ov.visit}>
+              <button type="button" role="radio" aria-checked={!isOnline} className={!isOnline ? "on" : ""} onClick={() => setVisit("in_clinic")}>{ov.atClinic}</button>
+              <button type="button" role="radio" aria-checked={isOnline} className={isOnline ? "on" : ""} disabled={!on} onClick={() => {
+                setVisit("online");
+                if (serviceId && !look.services.find((s) => s.id === serviceId)?.online_allowed) { setServiceId(""); setStartsAt(""); }
+                if (doctorId !== "any" && !look.doctors.find((x) => x.id === doctorId)?.online_enabled && !ownDoctor) { setDoctorId("any"); setStartsAt(""); }
+              }}><Cam /> {ov.online}</button>
+            </div>
+            {isOnline && <div className="grid2">
+              <Field label={ov.modeField}><select value={shownMode} disabled={!on?.staffChangeMode} onChange={(e) => setMode(e.target.value as "video" | "audio")}>
+                <option value="audio">{ov.modeShort.audio}</option><option value="video">{ov.modeShort.video}</option></select></Field>
+              <Field label={ov.sendBy}><select value={linkWay} onChange={(e) => setChannel(e.target.value)}>
+                {(on?.channels ?? []).filter((c) => c !== "sms").map((c) => <option key={c} value={c}>{ov.chName[c] ?? c}</option>)}</select></Field>
+            </div>}
+            {isOnline && linkWay === "email" && <Field label={ov.email} hint={patient?.email && !linkEmail ? patient.email : ov.emailHint}>
+              <input className="mono" dir="ltr" type="email" maxLength={120} value={linkEmail} placeholder={patient?.email ?? ""} onChange={(e) => setLinkEmail(e.target.value)} /></Field>}
+            {isOnline && !ownLink && <span className="hint">{doctor && !doctor.has_teams_link ? ov.noDoctorLink : ov.doctorLink}{" "}
+              <button type="button" className="link" onClick={() => setOwnLink(true)}>{ov.useAnother}</button></span>}
+            {isOnline && ownLink && <Field label={ov.linkForBooking}><div className="linkrow">
+              <input className="mono" dir="ltr" type="url" maxLength={2000} value={meetingUrl} onChange={(e) => setMeetingUrl(e.target.value)} placeholder="https://teams.microsoft.com/…" />
+              <button type="button" className="link" onClick={() => { setOwnLink(false); setMeetingUrl(""); }}>{ov.useDoctors}</button></div></Field>}
+          </div>}
           <Field label={t("service")}>
             <select value={serviceId} onChange={(e) => { setServiceId(e.target.value); setStartsAt(""); }} required>
               <option value="">{t("pickService")}</option>
@@ -135,6 +184,7 @@ export function BookingForm() {
             </div>
             {other && <div className="stack"><input type="time" value={otherHm} onChange={(e) => setOtherHm(e.target.value)} step={300} required />{look.rules.outsideHours === "warn" && <Banner kind="warn">{t("otherTimeWarn")}</Banner>}</div>}
             {!other && isOther && chosen && look.rules.outsideHours === "warn" && <Banner kind="warn">{t("warnOutside")}: {hm(chosen, tz)}</Banner>}
+            {insideBuffer && doctor && <Banner kind="warn">{fill(ov.insideBuffer, { t: duration(doctor.online_min_notice_minutes!, ss) })}</Banner>}
           </div>
           {!editing && (
             <Field label={t("source")}><select value={source} onChange={(e) => setSource(e.target.value as "phone" | "walkin")}><option value="phone">{d.sources.phone}</option><option value="walkin">{d.sources.walkin}</option></select></Field>
@@ -149,6 +199,7 @@ export function BookingForm() {
               <button type="button" className="link" onClick={() => window.location.reload()}>{t("reload")}</button></Banner>
           )}
           {a.err && !conflict && <Banner>{a.message}{a.err.code === "over_max_upcoming" && <> <button type="button" className="link" onClick={() => void a.run(() => save(true))}>{t("bookAnyway")}</button></>}
+            {a.err.code === "inside_online_buffer" && <> <button type="button" className="link" onClick={() => { setAllowBuffer(true); void a.run(() => save(false, "", true)); }}>{t("bookAnyway")}</button></>}
             {a.err.code === "patient_exists" && !!a.err.data.patientId && <> <button type="button" className="link" onClick={() => void a.run(() => save(false, String(a.err?.data.patientId)))}>{t("bookThisPatient")}</button></>}</Banner>}
           <div className="row">
             <button className="btn btn-accent" disabled={a.busy || !ready || !!done}>{editing ? t("save") : isOther ? t("confirmOther") : t("create")}</button>
@@ -161,3 +212,5 @@ export function BookingForm() {
     </main>
   );
 }
+export const Cam = ({ size = 14 }: { size?: number }) => (
+  <svg className="vic" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden="true"><rect x="2" y="6" width="14" height="12" rx="2" /><path d="M16 10l6-3v10l-6-3z" /></svg>);

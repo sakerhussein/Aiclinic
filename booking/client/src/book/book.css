@@ -13,6 +13,7 @@ button,input{font:inherit;color:inherit}
 a{color:var(--accent-ink)}
 .mono{font-family:var(--font-mono);direction:ltr;unicode-bidi:isolate}
 .flip{display:inline-block}[dir="rtl"] .flip{transform:scaleX(-1)}
+.bk-chev{vertical-align:-2px}
 .hp{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 
 .bk{max-width:480px;margin-inline:auto;padding-inline:16px;padding-block:16px 28px;min-height:100vh;display:flex;flex-direction:column;gap:14px;background:#fff}
@@ -127,3 +128,14 @@ a.bk-choice{color:inherit;text-decoration:none}
 .bk-foot{margin-top:auto;padding-top:12px;font-size:12px;color:var(--muted);text-align:center}
 .bk-brand{font-family:var(--font-display);font-weight:500}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* Online visits on Microsoft Teams (design: booking/design/online-visits.html) */
+.bk-seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.bk-seg .bk-choice{flex-direction:column;align-items:flex-start;gap:6px}
+.bk-chips{display:flex;gap:6px;flex-wrap:wrap}
+.bk-chips button{border:1px solid var(--rule);border-radius:999px;padding:8px 16px;font-size:14px;font-weight:400;background:#fff;cursor:pointer;min-height:40px}
+.bk-chips button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.bk-chips button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.bk-join{border:2px solid var(--accent-ink);border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:10px;background:#F6FDFA}
+.bk-join.wait{border:1px solid var(--rule);background:var(--paper)}
+.bk-join ol{margin:0;padding-inline-start:20px;font-size:14px;display:flex;flex-direction:column;gap:4px}

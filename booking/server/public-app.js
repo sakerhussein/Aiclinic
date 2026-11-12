@@ -83,8 +83,9 @@ export function createPublicApp({ svc, config, now = Date.now }) {
 
   app.get("/api/c/:slug", limit("lookup"), wrap(async (req, res) => res.json(await svc.info(slugOf(req)))));
   app.get("/api/c/:slug/slots", limit("lookup"), wrap(async (req, res) => {
-    const q = parse(z.object({ service: uuid, doctor: uuid.optional(), date: day, days: z.coerce.number().int().min(1).max(31).optional() }), req.query);
-    res.json(await svc.slots(slugOf(req), { serviceId: q.service, doctorId: q.doctor, from: q.date, days: q.days }));
+    const q = parse(z.object({ service: uuid, doctor: uuid.optional(), date: day, days: z.coerce.number().int().min(1).max(31).optional(),
+      visit: z.enum(["in_clinic", "online"]).optional() }), req.query);
+    res.json(await svc.slots(slugOf(req), { serviceId: q.service, doctorId: q.doctor, from: q.date, days: q.days, visit: q.visit }));
   }));
   app.post("/api/c/:slug/book", limit("book"), wrap(async (req, res) => {
     const b = parse(z.object({
@@ -93,6 +94,9 @@ export function createPublicApp({ svc, config, now = Date.now }) {
       language: z.enum(["ar", "en"]), reminders: z.boolean().optional(), forOther: z.boolean().optional(),
       from: z.string().regex(/^[a-z0-9_-]{1,20}$/).nullish().catch(null),
       agree: z.literal(true), website: z.string().max(200).optional(),
+      // Online visits: the visit type, the patient's choice of video or audio (when it is theirs), how the Join link reaches them, the consent.
+      visitType: z.enum(["in_clinic", "online"]).optional(), onlineMode: z.enum(["video", "audio"]).optional(),
+      linkChannel: z.enum(["whatsapp", "email"]).optional(), email: z.string().trim().toLowerCase().email().max(120).optional(), onlineConsent: z.boolean().optional(),
     }), req.body);
     if (b.website) return res.status(201).json({ ok: true });          // hidden field filled in: a bot. Looks like success, does nothing.
     res.status(201).json(await svc.book(slugOf(req), req.ctx, b));
@@ -141,6 +145,9 @@ export function createPublicApp({ svc, config, now = Date.now }) {
     res.json(await svc.reschedule(slugOf(req), b.token, b.startsAt, req.ctx));
   }));
 
+  // ---- "Join the visit": book.limitsiz.si/<clinic>/j#<token>. The token travels in the body, as above.
+  app.post("/api/c/:slug/join", limit("manage"), wrap(async (req, res) => res.json(await svc.join(slugOf(req), parse(z.object(tok), req.body).token))));
+
   // ---- "Add to calendar" for Apple Calendar and other calendars. An iPhone adds an .ics file only when it comes from a server as
   // text/calendar; a file made inside the page does nothing there. The page sends the entry it made, with the token (in the body,
   // as above); once the token is checked, the entry is kept in this process's memory for two minutes under a random address, which
@@ -170,7 +177,7 @@ export function createPublicApp({ svc, config, now = Date.now }) {
   // ---- the page (its own small build, not the staff app)
   if (existsSync(dist)) {
     app.use(express.static(dist, { index: false, maxAge: "1h", setHeaders: (res, p) => { if (p.endsWith(".html")) res.set("Cache-Control", "no-store"); } }));
-    app.get(/^\/[a-z0-9-]{1,60}(\/manage|\/find|\/chat)?\/?$/, (req, res) => res.sendFile(path.join(dist, "book.html")));
+    app.get(/^\/[a-z0-9-]{1,60}(\/manage|\/find|\/chat|\/j)?\/?$/, (req, res) => res.sendFile(path.join(dist, "book.html")));
   }
 
   app.use((req, res) => res.status(404).json({ error: "not_found" }));

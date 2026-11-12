@@ -153,7 +153,20 @@ createScribe({ pool, drafter: sampleDrafter }).start();
   recordsApp({ svc: rsvc, config: rConfig, files: rfiles, backups: rbackups, ...rphase }).listen(3006, "127.0.0.1", () => console.log("READY  Records http://localhost:3006   (doctor: dr@demo.jo)"));
   bkConfig.recordsUrl = "http://localhost:3006";
 }
-bookingApp({ svc: createService({ pool, auditPool, tidier: sampleTidier, recordsUrl: bkConfig.recordsUrl }), config: bkConfig }).listen(3004, "127.0.0.1", () =>
+// Online visits (design: booking/design/online-visits.html): on for the demo clinic, Dr Lina with a Teams link, the first service
+// offered online, Huda marked "Can book online visits" with an email, CliQ payment, and one online visit today. Emails are only logged.
+await t.owner.query("update online_visits set enabled = true where clinic_id = $1", [t.clinicA]);
+await t.owner.query("update doctors set online_enabled = true, online_min_notice_minutes = 60, teams_link = 'https://teams.microsoft.com/l/meetup-join/19%3ameeting_demo%40thread.v2/0' where id = $1", [ids.lina]);
+await t.owner.query("update services set online_allowed = true where id = $1", [svc.id]);
+await t.owner.query("update patients set online_allowed = true, email = 'huda@example.com' where clinic_id = $1 and full_name = 'Huda Al-Khatib'", [t.clinicA]);
+await t.owner.query("update clinic_payment set cliq_enabled = true, cliq_alias = 'DEMODERMA', cliq_name = 'Limitsiz Demo Dermatology' where clinic_id = $1", [t.clinicA]);
+{
+  const p = await pat("Sami Online", "+962791110005");
+  await t.owner.query(`insert into appointments (clinic_id, doctor_id, service_id, patient_id, starts_at, ends_at, source, status, visit_type, online_mode, link_channel)
+                       values ($1,$2,$3,$4,$5,$6,'phone','confirmed','online','audio','whatsapp')`, [t.clinicA, ids.lina, svc.id, p, at(14, 0), at(14, svc.duration_minutes)]);
+}
+const devMail = async (m) => { console.log(`[mail] visit link to ${m.to}: ${m.subject}`); return true; };
+bookingApp({ svc: createService({ pool, auditPool, tidier: sampleTidier, recordsUrl: bkConfig.recordsUrl, mail: devMail }), config: bkConfig }).listen(3004, "127.0.0.1", () =>
   console.log(`READY  Booking http://localhost:3004   sign in: sec@demo.jo / ${GOOD}   (administrator admin@demo.jo needs two-step)`));
 console.log(`Administrator admin@demo.jo has two-step on. Current code:  node -e "import('../accounts/server/crypto.js').then(m=>console.log(m.totp('${P.admin.secret}')))"  (run it in the repo's accounts/ folder... see README)`);
 console.log(`ADMIN_SECRET=${P.admin.secret}`);

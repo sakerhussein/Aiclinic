@@ -5,6 +5,8 @@ import { HttpError, bad, notFound } from "./http.js";
 
 export const OPTIONS = {
   slotMinutes: [5, 10, 15, 20, 30, 60], bufferMinutes: [0, 5, 10, 15],
+  // Online visits: the doctor's "earliest online booking", and when the Join button opens / stops working.
+  onlineNoticeMinutes: [0, 30, 60, 120, 240, 720, 1440, 2880], joinOpensMinutes: [0, 5, 10, 15, 30], joinClosesMinutes: [0, 10, 15, 30, 60],
   idleMinutes: [15, 30, 60, 120, 240], lockMinutes: [0, 5, 10, 15, 30], recoveryWarnAt: [1, 2, 3, 4, 5],
   reminderMinutes: [2880, 1440, 720, 240, 120, 60],
   dictationFieldSeconds: [30, 60, 90, 120, 180, 300], dictationNoteMinutes: [2, 3, 5, 10, 15],
@@ -36,11 +38,12 @@ export function createSettings({ pool, tx, now = () => new Date() }) {
       q(`select id, weekday, to_char(start_time, 'HH24:MI') as start, to_char(end_time, 'HH24:MI') as "end" from clinic_hours where clinic_id = $1 order by weekday, start_time`),
       q(`select id, doctor_id, starts_at, ends_at, reason from time_off where clinic_id = $1 and ends_at > now() - interval '30 days' order by starts_at`),
       q(`select d.id, d.name_en, d.name_ar, d.title_en, d.title_ar, d.gender, d.licence_no, d.active, d.slot_minutes, d.buffer_minutes, d.scribe_enabled,
+                d.online_enabled, d.online_min_notice_minutes, d.teams_link,
                 coalesce((select array_agg(ds.service_id) from doctor_services ds where ds.doctor_id = d.id), '{}') as service_ids,
                 coalesce((select json_agg(json_build_object('weekday', w.weekday, 'start', to_char(w.start_time, 'HH24:MI'), 'end', to_char(w.end_time, 'HH24:MI')) order by w.weekday, w.start_time)
                             from working_hours w where w.doctor_id = d.id), '[]') as hours
            from doctors d where d.clinic_id = $1 order by d.active desc, d.name_en`),
-      q(`select id, name_en, name_ar, description_en, description_ar, duration_minutes, price_jod, price_is_from, active, sort from services where clinic_id = $1 order by active desc, sort, name_en`),
+      q(`select id, name_en, name_ar, description_en, description_ar, duration_minutes, price_jod, price_is_from, active, sort, online_allowed from services where clinic_id = $1 order by active desc, sort, name_en`),
       q(`select id, topic, question_en, question_ar, answer_en, answer_ar, sort from clinic_faqs where clinic_id = $1 order by sort`),
       q(`select audience, min_notice_minutes, window_days, change_notice_minutes, max_upcoming, outside_hours, walkin_back_minutes, require_cancel_reason
            from booking_rules where clinic_id = $1 order by audience`),
@@ -181,8 +184,9 @@ export function createSettings({ pool, tx, now = () => new Date() }) {
   }
   async function updateService(ctx, id, b) {
     await write(ctx, async (c) => {
-      const r = await c.query(`update services set name_en=$3, name_ar=$4, description_en=$5, description_ar=$6, duration_minutes=$7, price_jod=$8, price_is_from=$9, active=$10
-        where clinic_id=$1 and id=$2`, [ctx.clinicId, id, ...serviceParams(b), b.active]);
+      // "Can be an online visit" (Settings › Online visits); kept as it was when the form does not send it.
+      const r = await c.query(`update services set name_en=$3, name_ar=$4, description_en=$5, description_ar=$6, duration_minutes=$7, price_jod=$8, price_is_from=$9, active=$10,
+          online_allowed = coalesce($11, online_allowed) where clinic_id=$1 and id=$2`, [ctx.clinicId, id, ...serviceParams(b), b.active, b.onlineAllowed ?? null]);
       if (!r.rowCount) throw notFound("not_found");
     });
     return { ok: true };

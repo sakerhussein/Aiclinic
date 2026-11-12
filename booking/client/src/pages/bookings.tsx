@@ -8,6 +8,9 @@ import { Banner, ExportButton, SendLinkButton, StatusPill, useAction } from "../
 import { NOTE_PILL, useN } from "./notes-text";
 import { InsuranceLine } from "../insurance";
 import { VisitFacts } from "../visit-lines";
+import { NextVisitBox, OnlineBox } from "./online-parts";
+import { Cam } from "./form";
+import { useOV } from "./online-text";
 
 export function BookingList() {
   const { t, lang, d } = useI18n();
@@ -19,11 +22,12 @@ export function BookingList() {
   // A link can open the list already filtered (the calendar's "today" line: ?from=…&to=…&status=…&unchecked=1).
   const [sp] = useSearchParams();
   const [f, setF] = useState({ from: sp.get("from") || todayIn(tz), to: sp.get("to") || "", doctor: "", status: sp.get("status") || "", source: "", q: "",
-                               voided: false, unchecked: sp.get("unchecked") === "1", note: "" });
+                               voided: false, unchecked: sp.get("unchecked") === "1", note: "", visit: sp.get("visit") || "" });
+  const ov = useOV();
   const [rows, setRows] = useState<Appt[] | null>(null);
   const p = new URLSearchParams();
   if (f.from) p.set("from", f.from); if (f.to) p.set("to", f.to); if (f.doctor) p.set("doctor", f.doctor);
-  if (f.status) p.set("status", f.status); if (f.source) p.set("source", f.source); if (f.q) p.set("q", f.q); if (f.voided) p.set("voided", "1"); if (f.unchecked) p.set("unchecked", "1"); if (notes && f.note) p.set("note", f.note);
+  if (f.status) p.set("status", f.status); if (f.source) p.set("source", f.source); if (f.q) p.set("q", f.q); if (f.voided) p.set("voided", "1"); if (f.unchecked) p.set("unchecked", "1"); if (notes && f.note) p.set("note", f.note); if (f.visit) p.set("visit", f.visit);
   const params = p.toString();
   const load = useCallback(() => {
     get<Appt[]>(`/api/appointments?${params}`).then(setRows).catch(() => setRows([]));
@@ -40,6 +44,8 @@ export function BookingList() {
           <label className="field">{t("status")}<select value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })}><option value="">{t("allStatuses")}</option>{Object.entries(d.statuses).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
           <label className="field">{t("source")}<select value={f.source} onChange={(e) => setF({ ...f, source: e.target.value })}><option value="">{t("allSources")}</option>{Object.entries(d.sources).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
           {notes && <label className="field">{nt.noteLine}<select value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })}>{Object.entries(nt.filter).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>}
+          {look.online?.enabled && <label className="field">{ov.filterVisit}<select value={f.visit} onChange={(e) => setF({ ...f, visit: e.target.value })}>
+            <option value="">{ov.filterAll}</option><option value="in_clinic">{ov.atClinic}</option><option value="online">{ov.online}</option></select></label>}
           <label className="field">{t("search")}<input value={f.q} onChange={(e) => setF({ ...f, q: e.target.value })} /></label>
           <div className="filter-checks">
             <label className="check"><input type="checkbox" checked={f.voided} onChange={(e) => setF({ ...f, voided: e.target.checked })} /> {t("showVoided")}</label>
@@ -50,7 +56,7 @@ export function BookingList() {
           <thead><tr><th>{t("time")}</th><th>{t("patient")}</th><th>{t("service")}</th>{!own && <th>{t("doctor")}</th>}<th>{t("source")}</th><th>{t("status")}</th>{notes && <th>{nt.noteLine}</th>}</tr></thead>
           <tbody>{rows?.map((a) => (
             <tr key={a.id}>
-              <td><Link to={`/bookings/${a.id}`}>{fmtDateTime(a.starts_at, tz, lang)}</Link></td>
+              <td><Link to={`/bookings/${a.id}`}>{fmtDateTime(a.starts_at, tz, lang)}</Link>{a.visit_type === "online" && <> <span className="pill vt" title={ov.pill}><Cam size={12} /> {ov.modeShort[a.online_mode ?? "audio"]}</span></>}</td>
               <td>{a.patient_name || "—"} <span className="mono hint">{a.patient_phone}</span>{a.name_differs && <div className="hint warntext">{t("nameDiffers", { name: a.booked_name ?? "" })}</div>}</td>
               <td>{lang === "ar" ? a.service_name_ar : a.service_name_en}</td>
               {!own && <td>{lang === "ar" ? a.doctor_name_ar : a.doctor_name_en}</td>}
@@ -88,6 +94,7 @@ export function BookingDetail() {
   const [missing, setMissing] = useState(false);
   const [asking, setAsking] = useState<string | null>(null); const [reason, setReason] = useState("");
   const act = useAction();
+  const ov = useOV();
   const load = useCallback(() => {
     get<Appt>(`/api/appointments/${id}`).then(setA).catch(() => setMissing(true));
     get<Ev[]>(`/api/appointments/${id}/history`).then(setHist).catch(() => {});
@@ -113,7 +120,7 @@ export function BookingDetail() {
 
   return (
     <main className="wrap page">
-      <div className="row between"><h1 className="display">{a.patient_name || a.patient_phone}</h1><div className="row"><StatusPill status={a.status} />{a.unchecked && <span className="pill warn">{t("notChecked")}</span>}{a.moved_by_patient && <span className="pill warn">{t("movedByPatient")}</span>}</div></div>
+      <div className="row between"><h1 className="display">{a.patient_name || a.patient_phone}</h1><div className="row"><StatusPill status={a.status} />{a.unchecked && <span className="pill warn">{t("notChecked")}</span>}{a.moved_by_patient && <span className="pill warn">{t("movedByPatient")}</span>}{a.visit_type === "online" && <span className="pill vt"><Cam size={13} /> {ov.pill}</span>}</div></div>
       <section className="panel">
         <dl className="facts">
           <dt>{t("time")}</dt><dd>{fmtDateTime(a.starts_at, tz, lang)} – {hm(a.ends_at, tz)}</dd>
@@ -143,6 +150,7 @@ export function BookingDetail() {
             onClick={() => (needsReason(s) ? setAsking(s) : void apply(s))}>{d.actions[s]}</button>)}
           {a.status === "voided" && can("booking.appointments.restore") && <button className="btn btn-accent btn-sm" disabled={act.busy} onClick={() => void act.run(async () => { setA(await post<Appt>(`/api/appointments/${a.id}/restore`, { expectedVersion: a.row_version })); load(); })}>{d.actions.restore}</button>}
         </div>
+        {a.status === "completed" && <NextVisitBox id={a.id} appt={a} />}
         {asking && (
           <form className="row" onSubmit={(e) => { e.preventDefault(); if (reason.trim()) void apply(asking); }}>
             <input className="grow" placeholder={t("reason")} value={reason} onChange={(e) => setReason(e.target.value)} required autoFocus />
@@ -151,6 +159,7 @@ export function BookingDetail() {
           </form>
         )}
       </section>
+      <OnlineBox a={a} onChange={(x) => { setA(x); load(); }} />
       <section className="panel">
         <h2>{t("history")}</h2>
         <ol className="hist">{hist.map((e, i) => (

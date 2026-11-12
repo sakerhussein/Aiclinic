@@ -121,10 +121,10 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
     from: day.optional(), to: day.optional(), doctor: uuid.optional(), patient: uuid.optional(), q: z.string().max(80).optional(),
     status: z.enum(["booked", "confirmed", "cancelled", "completed", "no_show", "voided"]).optional(),
     source: z.enum(["whatsapp", "phone", "walkin", "staff", "web"]).optional(), voided: z.enum(["1"]).optional(), unchecked: z.enum(["1"]).optional(),
-    note: z.enum(["none", "unsigned", "signed"]).optional(),
+    note: z.enum(["none", "unsigned", "signed"]).optional(), visit: z.enum(["in_clinic", "online"]).optional(),
   });
   const apptQuery = (q) => ({ from: q.from, to: q.to, doctorId: q.doctor, patientId: q.patient, q: q.q, status: q.status, source: q.source,
-                              includeVoided: !!q.voided, unchecked: !!q.unchecked, note: q.note });
+                              includeVoided: !!q.voided, unchecked: !!q.unchecked, note: q.note, visit: q.visit });
   app.get("/api/appointments", auth("booking.appointments.view"), wrap(async (req, res) => {
     res.json(await svc.listAppointments(req.ctx, apptQuery(parse(apptFilter, req.query))));
   }));
@@ -134,12 +134,18 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
   app.post("/api/appointments/:id/form-link", auth("booking.appointments.edit"), wrap(async (req, res) => res.status(201).json(await svc.visit.formLink(req.ctx, parse(uuid, req.params.id)))));
   app.get("/api/appointments/:id/history", auth("booking.appointments.view"), wrap(async (req, res) => res.json(await svc.history(req.ctx, parse(uuid, req.params.id)))));
 
-  const newPatient = z.object({ fullName: z.string().trim().min(1).max(120), phone: z.string().max(30).nullish(), language: z.enum(["ar", "en"]).nullish(), whatsappReminders: z.boolean().optional() });
+  const email = z.string().trim().toLowerCase().email().max(120);
+  const newPatient = z.object({ fullName: z.string().trim().min(1).max(120), phone: z.string().max(30).nullish(), language: z.enum(["ar", "en"]).nullish(), whatsappReminders: z.boolean().optional(),
+    email: email.nullish().or(z.literal("")), onlineAllowed: z.boolean().optional(), onlineMode: z.enum(["video", "audio", "patient"]).nullish() });
+  // Online visits (design: booking/design/online-visits.html): at the clinic or online, video or audio, how the Join link goes, this booking's own Teams link.
+  const visitFields = { visitType: z.enum(["in_clinic", "online"]).optional(), onlineMode: z.enum(["video", "audio"]).optional(),
+    linkChannel: z.enum(["whatsapp", "sms", "email", "print"]).optional(), linkEmail: email.nullish().or(z.literal("")),
+    meetingUrl: z.string().trim().url().max(2000).nullish().or(z.literal("")), allowInsideBuffer: z.boolean().optional() };
   app.post("/api/appointments", auth("booking.appointments.create"), wrap(async (req, res) => {
     const b = parse(z.object({
       serviceId: uuid, doctorId: z.union([uuid, z.literal("any")]), startsAt: z.string().max(40), source: z.enum(["phone", "walkin"]),
       patientId: uuid.optional(), newPatient: newPatient.optional(), internalNote: z.string().max(500).nullish(), override: z.boolean().optional(),
-      allowOverLimit: z.boolean().optional(),
+      allowOverLimit: z.boolean().optional(), ...visitFields,
     }).refine((x) => !!x.patientId !== !!x.newPatient), req.body);
     if (b.newPatient && !can(req, "booking.patients.edit")) throw denied("forbidden");
     res.status(201).json(await svc.createAppointment(req.ctx, b));
@@ -147,7 +153,7 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
   app.patch("/api/appointments/:id", auth("booking.appointments.edit"), wrap(async (req, res) => {
     const b = parse(z.object({
       expectedVersion: z.number().int(), serviceId: uuid.optional(), doctorId: uuid.optional(), patientId: uuid.optional(),
-      startsAt: z.string().max(40).optional(), internalNote: z.string().max(500).nullish(), override: z.boolean().optional(),
+      startsAt: z.string().max(40).optional(), internalNote: z.string().max(500).nullish(), override: z.boolean().optional(), ...visitFields,
     }), req.body);
     res.json(await svc.updateAppointment(req.ctx, parse(uuid, req.params.id), b));
   }));
@@ -157,7 +163,23 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
   app.post("/api/appointments/:id/status", auth(), wrap(async (req, res) => {
     const b = parse(z.object({ status: z.enum(["confirmed", "cancelled", "completed", "no_show", "voided"]), reason: z.string().trim().max(300).optional(), expectedVersion: z.number().int() }), req.body);
     if (!can(req, NEEDS[b.status])) throw denied("forbidden");
-    res.json(await svc.setStatus(req.ctx, parse(uuid, req.params.id), b, req.session.permissions));
+    const a = await svc.setStatus(req.ctx, parse(uuid, req.params.id), b, req.session.permissions);
+    // An online visit just confirmed: the Join link goes by email now when that is the patient's way (Settings › Online visits).
+    const sent = b.status === "confirmed" ? await svc.online.afterConfirm(req.ctx, a, config.publicBookingUrl) : null;
+    res.json({ ...a, link_sent: sent ? { channel: sent.channel, sentTo: sent.sentTo } : null });
+  }));
+  // ---- online visits on the booking: the Join links sent, sending one, the identity tick, and "next follow-up can be online"
+  app.get("/api/appointments/:id/join-links", auth("booking.appointments.view"), wrap(async (req, res) => res.json(await svc.online.links(req.ctx, parse(uuid, req.params.id)))));
+  app.post("/api/appointments/:id/join-link", auth("booking.appointments.edit"), wrap(async (req, res) => {
+    const b = parse(z.object({ channel: z.enum(["whatsapp", "sms", "email", "print", "copy"]), email: email.optional() }), req.body);
+    res.status(201).json(await svc.online.send(req.ctx, parse(uuid, req.params.id), b, config.publicBookingUrl));
+  }));
+  app.post("/api/appointments/:id/identity", auth("booking.appointments.edit"), wrap(async (req, res) => {
+    res.json(await svc.online.identity(req.ctx, parse(uuid, req.params.id), parse(z.object({ checked: z.boolean(), expectedVersion: z.number().int() }), req.body)));
+  }));
+  app.post("/api/appointments/:id/next-online", auth("booking.appointments.edit"), wrap(async (req, res) => {
+    const b = parse(z.object({ on: z.boolean(), mode: z.enum(["video", "audio", "patient"]).nullish(), expectedVersion: z.number().int() }), req.body);
+    res.json(await svc.online.nextOnline(req.ctx, parse(uuid, req.params.id), b));
   }));
   app.post("/api/appointments/:id/check", auth("booking.appointments.edit"), wrap(async (req, res) => {
     const b = parse(z.object({ expectedVersion: z.number().int() }), req.body);
@@ -238,7 +260,28 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
   const pick = (...v) => z.number().int().refine((x) => v.includes(x));
   const S = svc.settings;
 
-  app.get("/api/settings", VIEW, wrap(async (req, res) => res.json({ ...(await S.read(req.ctx)), onlineLink: await svc.onlineLink(req.ctx, config.publicBookingUrl) })));
+  app.get("/api/settings", VIEW, wrap(async (req, res) => res.json({ ...(await S.read(req.ctx)), onlineLink: await svc.onlineLink(req.ctx, config.publicBookingUrl),
+    onlineVisits: await svc.online.read(req.ctx) })));
+  // Settings › Online visits, Settings › Payment, and each doctor's online settings.
+  const text = (lo, hi) => z.string().trim().min(lo).max(hi), minutes = (...v) => z.number().int().refine((x) => v.includes(x));
+  app.patch("/api/settings/online-visits", EDIT, wrap(async (req, res) => res.json(await svc.online.update(req.ctx, parse(z.object({
+    enabled: z.boolean(), mode: z.enum(["video", "audio", "patient"]), staffChangeMode: z.boolean(), whoCanBook: z.enum(["marked", "seen_before", "everyone"]),
+    linkWhen: z.enum(["confirmed", "booked"]), joinOpensMinutes: minutes(0, 5, 10, 15, 30), joinClosesMinutes: minutes(0, 10, 15, 30, 60),
+    channels: z.array(z.enum(["whatsapp", "sms", "email", "print"])).min(1).max(4), patientPicks: z.boolean(), defaultChannel: z.enum(["whatsapp", "sms", "email", "print"]),
+    printSize: z.enum(["a6", "a5"]), printLanguages: z.enum(["patient", "ar_en"]),
+    nextVisitDays: z.array(z.number().int().min(1).max(365)).min(1).max(6),
+    consentEn: text(1, 1000), consentAr: text(1, 1000), howToEn: text(1, 1000), howToAr: text(1, 1000),
+    messageEn: text(1, 600).refine((m) => m.includes("{link}")), messageAr: text(1, 600).refine((m) => m.includes("{link}")),
+    emailSubjectEn: text(1, 200), emailSubjectAr: text(1, 200), onlineServiceIds: z.array(uuid).max(200).optional(),
+  }), req.body)))));
+  app.patch("/api/settings/payment", EDIT, wrap(async (req, res) => res.json(await svc.online.updatePayment(req.ctx, parse(z.object({
+    cliqEnabled: z.boolean(), cliqAlias: z.string().trim().regex(/^[A-Za-z0-9]{1,20}$/).nullish().or(z.literal("")), cliqName: z.string().trim().max(80).nullish(),
+    payWhen: z.enum(["before", "after"]), forOnline: z.boolean(), noteEn: text(1, 500), noteAr: text(1, 500),
+  }), req.body)))));
+  app.patch("/api/settings/doctors/:id/online", EDIT, wrap(async (req, res) => res.json(await svc.online.updateDoctor(req.ctx, parse(uuid, req.params.id), parse(z.object({
+    onlineEnabled: z.boolean(), onlineMinNoticeMinutes: minutes(0, 30, 60, 120, 240, 720, 1440, 2880),
+    teamsLink: z.string().trim().max(2000).nullish(),
+  }), req.body)))));
   const n = (lo, hi) => z.number().int().min(lo).max(hi), text500 = z.string().trim().max(500).nullish();
   app.patch("/api/settings/online", EDIT, wrap(async (req, res) => res.json(await S.updateOnline(req.ctx, parse(z.object({
     enabled: z.boolean(), staffCheck: z.boolean(), showPrices: z.boolean(), allowAnyDoctor: z.boolean(), allowCancel: z.boolean(),
@@ -286,7 +329,7 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
   app.put("/api/settings/doctors/:id/services", EDIT, wrap(async (req, res) => res.json(await S.setDoctorServices(req.ctx, parse(uuid, req.params.id), parse(z.object({ serviceIds: z.array(uuid).max(200) }), req.body).serviceIds))));
 
   const service = z.object({ nameEn: name, nameAr: name, descriptionEn: optText, descriptionAr: optText, durationMinutes: z.number().int().min(5).max(480),
-    priceJod: z.number().min(0).max(100000).nullish(), priceIsFrom: z.boolean().optional(), active: z.boolean().optional() });
+    priceJod: z.number().min(0).max(100000).nullish(), priceIsFrom: z.boolean().optional(), active: z.boolean().optional(), onlineAllowed: z.boolean().optional() });
   app.post("/api/settings/services", EDIT, wrap(async (req, res) => res.status(201).json(await S.createService(req.ctx, parse(service, req.body)))));
   app.patch("/api/settings/services/:id", EDIT, wrap(async (req, res) => res.json(await S.updateService(req.ctx, parse(uuid, req.params.id), parse(service.required({ active: true }), req.body)))));
 

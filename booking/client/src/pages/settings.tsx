@@ -8,18 +8,21 @@ import { useApp } from "../session";
 import { Banner, Field, useAction } from "../ui";
 import { DESIGNS } from "./print";
 import { useS, duration } from "./settings-text";
+import { DoctorOnlinePanel, OnlineVisitsTab, PaymentTab, type OVData } from "./settings-online";
+import { useOV } from "./online-text";
 
 // The brochure colours on offer: the brand mint first (the band and step numbers); the clinic picks one. Names in settings-text.
 const SWATCHES = ["#2EE6B5", "#0B7A64", "#3B6FD8", "#C2417A", "#0A0F14"];
 
 type Period = { weekday: number; start: string; end: string };
 type Doctor = { id: string; name_en: string; name_ar: string; title_en: string | null; title_ar: string | null; gender: "f" | "m" | null; licence_no: string | null; active: boolean;
-  slot_minutes: number | null; buffer_minutes: number; service_ids: string[]; hours: Period[]; scribe_enabled: boolean };
+  slot_minutes: number | null; buffer_minutes: number; service_ids: string[]; hours: Period[]; scribe_enabled: boolean;
+  online_enabled?: boolean; online_min_notice_minutes?: number; teams_link?: string | null };
 type ScribeSection = { key: string; en: string; ar: string; hint?: string };
 type Scribe = { enabled: boolean; note_language: "en" | "ar"; consent_en: string; consent_ar: string; sections: ScribeSection[]; max_recording_minutes: number;
   transcript_keep_days: number; notes_per_doctor_per_day: number; speech_service: string; draft_model: string;
   dictation_enabled: boolean; dictation_model: string; dictation_translate: boolean; dictation_field_seconds: number; dictation_note_minutes: number; dictations_per_doctor_per_day: number };
-type Service = { id: string; name_en: string; name_ar: string; description_en: string | null; description_ar: string | null; duration_minutes: number; price_jod: string | null; price_is_from: boolean; active: boolean };
+type Service = { id: string; name_en: string; name_ar: string; description_en: string | null; description_ar: string | null; duration_minutes: number; price_jod: string | null; price_is_from: boolean; active: boolean; online_allowed?: boolean };
 type TimeOff = { id: string; doctor_id: string | null; starts_at: string; ends_at: string; reason: string | null };
 type Faq = { id: string; topic: string; question_en: string; question_ar: string; answer_en: string; answer_ar: string };
 type Rule = { audience: "patient" | "staff"; min_notice_minutes: number; window_days: number; change_notice_minutes: number; max_upcoming: number | null; outside_hours: string; walkin_back_minutes: number; require_cancel_reason: boolean };
@@ -37,14 +40,15 @@ type Online = { enabled: boolean; staff_check: boolean; show_prices: boolean; al
   brochure_colour: string; brochure_card_languages: "ar_en" | "ar" | "en"; brochure_show_ai: boolean };
 type OnlineLink = { enabled: boolean; url?: string; qrUrl?: string };
 type Data = { profile: Profile; hours: Period[]; closures: TimeOff[]; doctors: Doctor[]; services: Service[]; faqs: Faq[]; rules: Rule[]; general: General; outside: Outside[];
-  online: Online; onlineLink: OnlineLink; scribe: Scribe;
-  options: { slotMinutes: number[]; bufferMinutes: number[]; idleMinutes: number[]; lockMinutes: number[]; reminderMinutes: number[]; recoveryWarnAt: number[]; dictationFieldSeconds: number[]; dictationNoteMinutes: number[] } };
+  online: Online; onlineLink: OnlineLink; scribe: Scribe; onlineVisits: OVData;
+  options: { slotMinutes: number[]; bufferMinutes: number[]; idleMinutes: number[]; lockMinutes: number[]; reminderMinutes: number[]; recoveryWarnAt: number[]; dictationFieldSeconds: number[]; dictationNoteMinutes: number[];
+    onlineNoticeMinutes: number[]; joinOpensMinutes: number[]; joinClosesMinutes: number[] } };
 
-const TABS = ["profile", "hours", "doctors", "services", "rules", "online", "scribe", "reminders", "assistant", "security", "audit"] as const;
+const TABS = ["profile", "hours", "doctors", "services", "rules", "online", "visits", "payment", "scribe", "reminders", "assistant", "security", "audit"] as const;
 type Tab = (typeof TABS)[number];
 
 export function Settings() {
-  const s = useS();
+  const s = useS(); const ov = useOV();
   const { can } = useApp();
   const [q] = useSearchParams();                              // ?tab=audit: the way back from the audit log
   const [tab, setTab] = useState<Tab>(TABS.find((k) => k === q.get("tab")) ?? "profile");
@@ -60,7 +64,7 @@ export function Settings() {
       {!canEdit && <Banner kind="warn">{s.readOnly}</Banner>}
       <div className="setwrap">
         <nav className="settabs" aria-label={s.title}>
-          {TABS.map((k) => <button key={k} type="button" className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{s.tabs[k]}{k === "scribe" && <span className="newtag">{s.newTag}</span>}</button>)}
+          {TABS.map((k) => <button key={k} type="button" className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{k === "visits" ? ov.tab : k === "payment" ? ov.payTab : s.tabs[k]}{(k === "visits" || k === "payment") && <span className="newtag">{s.newTag}</span>}</button>)}
         </nav>
         <div className="setbody">
           <OutsideList rows={data.outside} />
@@ -70,6 +74,8 @@ export function Settings() {
           {tab === "services" && <ServicesTab {...P} />}
           {tab === "rules" && <RulesTab {...P} />}
           {tab === "online" && <OnlineTab {...P} />}
+          {tab === "visits" && <OnlineVisitsTab {...P} />}
+          {tab === "payment" && <PaymentTab {...P} />}
           {tab === "scribe" && <ScribeTab {...P} />}
           {tab === "reminders" && <RemindersTab {...P} />}
           {tab === "assistant" && <AssistantTab {...P} />}
@@ -96,12 +102,12 @@ function OutsideList({ rows }: { rows: Outside[] }) {
   );
 }
 
-function SForm({ children, ...p }: React.FormHTMLAttributes<HTMLFormElement>) {
+export function SForm({ children, ...p }: React.FormHTMLAttributes<HTMLFormElement>) {
   const { can } = useApp();
   return <form {...p}><fieldset className="plain" disabled={!can("booking.settings.edit")}>{children}</fieldset></form>;
 }
 
-function Saver({ a, ok, label }: { a: ReturnType<typeof useAction>; ok: boolean; label?: string }) {
+export function Saver({ a, ok, label }: { a: ReturnType<typeof useAction>; ok: boolean; label?: string }) {
   const { t } = useI18n(); const { can } = useApp();
   return (
     <>
@@ -111,18 +117,18 @@ function Saver({ a, ok, label }: { a: ReturnType<typeof useAction>; ok: boolean;
     </>
   );
 }
-function useSave(reload: () => Promise<unknown>) {
+export function useSave(reload: () => Promise<unknown>) {
   const a = useAction();
   const [ok, setOk] = useState(false);
   const submit = (fn: () => Promise<unknown>) => a.submit(async () => { setOk(false); await fn(); await reload(); setOk(true); });
   return { a, ok, submit };
 }
-const Pick = ({ value, onChange, options }: { value: string | number; onChange: (v: string) => void; options: [string | number, string][] }) => (
+export const Pick = ({ value, onChange, options }: { value: string | number; onChange: (v: string) => void; options: [string | number, string][] }) => (
   <select value={String(value)} onChange={(e) => onChange(e.target.value)}>{options.map(([v, l]) => <option key={String(v)} value={String(v)}>{l}</option>)}</select>
 );
 // A pick list, plus the current value when it is a custom one set earlier.
 const withCurrent = (list: number[], cur: number | null | undefined) => (cur == null || list.includes(cur) ? list : [...list, cur].sort((x, y) => x - y));
-const Check = ({ checked, onChange, disabled, children }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean; children: ReactNode }) => (
+export const Check = ({ checked, onChange, disabled, children }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean; children: ReactNode }) => (
   <label className="check"><input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} /> <span>{children}</span></label>
 );
 
@@ -316,6 +322,7 @@ function DoctorEditor({ doc, data, reload }: { doc: Doctor } & P) {
   return (
     <div className="stack">
       <DoctorForm doc={doc} data={data} reload={reload} />
+      <DoctorOnlinePanel doc={doc} data={data} reload={reload} />
       <SForm className="panel stack" onSubmit={h.submit(() => put(`/api/settings/doctors/${doc.id}/hours`, { periods: hours }))}>
         <h2>{s.doctorHours}</h2>
         {data.hours.length > 0 && <p className="hint">{s.doctorHoursHint}</p>}
@@ -359,9 +366,9 @@ function ServicesTab({ data, reload }: P) {
 }
 
 function ServiceForm({ service: x, reload, onDone }: { service?: Service; reload: () => Promise<unknown>; onDone: () => void }) {
-  const s = useS(); const { t } = useI18n();
+  const s = useS(); const { t } = useI18n(); const ov = useOV();
   const [f, setF] = useState({ nameEn: x?.name_en || "", nameAr: x?.name_ar || "", descriptionEn: x?.description_en || "", descriptionAr: x?.description_ar || "",
-    durationMinutes: x?.duration_minutes ?? 20, priceJod: x?.price_jod ?? "", priceIsFrom: x?.price_is_from ?? false, active: x?.active ?? true });
+    durationMinutes: x?.duration_minutes ?? 20, priceJod: x?.price_jod ?? "", priceIsFrom: x?.price_is_from ?? false, active: x?.active ?? true, onlineAllowed: x?.online_allowed ?? false });
   const { a, ok, submit } = useSave(reload);
   const inp = (k: "nameEn" | "nameAr" | "descriptionEn" | "descriptionAr") => ({ value: f[k], onChange: (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value }) });
   return (
@@ -380,6 +387,7 @@ function ServiceForm({ service: x, reload, onDone }: { service?: Service; reload
       </div>
       <Check checked={f.priceIsFrom} onChange={(v) => setF({ ...f, priceIsFrom: v })}>{s.priceFrom}</Check>
       {x && <Check checked={f.active} onChange={(v) => setF({ ...f, active: v })}>{s.active}</Check>}
+      {x && <Check checked={f.onlineAllowed} onChange={(v) => setF({ ...f, onlineAllowed: v })}>{ov.serviceOnline}</Check>}
       <Saver a={a} ok={ok} />
     </SForm>
   );

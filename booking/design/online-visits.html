@@ -1,0 +1,1304 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Online visits on Teams</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;500;600&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap">
+<style>
+/* ---- copied from booking/client/src/styles.css (the live Booking app) ---- */
+:root{
+  --ink:#0A0F14;--ink-2:#121A21;--ink-3:#1E2A33;--ink-line:#2A3640;--on-ink:#E8EEF0;--on-ink-muted:#93A3AD;
+  --paper:#F2F4F3;--text:#0A0F14;--muted:#4B5863;--rule:#C9D6D2;--rule-soft:#E1E6E4;--field:#8A99A3;
+  --accent:#2EE6B5;--accent-ink:#0B7A64;--accent-tint:#DDF7EE;--amber:#FFB23E;--amber-tint:#FFF0D6;--error:#B42318;--error-tint:#FDE7E4;
+  --font-display:"Unbounded","Geist",system-ui,sans-serif;--font-body:"Geist",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"Geist Mono",ui-monospace,Menlo,monospace;--font-ar:"IBM Plex Sans Arabic","Segoe UI",Tahoma,sans-serif;
+}
+*{box-sizing:border-box}
+html{overflow-x:clip;overflow-anchor:auto}
+body{margin:0;background:var(--paper);color:var(--text);font:15px/1.5 var(--font-body);overflow-x:clip;min-height:100vh}
+html[lang="ar"] body,html[lang="ar"] button,html[lang="ar"] input,html[lang="ar"] select{font-family:var(--font-ar)}
+h1,h2,h3,p{margin:0}
+.display{font-family:var(--font-display);font-weight:500;letter-spacing:-.01em}
+html[lang="ar"] .display{font-family:var(--font-ar);font-weight:600}
+.mono{font-family:var(--font-mono);direction:ltr;unicode-bidi:isolate}
+a{color:var(--accent-ink)}
+.wrap{max-width:1100px;margin-inline:auto;padding-inline:16px}
+
+/* app bar */
+.bar{background:var(--ink);color:var(--on-ink)}
+.bar .wrap{display:flex;align-items:center;gap:12px;min-height:60px;flex-wrap:wrap;padding-block:6px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--font-display);font-size:17px;white-space:nowrap;color:inherit;text-decoration:none}
+html[lang="ar"] .brand{font-family:var(--font-ar);font-weight:600}
+.brand img{width:30px;height:auto}
+.grow{flex:1}
+.bar nav{display:flex;gap:4px;flex-wrap:wrap}
+.bar nav a,.bar .linkbtn{color:var(--on-ink);text-decoration:none;padding:8px 12px;border-radius:999px;font-size:14px;background:none;border:0;cursor:pointer;font:inherit}
+.bar nav a[aria-current="page"]{background:var(--ink-3)}
+.bar nav a:hover,.bar .linkbtn:hover{background:var(--ink-2)}
+.bar .iconbtn{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:999px;color:var(--on-ink)}
+.bar .iconbtn:hover{background:var(--ink-2)}
+.bar .iconbtn.on{background:var(--ink-3)}
+
+/* centered card pages */
+.stage{min-height:100vh;display:grid;place-items:center;padding:24px 16px;background:var(--ink);color:var(--on-ink)}
+.card{width:100%;max-width:440px;background:#fff;color:var(--text);border-radius:24px;padding:32px 28px;display:flex;flex-direction:column;gap:18px;box-shadow:0 20px 60px #0006}
+.card .brand{color:var(--text);justify-content:center}
+.card h1{font-size:22px;text-align:center}
+.card .sub{color:var(--muted);text-align:center;font-size:14px}
+.page{padding-block:28px;display:flex;flex-direction:column;gap:20px}
+.panel{background:#fff;border:1px solid var(--rule);border-radius:20px;padding:22px;display:flex;flex-direction:column;gap:14px}
+.panel h2{font-size:18px}
+.langbar{position:fixed;top:12px;inset-inline-end:12px;z-index:30}
+.langbtn{min-height:38px;padding:0 16px;border-radius:999px;border:1px solid var(--ink-line);background:var(--ink-2);color:var(--on-ink);font:inherit;cursor:pointer}
+
+/* form parts */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;padding:0 24px;border-radius:999px;border:1px solid transparent;font:inherit;font-weight:600;cursor:pointer;text-decoration:none}
+.btn:disabled{opacity:.55;cursor:default}
+.btn-accent{background:var(--accent);color:var(--ink)}
+.btn-ink{background:var(--ink);color:#fff}
+.btn-outline{border-color:var(--text);color:var(--text);background:transparent}
+.btn-danger{background:var(--error);color:#fff}
+.btn-sm{min-height:38px;padding:0 16px;font-size:14px}
+.btn-block{width:100%}
+.link{background:none;border:0;padding:0;color:var(--accent-ink);font:inherit;cursor:pointer;text-decoration:underline}
+.field{display:flex;flex-direction:column;gap:6px;font-size:14px;font-weight:600}
+.field input,.field select{font:inherit;font-weight:400;min-height:48px;padding:0 14px;border:1px solid var(--field);border-radius:12px;background:#fff;color:var(--text);width:100%}
+.field input:focus,.field select:focus{border-color:var(--accent-ink);outline:none;box-shadow:0 0 0 3px var(--accent-tint)}
+.hint{font-weight:400;color:var(--muted);font-size:13px}
+.banner{padding:12px 14px;border-radius:14px;font-size:14px;border:1px solid}
+.banner.bad{background:var(--error-tint);border-color:var(--error);color:#7a1a12}
+.banner.ok{background:var(--accent-tint);border-color:var(--accent-ink);color:var(--accent-ink)}
+.banner.warn{background:var(--amber-tint);border-color:var(--amber);color:#5c3700}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;background:var(--rule-soft);white-space:nowrap}
+.pill.ok{background:var(--accent-tint);color:var(--accent-ink)}.pill.warn{background:var(--amber-tint);color:#8a5200}.pill.bad{background:var(--error-tint);color:var(--error)}
+.codes{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;font-family:var(--font-mono);direction:ltr;background:var(--paper);border-radius:12px;padding:12px;font-size:14px}
+.secret{font-family:var(--font-mono);direction:ltr;word-break:break-all;background:var(--paper);border-radius:10px;padding:8px 12px;font-size:14px}
+.qr{display:block;margin-inline:auto;width:200px;height:200px}
+
+/* launcher */
+.apps{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+.app{display:flex;flex-direction:column;gap:6px;padding:22px;background:#fff;border:1px solid var(--rule);border-radius:20px;text-decoration:none;color:var(--text)}
+.app:hover{border-color:var(--accent-ink);box-shadow:0 0 0 3px var(--accent-tint)}
+.app b{font-family:var(--font-display);font-size:18px;font-weight:500}
+html[lang="ar"] .app b{font-family:var(--font-ar);font-weight:600}
+
+/* tables */
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:640px}
+th,td{text-align:start;padding:10px 8px;border-bottom:1px solid var(--rule-soft);font-size:14px;vertical-align:middle}
+th{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);font-weight:600}
+td select{font:inherit;min-height:36px;border:1px solid var(--field);border-radius:10px;padding:0 8px;background:#fff}
+.actions{display:flex;gap:6px;flex-wrap:wrap}
+
+/* lock overlay */
+.modal{position:fixed;inset:0;background:#0009;display:grid;place-items:center;padding:16px;z-index:20}
+.modal .card{max-width:380px}
+@media (prefers-reduced-motion:no-preference){.card{animation:rise .35s ease both}}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* ---- booking */
+.clinic{color:var(--on-ink-muted);font-size:13px}
+.row.between{justify-content:space-between}
+.h1small{font-size:18px}
+.dateinput{font:inherit;min-height:38px;border:1px solid var(--field);border-radius:10px;padding:0 10px;background:#fff}
+.stack{display:flex;flex-direction:column;gap:12px}
+.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.formgrid h2{font-size:16px;margin-bottom:8px}
+.formfoot{grid-column:1/-1;display:flex;flex-direction:column;gap:10px}
+@media (max-width:820px){.formgrid{grid-template-columns:1fr}}
+.field input,.field select,.stack>input,.panel>input,.stack input[type=time]{font:inherit;font-weight:400;min-height:46px;padding:0 14px;border:1px solid var(--field);border-radius:12px;background:#fff;color:var(--text);width:100%}
+.ta{font:inherit;font-weight:400;padding:10px 14px;border:1px solid var(--field);border-radius:12px;width:100%;resize:vertical}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:14px}
+.check input{width:20px;height:20px;min-height:0;margin-top:3px}
+.pick{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;text-align:start;font:inherit;padding:10px 14px;border:1px solid var(--rule);border-radius:12px;background:#fff;cursor:pointer}
+.pick:hover{border-color:var(--accent-ink)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-block:8px}
+.chip{font:inherit;font-size:14px;padding:6px 14px;border-radius:999px;border:1px solid var(--rule);background:#fff;cursor:pointer;min-height:38px}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.lbl{font-size:14px}
+.filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;align-items:end}
+.filter-checks{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;column-gap:28px;row-gap:8px}
+.filter-checks .check{align-items:center}.filter-checks .check input{margin-top:0}
+.facts{display:grid;grid-template-columns:max-content 1fr;gap:8px 20px;margin:0}
+.facts dt{color:var(--muted);font-size:13px}.facts dd{margin:0}
+.hist{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;gap:6px}
+
+/* calendar */
+.cal{background:#fff;border:1px solid var(--rule);border-radius:20px;overflow:hidden}
+.cal-head,.cal-body{display:grid;grid-template-columns:56px repeat(var(--cols),minmax(0,1fr))}
+.cal-head{border-bottom:1px solid var(--rule);background:var(--paper)}
+.cal-head b{padding:10px 8px;font-size:14px;border-inline-start:1px solid var(--rule)}
+.cal-body{position:relative}
+.cal-gutter{position:relative}
+.cal-gutter span{position:absolute;inset-inline-end:6px;transform:translateY(-8px);font:12px var(--font-mono);color:var(--muted)}
+.cal-col{position:relative;border-inline-start:1px solid var(--rule);cursor:pointer}
+.cal-line{position:absolute;inset-inline:0;border-top:1px solid var(--rule-soft);pointer-events:auto}
+.cal-off{position:absolute;inset-inline:0;background:repeating-linear-gradient(135deg,#e9edec,#e9edec 6px,#f4f6f5 6px,#f4f6f5 12px)}
+.cal-card{position:absolute;inset-inline:3px;overflow:hidden;border-radius:10px;padding:3px 8px;font-size:12.5px;line-height:1.3;text-decoration:none;color:var(--text);background:var(--accent-tint);border:1px solid var(--accent-ink);display:flex;flex-direction:column}
+.cal-card b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cal-card span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-card em{font-style:normal;font-size:11px;color:var(--muted)}
+.cal-card.st-confirmed{background:#c7f3e3}
+.cal-card.st-completed{background:#e1e6e4;border-color:var(--field)}
+.cal-card.st-no_show{background:var(--amber-tint);border-color:var(--amber)}
+.cal-card.st-voided{display:none}
+.cal-card.src-whatsapp{border-inline-start:5px solid #25D366}
+.cal-card.unchecked{border-inline-start:5px solid var(--amber);background:var(--amber-tint)}
+
+/* short cards (15-30 min) show everything on one line; tall cards stack it */
+.cal-card.short{flex-direction:row;align-items:center;gap:8px;padding-block:0;white-space:nowrap}
+.cal-card.short b{flex:0 1 auto;min-width:0}
+.cal-card.short span{flex:1 1 0;min-width:0;color:var(--muted)}
+.cal-card.short em{flex:none}
+.cal-card.tall{padding-block:5px;gap:2px}
+
+/* user menu */
+.um{position:relative}
+.um>button{display:inline-flex;align-items:center;gap:8px;color:var(--on-ink);background:var(--ink-3);border:0;border-radius:999px;padding:8px 14px;font:inherit;font-size:14px;cursor:pointer}
+.um>button:hover{background:var(--ink-line)}
+.um-list{position:absolute;inset-inline-end:0;top:calc(100% + 6px);min-width:210px;max-width:calc(100vw - 16px);background:#fff;color:var(--text);border-radius:14px;border:1px solid var(--rule);box-shadow:0 12px 32px #0004;padding:6px;display:flex;flex-direction:column;z-index:40}
+.um-list a,.um-list button{display:block;text-align:start;font:inherit;font-size:14px;padding:10px 12px;border:0;background:none;border-radius:10px;cursor:pointer;color:var(--text);text-decoration:none}
+.um-list a:hover,.um-list button:hover{background:var(--paper)}
+.um-list .who{padding:8px 12px;color:var(--muted);font-size:12px;border-bottom:1px solid var(--rule-soft);margin-bottom:4px}
+
+/* settings */
+.setwrap{display:grid;grid-template-columns:210px minmax(0,1fr);gap:20px;align-items:start}
+.settabs{display:flex;flex-direction:column;gap:2px;background:#fff;border:1px solid var(--rule);border-radius:16px;padding:8px;position:sticky;top:12px}
+.settabs button{display:flex;align-items:center;gap:8px;font:inherit;font-size:14px;text-align:start;padding:10px 12px;border:0;background:none;border-radius:10px;cursor:pointer;color:var(--text)}
+.settabs button:hover{background:var(--paper)}
+.settabs button.on{background:var(--ink);color:#fff}
+.setbody{display:flex;flex-direction:column;gap:14px;min-width:0}
+.plain{display:contents}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:end}
+.grid3 .full{grid-column:1/-1;display:flex;flex-direction:column;gap:10px}
+.tight{margin:6px 0 0;padding-inline-start:18px}
+.faqrow{display:flex;justify-content:space-between;gap:14px;align-items:baseline;padding-block:8px;border-bottom:1px solid var(--rule-soft);font-size:14px}
+.week{display:flex;flex-direction:column}
+.weekrow{display:grid;grid-template-columns:110px minmax(0,1fr);gap:12px;align-items:center;padding-block:8px;border-bottom:1px solid var(--rule-soft);font-size:14px}
+.periods{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
+.period{display:inline-flex;align-items:center;gap:6px}
+.period input{font:inherit;min-height:38px;padding:0 8px;border:1px solid var(--field);border-radius:10px;background:#fff;direction:ltr}
+.cal-away{display:block;padding:6px 8px;font-style:normal;font-size:12px;color:var(--muted);overflow:hidden;background:repeating-linear-gradient(135deg,#ffe9c7,#ffe9c7 6px,#fff5e3 6px,#fff5e3 12px)}
+@media (max-width:820px){.setwrap{grid-template-columns:1fr}.settabs{flex-direction:row;overflow-x:auto;position:static}.settabs button{white-space:nowrap}.grid2,.grid3{grid-template-columns:1fr}}
+
+/* audit log */
+.integrity{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;background:#fff;border:1px solid var(--rule);border-radius:16px;padding:12px 16px;font-size:14px}
+.integrity.good strong{color:var(--accent-ink)}
+.integrity.bad{border-color:var(--error);background:var(--error-tint)}
+.integrity.bad strong{color:var(--error)}
+.auditt{min-width:900px}
+.nowrap{white-space:nowrap}
+.clickrow{cursor:pointer}
+.clickrow:hover td{background:var(--paper)}
+.diff{font-size:13px;max-width:280px;overflow-wrap:anywhere}
+.diff del{color:var(--error);text-decoration:line-through}
+.diff ins{color:var(--accent-ink);text-decoration:none;font-weight:500}
+.detailrow td{background:var(--paper)}
+.detailrow pre{background:#fff;border:1px solid var(--rule-soft);border-radius:10px;padding:10px;font:12px var(--font-mono);overflow:auto;max-height:280px;margin:6px 0 0;text-align:left}
+.wrapany{overflow-wrap:anywhere}
+
+/* Online booking link */
+.btn-wa{background:#25D366;color:#0A0F14}
+.btn-wa:hover{filter:brightness(.95)}
+.warntext{color:#8a5200}
+.qrbox{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.qrbox canvas{border:1px solid var(--rule);border-radius:12px;background:#fff;padding:8px;width:132px;height:132px}
+.linkbox{font-family:var(--font-mono);direction:ltr;background:#fff;border:1px solid var(--rule);border-radius:10px;padding:8px 12px;font-size:14px;word-break:break-all}
+.brochures{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.brochure{border:1px solid var(--rule);border-radius:14px;padding:12px;background:#fff;display:flex;flex-direction:column;gap:6px}
+.brochure .size{display:grid;place-items:center;height:72px;border-radius:10px;background:var(--paper);color:var(--muted);font-size:13px}
+.brochure .btn{margin-top:auto;white-space:normal}
+.swatches{display:flex;gap:10px;flex-wrap:wrap}
+.swatch{width:30px;height:30px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px var(--rule);cursor:pointer;padding:0}
+.swatch.on{box-shadow:0 0 0 2px var(--ink)}
+.swatch:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+@media (max-width:820px){.brochures{grid-template-columns:1fr 1fr}}
+/* phones: one brochure per row, the size beside its name, the button across the card */
+@media (max-width:560px){.brochures{grid-template-columns:1fr}
+  .brochure{display:grid;grid-template-columns:100px minmax(0,1fr);column-gap:12px;row-gap:4px;align-items:center}
+  .brochure .size{grid-row:span 2;height:56px}
+  .brochure>:last-child{grid-column:1/-1;margin-top:6px}}
+.newtag{flex:none;font-size:10.5px;line-height:1.6;background:var(--accent);color:var(--ink);border-radius:999px;padding:0 7px;margin-inline-start:auto}
+.field textarea{font:inherit;font-weight:400;padding:10px 14px;border:1px solid var(--field);border-radius:12px;background:#fff;color:var(--text);width:100%;resize:vertical;min-height:72px}
+html[lang="ar"] textarea{font-family:var(--font-ar)}
+
+/* ---- visit notes (AI Scribe, design: booking/design/ai-scribe.html) */
+.btn-ghost{background:transparent;color:var(--accent-ink);border-color:var(--rule)}
+.btn-xs{min-height:32px;padding:0 12px;font-size:13px}
+.row.center{justify-content:center}
+.note-card{max-width:760px}
+.consent{font-size:15px;line-height:1.7;padding:12px 14px;border-radius:14px;background:var(--accent-tint);border:1px solid var(--accent-ink);color:var(--text)}
+.rec-card{align-items:center;text-align:center;padding-block:30px}
+.rec{display:inline-flex;align-items:center;gap:8px;font:600 13px var(--font-mono);color:var(--error);background:var(--error-tint);border:1px solid #F3B4AB;border-radius:999px;padding:4px 12px}
+html[lang="ar"] .rec{font-family:var(--font-ar)}
+.rec i{width:10px;height:10px;border-radius:50%;background:#D92D20;display:inline-block}
+.rec.off{color:var(--muted);background:var(--rule-soft);border-color:var(--rule)}
+.rec.off i{background:var(--field)}
+@media (prefers-reduced-motion:no-preference){.rec:not(.off) i{animation:blink 1.2s ease-in-out infinite}.spinner{animation:spin .8s linear infinite}}
+@keyframes blink{50%{opacity:.25}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.timer{font-size:54px;font-weight:500;letter-spacing:.02em;direction:ltr}
+.level{display:flex;gap:3px;align-items:center;height:46px;direction:ltr}
+.level span{width:6px;border-radius:3px;background:var(--accent-ink)}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--rule);border-top-color:var(--accent-ink);border-radius:50%;vertical-align:-2px}
+.note{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:900px){.note{grid-template-columns:1fr}}
+.sec-h{font:500 12px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent-ink);margin-bottom:4px}
+html[lang="ar"] .sec-h{font-family:var(--font-ar);font-weight:600;letter-spacing:0;font-size:13px}
+.nbox{display:block;width:100%;border:1px solid var(--field);border-radius:12px;padding:10px 12px;background:#fff;font:inherit;font-size:14px;line-height:1.55;min-height:42px;color:var(--text);white-space:pre-wrap;text-align:start}
+.nbox.nm{color:var(--muted);font-style:italic;background:var(--paper)}
+.nbox.editable{cursor:text}
+.nbox.editable:hover{border-color:var(--accent-ink)}
+.nbox:focus-visible,textarea.nbox:focus{outline:none;border-color:var(--accent-ink);box-shadow:0 0 0 3px var(--accent-tint)}
+textarea.nbox{resize:vertical}
+html[lang="ar"] .nbox[lang="en"]{font-family:var(--font-body)}
+mark.u{background:var(--amber-tint);border-bottom:2px solid var(--amber);padding:0 2px;border-radius:3px;color:inherit}
+mark.d{background:#E8F0FF;border-bottom:2px solid #3B6FD8;padding:0 2px;border-radius:3px;color:inherit}
+.legend2{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);align-items:center}
+.tx{background:#fff;border:1px solid var(--rule);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px;max-height:640px;overflow:auto;position:sticky;top:12px}
+@media (max-width:900px){.tx{position:static;max-height:none}}
+.tl{display:grid;grid-template-columns:52px 1fr;gap:8px;font-size:13.5px;line-height:1.5}
+.tl .t{font-size:11.5px;color:var(--muted);padding-top:2px}
+.tl b{font-size:12px;color:var(--muted);display:block}
+.tl.dr b{color:var(--accent-ink)}
+/* dictation (design: booking/design/dictation.html) */
+.sec-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}
+.sec-row .sec-h{margin-bottom:0}
+.mic{display:inline-flex;align-items:center;gap:6px;min-height:30px;padding:0 10px;border-radius:999px;border:1px solid var(--rule);background:#fff;color:var(--accent-ink);font:600 12.5px var(--font-body);cursor:pointer;white-space:nowrap}
+html[lang="ar"] .mic{font-family:var(--font-ar)}
+.mic:hover:not(:disabled){border-color:var(--accent-ink)}
+.mic:disabled{opacity:.45;cursor:default}
+.dict{border:1.5px solid var(--error);border-radius:12px;background:#FFF8F7;padding:10px 12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.dict.busy{border-color:var(--accent-ink);background:#F6FDFA}
+.level.small{height:30px}.level.small span{width:5px}
+.heard{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-top:4px}
+.heard q{font-style:normal;quotes:none}
+.nbox.new{border-color:var(--accent-ink);box-shadow:0 0 0 3px var(--accent-tint)}
+.whole{border:1px dashed var(--accent-ink);border-radius:16px;background:#F6FDFA;padding:14px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.whole b{display:block}
+.whole .grow{min-width:200px}
+.whole .ic{width:38px;height:38px;border-radius:12px;background:var(--accent-tint);color:var(--accent-ink);display:grid;place-items:center;flex:none}
+.signbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:14px;border:1px solid var(--rule);border-radius:16px;background:#fff}
+.sign-card{border-color:var(--accent-ink)}
+.locked{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:14px;background:var(--accent-tint);border:1px solid var(--accent-ink);color:var(--accent-ink);font-size:14px}
+.locked svg{flex:none;margin-top:2px}
+.addition{border-inline-start:3px solid var(--rule);padding-inline-start:12px;display:flex;flex-direction:column;gap:2px;font-size:14px;white-space:pre-wrap}
+.sec-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.sec-item{border:1px solid var(--rule);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.cal-note{font-style:normal}
+.notelink{text-decoration:none}
+.notelink .pill{box-shadow:0 0 0 1px var(--accent-ink)}
+.notelink:hover .pill{box-shadow:0 0 0 2px var(--accent-ink)}
+/* Phone numbers, codes and links keep their left-to-right order, but in Arabic they start at the right like every other field. */
+html[dir="rtl"] input.mono{text-align:right}
+
+/* the chart line on the visit note (Records) */
+.chartline{background:#fff;border:1px solid var(--rule);border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.chartalert{display:inline-flex;gap:6px;align-items:center;border-radius:10px;padding:5px 10px;font-size:13px;border:1px solid}
+.chartalert.red{background:var(--error-tint);border-color:#F3B4AB;color:#7a1a12}
+.chartalert.amb{background:var(--amber-tint);border-color:var(--amber);color:#5c3700}
+
+/* insurance line from Records (design: booking/design/insurance.html) */
+.inswrap{position:relative;display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
+.linkish{font:inherit;background:none;border:0;padding:0;cursor:pointer;color:var(--accent-ink)}
+.insline{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px}
+.pop{position:absolute;top:calc(100% + 6px);inset-inline-start:0;z-index:30;width:min(380px,calc(100vw - 32px));border:1px solid var(--rule);border-radius:16px;padding:14px;
+  box-shadow:0 12px 32px #0002;background:#fff;color:var(--text);display:flex;flex-direction:column;gap:8px;font-size:14px}
+.pop dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0}
+.pop dt{color:var(--muted)}.pop dd{margin:0;overflow-wrap:anywhere}
+.popnote{background:var(--amber-tint);border-radius:10px;padding:8px 10px;font-size:13.5px;white-space:pre-wrap}
+
+/* calendar: the Day / Week switch, the week view and the "today" line (design: booking/design/week-view.html) */
+.seg{display:inline-flex;border:1px solid var(--text);border-radius:999px;overflow:hidden}
+.seg button{font:inherit;font-size:14px;padding:0 16px;min-height:38px;border:0;background:transparent;cursor:pointer;color:var(--text)}
+.seg button.on{background:var(--ink);color:#fff}
+.todayline{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;background:#fff;border:1px solid var(--rule);border-radius:14px;padding:10px 14px;font-size:14px}
+.todayline a{color:var(--text);text-decoration:none;border-bottom:1px dotted var(--field)}
+.todayline .tl-warn{color:#8a5200}
+.wk .cal-head b{display:flex;flex-direction:column;gap:2px}
+.wk .cal-head b small{font-weight:400;color:var(--muted);font-size:12px}
+.wk .cal-head b.today{background:var(--accent-tint)}
+.wk .cal-col.today{background:#f6fdfa}
+.wk .cal-card.short b{flex:none}
+.wk-closed{position:absolute;top:8px;inset-inline:0;text-align:center;font-style:normal;font-size:12px;color:var(--muted);pointer-events:none}
+.agenda{display:none;flex-direction:column;gap:10px}
+.ag-day{background:#fff;border:1px solid var(--rule);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:6px}
+.ag-day.today{border-color:var(--accent-ink)}
+.ag-row{display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:10px;background:var(--accent-tint);border:1px solid var(--accent-ink);color:var(--text);text-decoration:none;font-size:14px}
+.ag-row .hint{margin-inline-start:auto}
+.ag-row.st-completed{background:#e1e6e4;border-color:var(--field)}
+.ag-row.st-no_show,.ag-row.unchecked{background:var(--amber-tint);border-color:var(--amber)}
+.ag-row.src-whatsapp{border-inline-start:5px solid #25D366}
+@media (max-width:720px){.cal.wk{display:none}.agenda{display:flex}}
+/* Records phase C on the booking page: the forms link to send */
+.formlink{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+/* ---- copied from booking/client/src/book/book.css (the online booking page; its :root and body rules are the same as above) ---- */
+.flip{display:inline-block}[dir="rtl"] .flip{transform:scaleX(-1)}
+.hp{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+
+.bk{max-width:480px;margin-inline:auto;padding-inline:16px;padding-block:16px 28px;min-height:100vh;display:flex;flex-direction:column;gap:14px;background:#fff}
+@media (min-width:520px){.bk{min-height:auto;border:1px solid var(--rule);border-radius:28px;padding-inline:22px}}
+.bk-head{display:flex;align-items:center;gap:10px}
+.bk-logo{width:42px;height:42px;border-radius:12px;background:var(--ink);display:grid;place-items:center;flex:none}
+.bk-name{min-width:0}.bk-name b{display:block;font-size:15px;line-height:1.25}.bk-name span{font-size:12.5px;color:var(--muted)}
+.bk-lang{margin-inline-start:auto;font-size:13px;border:1px solid var(--rule);border-radius:999px;padding:4px 12px;background:#fff;cursor:pointer;white-space:nowrap}
+.bk-title{font-family:var(--font-display);font-weight:500;font-size:22px;line-height:1.3;margin:6px 0 0}
+.bk-title.sm{font-size:19px;margin:0}
+html[lang="ar"] .bk-title{font-family:var(--font-ar);font-weight:600}
+.bk-hint{color:var(--muted);font-size:14px;margin:0}
+.bk-note{font-size:14px;margin:0}
+.bk-stack{display:flex;flex-direction:column;gap:10px}
+.bk-row{display:flex;gap:10px;margin-top:6px}.bk-row>*{flex:1}
+.bk-steps{display:flex;gap:6px}.bk-steps i{flex:1;height:4px;border-radius:2px;background:var(--rule-soft)}.bk-steps i.on{background:var(--accent-ink)}
+
+.bk-choice{display:flex;gap:12px;align-items:center;padding:14px;border:1px solid var(--rule);border-radius:16px;background:#fff;text-align:start;width:100%;cursor:pointer}
+.bk-choice b{display:block;font-size:15px}.bk-choice small{display:block;font-size:13px;color:var(--muted)}
+.bk-choice.on{border:2px solid var(--accent-ink);background:#F6FDFA;padding:13px}
+.bk-choice.off{opacity:.55;background:var(--paper);cursor:default}
+.bk-choice:focus-visible,.bk-btn:focus-visible,.bk-days button:focus-visible,.bk-times button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.bk-ic{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;flex:none;background:var(--accent-tint);color:var(--accent-ink)}
+.bk-end{margin-inline-start:auto;color:var(--muted)}
+.bk-tick{color:var(--accent-ink);font-weight:700}
+.bk-pill{display:inline-flex;align-items:center;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;background:var(--rule-soft);color:var(--text);white-space:nowrap}
+.bk-pill.ok{background:var(--accent-tint);color:var(--accent-ink)}.bk-pill.warn{background:var(--amber-tint);color:#5c3700}.bk-pill.bad{background:var(--error-tint);color:var(--error)}
+
+.bk-nav{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--muted)}
+.bk-nav button{background:none;border:0;padding:6px 4px;cursor:pointer;color:var(--muted)}.bk-nav button:disabled{opacity:.35;cursor:default}
+.bk-nav b{color:var(--text)}
+.bk-days{display:grid;gap:4px}
+.bk-days button{display:flex;flex-direction:column;align-items:center;padding:6px 0;border-radius:12px;border:1px solid var(--rule-soft);background:#fff;font-size:11px;color:var(--muted);cursor:pointer}
+.bk-days button b{font-size:15px;color:var(--text)}
+.bk-days button.on{background:var(--ink);border-color:var(--ink);color:#c9d2d7}.bk-days button.on b{color:#fff}
+.bk-days button:disabled{opacity:.4;cursor:default}
+.bk-times{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.bk-times button{padding:10px 0;border-radius:12px;border:1px solid var(--rule);background:#fff;font:500 15px var(--font-mono);cursor:pointer}
+.bk-times button.on{background:var(--accent);border-color:var(--accent)}
+
+.bk-field{display:flex;flex-direction:column;gap:6px;font-size:14px;font-weight:600}
+.bk-field small{font-weight:400;color:var(--muted);font-size:13px}
+.bk-field input{min-height:48px;padding:0 14px;border:1px solid var(--field);border-radius:12px;background:#fff;font-weight:400;width:100%}
+.bk-tel{display:flex;align-items:center;border:1px solid var(--field);border-radius:12px;background:#fff;overflow:hidden}
+.bk-tel>span{padding-inline:12px;color:var(--muted);border-inline-end:1px solid var(--rule-soft);font-weight:400}
+.bk-tel input{border:0;border-radius:0;min-width:0}
+.bk-field input:focus,.bk-tel:focus-within{outline:2px solid var(--accent-ink);outline-offset:1px}
+.bk-tel input:focus{outline:0}
+.bk-check{display:flex;gap:10px;align-items:flex-start;font-size:14px}
+.bk-check input{width:20px;height:20px;margin:1px 0 0;accent-color:var(--accent-ink);flex:none}
+
+.bk-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:50px;padding:0 20px;border-radius:999px;border:1px solid transparent;font-weight:600;cursor:pointer;text-decoration:none;text-align:center}
+.bk-btn:disabled{opacity:.45;cursor:default}
+.bk-btn.ink{background:var(--ink);color:#fff}.bk-btn.accent{background:var(--accent);color:var(--ink)}
+.bk-btn.outline{border-color:var(--text);color:var(--text);background:#fff}.bk-btn.ghost{border-color:var(--rule);color:var(--text);background:#fff}
+.bk-btn.wa{background:#25D366;color:#06301a}.bk-waico{flex:none;inline-size:22px;block-size:22px}
+.bk-cal{display:flex;flex-direction:column;gap:8px}.bk-cal-h{font-weight:600;font-size:14px}
+.bk-cal-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.bk-calbtn{min-height:52px;padding-inline:0}
+.bk-calico{display:inline-flex;inline-size:26px;block-size:26px}.bk-calico svg{inline-size:100%;block-size:100%}
+/* The name above the icon: under the mouse (screens that have one) or the keyboard. Centred, so the same both ways (RTL). */
+.bk-calbtn{position:relative}
+.bk-calbtn::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 8px);left:50%;transform:translate(-50%,4px);background:var(--ink);color:#fff;font-size:12.5px;font-weight:500;line-height:1;padding:7px 10px;border-radius:8px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .15s,transform .15s;z-index:2}
+.bk-calbtn:focus-visible::after{opacity:1;transform:translate(-50%,0)}
+@media (hover:hover){.bk-calbtn:hover::after{opacity:1;transform:translate(-50%,0)}}
+@media (prefers-reduced-motion:reduce){.bk-calbtn::after{transition:none}}
+.bk-find{margin:0;padding-top:12px;border-top:1px solid var(--rule-soft);font-size:14px}.bk-find span{color:var(--muted)}.bk-find a{font-weight:600}
+.bk-ok.wa{background:#E3F9EC;color:#128C4B}
+a.bk-choice{color:inherit;text-decoration:none}
+.bk-btn.danger.solid{background:var(--error);color:#fff}
+
+/* "Talk to the assistant" */
+.ch{display:flex;flex-direction:column;gap:8px;margin-inline:-16px;padding:12px 14px;background:#EEF2F0;min-height:52vh}
+@media (min-width:520px){.ch{margin-inline:-22px}}
+.ch-head{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);padding-bottom:4px}
+.ch-ai{font:600 11px var(--font-mono);letter-spacing:.04em;background:var(--ink);color:var(--accent);border-radius:999px;padding:2px 8px}
+.ch-person{margin-inline-start:auto;background:none;border:0;color:var(--accent-ink);font-weight:600;font-size:13px;cursor:pointer;padding:4px}
+.ch-b{max-width:86%;padding:8px 11px;border-radius:14px;font-size:14.5px;line-height:1.5;box-shadow:0 1px 0 rgba(10,15,20,.06);overflow-wrap:anywhere}
+.ch-b.ai{align-self:flex-start;background:#fff;border-end-start-radius:4px}
+.ch-b.me{align-self:flex-end;background:#D9FBEF;border-end-end-radius:4px}
+.ch-typing{color:var(--muted);font-style:italic}
+.ch-chips{display:flex;flex-wrap:wrap;gap:6px;align-self:flex-start;max-width:94%}
+.ch-chips button{border:1px solid var(--accent-ink);color:var(--accent-ink);background:#fff;border-radius:999px;padding:6px 12px;font-size:13.5px;cursor:pointer}
+.ch-chips button.mono{font:500 14px var(--font-mono)}
+.ch-chips button:disabled{opacity:.5;cursor:default}
+.ch-card{align-self:stretch;background:#fff;border:1px solid var(--rule);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:9px;font-size:14px}
+.ch-card .bk-btn{min-height:46px}
+.ch-done{display:flex;gap:10px;align-items:center}.ch-done .bk-ok{width:38px;height:38px;font-size:20px}
+.ch-in{position:sticky;bottom:0;display:flex;gap:8px;align-items:center;margin-inline:-16px;padding:10px 12px;border-top:1px solid var(--rule-soft);background:#fff}
+@media (min-width:520px){.ch-in{margin-inline:-22px}}
+.ch-in input{flex:1;min-width:0;min-height:44px;border:1px solid var(--field);border-radius:999px;padding-inline:16px;background:#fff}
+.ch-in input:focus{outline:2px solid var(--accent-ink);outline-offset:1px}
+.ch-send{width:44px;height:44px;border-radius:50%;border:0;background:var(--accent);color:var(--ink);display:grid;place-items:center;flex:none;cursor:pointer}
+.ch-send:disabled{opacity:.45;cursor:default}
+.ch-chips button:focus-visible,.ch-send:focus-visible,.ch-person:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.bk-btn.danger{border-color:var(--error);color:var(--error);background:#fff}
+
+.bk-card{border:1px solid var(--rule);border-radius:18px;padding:10px 14px;background:#fff}
+.bk-card.soft{background:var(--paper);border-color:var(--rule-soft)}
+.bk-card.stack{display:flex;flex-direction:column;gap:10px;padding:14px}
+.bk-sum{display:flex;justify-content:space-between;gap:10px;padding-block:8px;border-bottom:1px solid var(--rule-soft);font-size:14px}
+.bk-sum:last-child{border-bottom:0}.bk-sum span{color:var(--muted)}.bk-sum b{text-align:end}
+.bk-banner{padding:12px 14px;border-radius:14px;font-size:14px;border:1px solid}
+.bk-banner.warn{background:var(--amber-tint);border-color:var(--amber);color:#5c3700}
+.bk-banner.info,.bk-banner.ok{background:var(--accent-tint);border-color:var(--accent-ink);color:var(--accent-ink)}
+.bk-banner.bad{background:var(--error-tint);border-color:var(--error);color:#7a1a12}
+.bk-done{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
+.bk-ok{width:56px;height:56px;border-radius:50%;background:var(--accent-tint);display:grid;place-items:center;color:var(--accent-ink);font-size:28px;font-weight:700}
+.bk-link{display:flex;gap:8px;align-items:center;padding:8px 8px 8px 12px;border-radius:12px;background:var(--paper);font-weight:400}
+.bk-link span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px}
+.bk-link button{border:1px solid var(--rule);background:#fff;border-radius:999px;padding:4px 12px;font-size:13px;cursor:pointer;flex:none}
+.bk-foot{margin-top:auto;padding-top:12px;font-size:12px;color:var(--muted);text-align:center}
+.bk-brand{font-family:var(--font-display);font-weight:500}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+/* ---- new in this design (would go into styles.css / book.css) ---- */
+.vic{display:inline-block;vertical-align:-2px;flex:none}
+.pill.vt{background:#E8F0FF;color:#2B4FA0;gap:4px}
+.cal-card.vt-online{border-style:dashed}
+.cal-card.vt-online b .vic,.ag-row.vt-online .vic{color:#2B4FA0}
+.ag-row.vt-online{border-style:dashed}
+.todayline .tl-vt{color:#2B4FA0}
+.linkrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.linkrow .linkbox{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sendmenu{position:relative;display:inline-block}
+.sendmenu .um-list{position:static;margin-top:6px;min-width:240px;box-shadow:0 12px 32px #0002}
+.sendmenu .um-list button{display:flex;gap:10px;align-items:center}
+.sendmenu .um-list button[disabled]{opacity:.5;cursor:default}
+.sendmenu .um-list small{margin-inline-start:auto;color:var(--muted);font-size:12px}
+.sentlog{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px;font-size:13.5px}
+.sentlog li{display:flex;gap:8px;flex-wrap:wrap;align-items:baseline}
+.chan{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px 12px;align-items:start;padding-block:10px;border-bottom:1px solid var(--rule-soft)}
+.chan:last-child{border-bottom:0}
+.chan input[type=checkbox]{width:20px;height:20px;margin-top:2px}
+.chan b{display:block}
+.radios{display:flex;flex-direction:column;gap:8px}
+.radio{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--rule);border-radius:14px;padding:12px 14px;background:#fff}
+.radio.on{border:2px solid var(--accent-ink);background:#F6FDFA;padding:11px 13px}
+.radio.dis{background:var(--paper);color:var(--muted)}
+.radio input{width:18px;height:18px;margin-top:3px}
+.nextbox{border:1px dashed var(--accent-ink);border-radius:16px;background:#F6FDFA;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+/* patient page */
+.bk-seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.bk-seg .bk-choice{flex-direction:column;align-items:flex-start;gap:6px}
+.bk-join{border:2px solid var(--accent-ink);border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:10px;background:#F6FDFA}
+.bk-join.wait{border:1px solid var(--rule);background:var(--paper)}
+.bk-join ol{margin:0;padding-inline-start:20px;font-size:14px;display:flex;flex-direction:column;gap:4px}
+.bk-chips{display:flex;gap:6px;flex-wrap:wrap}
+.bk-chips span{border:1px solid var(--rule);border-radius:999px;padding:6px 14px;font-size:14px;background:#fff}
+.bk-chips span.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+/* WhatsApp / SMS / email look-alikes */
+.wa-chat{background:#ECE5DD;padding:14px;display:flex;flex-direction:column;gap:8px;min-height:300px}
+.wa-top{background:#075E54;color:#fff;padding:10px 14px;display:flex;gap:10px;align-items:center;font-size:14px}
+.wa-top i{width:30px;height:30px;border-radius:50%;background:#fff3;display:inline-block}
+.wa-msg{align-self:flex-start;max-width:88%;background:#fff;border-radius:10px;border-start-start-radius:2px;padding:8px 10px;font-size:14px;line-height:1.5;box-shadow:0 1px 0 #0001}
+.wa-msg small{display:block;text-align:end;color:#667;font-size:11px}
+.wa-btns{align-self:flex-start;max-width:88%;width:88%;display:flex;flex-direction:column;gap:2px}
+.wa-btns span{background:#fff;border-radius:8px;text-align:center;color:#027EB5;padding:8px;font-size:14px;box-shadow:0 1px 0 #0001}
+.sms{background:#fff;padding:14px;display:flex;flex-direction:column;gap:8px;min-height:180px}
+.sms .from{text-align:center;font-size:12px;color:var(--muted)}
+.sms .b{align-self:flex-start;max-width:85%;background:#E9E9EB;border-radius:18px;padding:8px 12px;font-size:14px;line-height:1.45}
+.mail{background:#fff;border:1px solid var(--rule);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px;font-size:14px}
+.mail .hd{border-bottom:1px solid var(--rule-soft);padding-bottom:8px;display:flex;flex-direction:column;gap:2px}
+/* the printed slip */
+.slip{width:min(105mm,100%);aspect-ratio:105/148;background:#fff;border:1px solid var(--rule);border-radius:6px;box-shadow:0 10px 30px #0001;padding:16px;display:flex;flex-direction:column;gap:8px;font-size:13px;margin-inline:auto}
+.slip .top{display:flex;align-items:center;gap:8px;border-bottom:2px solid var(--ink);padding-bottom:8px}
+.slip h3{font-size:16px;margin:0}
+.slip .qrz{display:flex;gap:12px;align-items:center}
+.slip svg.fakeqr{width:108px;height:108px;flex:none}
+.slip ol{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;gap:2px;font-size:12px}
+.slip .foot{margin-top:auto;font-size:11px;color:var(--muted);display:flex;justify-content:space-between;gap:8px}
+/* ---- design page only ---- */
+html[lang="en"] [data-ar], html[lang="ar"] [data-en]{display:none}
+.doc{max-width:1100px;margin-inline:auto;padding-inline:16px;padding-block:28px;display:flex;flex-direction:column;gap:18px}
+.doc>h1{font-size:28px}.doc h2.s{font-size:20px;margin-top:18px}
+.doc ul.notes{margin:0;padding-inline-start:20px;display:flex;flex-direction:column;gap:6px}
+.frame{border:1px solid var(--rule);border-radius:22px;overflow:hidden;background:var(--paper);box-shadow:0 10px 30px #0001}
+.frame .page{padding-block:22px}
+.tag{display:inline-block;font:600 11px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--accent-ink);background:var(--accent-tint);border-radius:999px;padding:3px 10px}
+.new{outline:2px dashed var(--accent-ink);outline-offset:4px;border-radius:16px}
+.toc{display:flex;flex-wrap:wrap;gap:6px}.toc a{font-size:13px;padding:5px 12px;border-radius:999px;border:1px solid var(--rule);background:#fff;text-decoration:none;color:var(--text)}
+.an{background:#fff;border:1px solid var(--rule);border-radius:20px;padding:22px;display:flex;flex-direction:column;gap:14px}
+.an h3{font-size:16px;margin-top:6px}
+.an ul,.an ol{margin:0;padding-inline-start:20px;display:flex;flex-direction:column;gap:6px}
+.dec{border:2px solid var(--accent-ink);background:#F6FDFA}
+.q{background:#fff;border:1px solid var(--rule);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.q .rec{color:var(--accent-ink);font-weight:600}
+.q .alt{color:var(--muted);font-size:14px}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;align-items:start}
+.phones{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;align-items:start}
+.phone{max-width:370px;width:100%;margin-inline:auto;border-radius:30px;border:10px solid #0A0F14;overflow:hidden;background:#fff}
+.phone .bk{min-height:auto;border:0;border-radius:0;font-size:16px;padding-inline:16px}
+.cap{font-size:13px;color:var(--muted);text-align:center;margin-top:6px}
+.cmp{min-width:820px}.cmp td{vertical-align:top}.cmp td:first-child{font-weight:600;width:22%}
+.good{color:var(--accent-ink)}.bad{color:var(--error)}
+pre.sql{background:var(--ink);color:#d6e2e6;border-radius:16px;padding:16px;font:12.5px/1.55 var(--font-mono);overflow:auto;direction:ltr;text-align:left;margin:0}
+pre.sql i{color:#7f9aa6;font-style:normal}
+.phase{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.phase>div{border:1px solid var(--rule);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:8px;background:#fff}
+.phase ul{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;gap:4px;font-size:14px}
+.flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:14px}
+.flow span{background:#fff;border:1px solid var(--rule);border-radius:999px;padding:6px 12px}
+.flow b{color:var(--muted)}
+.langfix{position:fixed;top:12px;inset-inline-end:12px;z-index:50}
+</style>
+</head>
+<body>
+<div class="langfix"><button class="langbtn" type="button" onclick="flip()"><span data-en>العربية</span><span data-ar>English</span></button></div>
+<main class="doc">
+  <div><span class="tag"><span data-en>Design · for your approval · nothing built yet</span><span data-ar>تصميم · للموافقة · لم يُبنَ شيء بعد</span></span></div>
+  <h1 class="display"><span data-en>Online visits on Microsoft Teams</span><span data-ar>الزيارات أونلاين عبر Microsoft Teams</span></h1>
+  <p><span data-en>The start of telemedicine in Limitsiz Clinic. A clinic switches online visits on in <b>Booking › Settings</b>. Patients choose “Online visit” on the booking page or in the chat and follow the same steps as an in-clinic booking. Staff can book one too, and a doctor can make the next visit an online one. When the clinic confirms, the patient gets a <b>“Join the visit”</b> link by the ways the clinic switched on: WhatsApp, SMS, email, or a printed copy with a QR code. The link opens the Teams meeting. New parts have a dashed outline.</span><span data-ar>بداية الطب عن بُعد في Limitsiz Clinic. تشغّل العيادة الزيارات أونلاين من <b>المواعيد › الإعدادات</b>. يختار المريض «زيارة أونلاين» في صفحة الحجز أو في المحادثة ويتبع الخطوات نفسها كحجز العيادة. ويستطيع الموظفون حجزها أيضاً، ويستطيع الطبيب أن يجعل الزيارة القادمة أونلاين. عندما تؤكد العيادة، يصل المريض رابط <b>«ادخل الزيارة»</b> بالطرق التي فعّلتها العيادة: واتساب أو رسالة SMS أو البريد الإلكتروني أو نسخة مطبوعة برمز QR. والرابط يفتح اجتماع Teams. الأجزاء الجديدة بإطار منقّط.</span></p>
+  <div class="flow">
+    <span data-en>Patient books “Online visit”</span><span data-ar>المريض يحجز «زيارة أونلاين»</span><b>›</b>
+    <span data-en>Clinic confirms</span><span data-ar>العيادة تؤكد</span><b>›</b>
+    <span data-en>“Join the visit” link: WhatsApp · SMS · email · print</span><span data-ar>رابط «ادخل الزيارة»: واتساب · SMS · بريد · طباعة</span><b>›</b>
+    <span data-en>Reminders carry it again</span><span data-ar>التذكيرات تحمله مرة أخرى</span><b>›</b>
+    <span data-en>Doctor lets the patient in on Teams</span><span data-ar>الطبيب يُدخل المريض على Teams</span><b>›</b>
+    <span data-en>Visit note as today</span><span data-ar>ملاحظة الزيارة كما اليوم</span>
+  </div>
+  <nav class="toc">
+    <a href="#a"><span data-en>A Analysis</span><span data-ar>أ التحليل</span></a>
+    <a href="#d"><span data-en>B Your decisions</span><span data-ar>ب قراراتك</span></a>
+    <a href="#s1"><span data-en>1 Settings</span><span data-ar>١ الإعدادات</span></a>
+    <a href="#s1b"><span data-en>1b Payment</span><span data-ar>١ب الدفع</span></a>
+    <a href="#s2"><span data-en>2 Doctor's buffer</span><span data-ar>٢ مهلة الطبيب</span></a>
+    <a href="#s3"><span data-en>3 Patient chooses online</span><span data-ar>٣ المريض يختار أونلاين</span></a>
+    <a href="#s4"><span data-en>4 Confirmation and the link</span><span data-ar>٤ التأكيد والرابط</span></a>
+    <a href="#s5"><span data-en>5 WhatsApp, SMS, email, print</span><span data-ar>٥ واتساب، SMS، بريد، طباعة</span></a>
+    <a href="#s6"><span data-en>6 Chat assistant</span><span data-ar>٦ المساعد</span></a>
+    <a href="#s7"><span data-en>7 Staff booking form</span><span data-ar>٧ نموذج الحجز</span></a>
+    <a href="#s8"><span data-en>8 The booking page</span><span data-ar>٨ صفحة الحجز</span></a>
+    <a href="#s9"><span data-en>9 Calendar</span><span data-ar>٩ التقويم</span></a>
+    <a href="#s10"><span data-en>10 Next visit from the note</span><span data-ar>١٠ الزيارة القادمة من الملاحظة</span></a>
+    <a href="#s11"><span data-en>11 Patient profile</span><span data-ar>١١ ملف المريض</span></a>
+    <a href="#data"><span data-en>C Data changes</span><span data-ar>ج تغييرات البيانات</span></a>
+    <a href="#build"><span data-en>D Build order</span><span data-ar>د ترتيب البناء</span></a>
+  </nav>
+
+  <!-- ================================================================ ANALYSIS -->
+  <section class="an" id="a">
+    <h2 class="display" style="font-size:20px"><span data-en>A · Analysis</span><span data-ar>أ · التحليل</span></h2>
+
+    <h3><span data-en>1. How the Teams meeting link is made</span><span data-ar>١. كيف يُصنع رابط اجتماع Teams</span></h3>
+    <div class="tablewrap"><table class="cmp">
+      <thead><tr><th><span data-en>Way</span><span data-ar>الطريقة</span></th><th><span data-en>How it works</span><span data-ar>كيف تعمل</span></th><th><span data-en>Good</span><span data-ar>المزايا</span></th><th><span data-en>Not so good</span><span data-ar>العيوب</span></th><th><span data-en>Needs</span><span data-ar>تحتاج</span></th></tr></thead>
+      <tbody>
+        <tr><td><span data-en>A. Each doctor's own Teams link</span><span data-ar>أ. رابط Teams الخاص بكل طبيب</span></td>
+          <td><span data-en>The doctor makes one recurring meeting in Teams (“Online visits”, lobby on) and pastes its link in Settings › Doctors. Every online visit with that doctor uses it.</span><span data-ar>ينشئ الطبيب اجتماعاً متكرراً واحداً في Teams («زيارات أونلاين»، مع صالة الانتظار) ويلصق رابطه في الإعدادات › الأطباء. كل زيارة أونلاين معه تستخدمه.</span></td>
+          <td class="good"><span data-en>Works on day one. No Microsoft setup, no cost beyond the doctor's Teams. Nothing to break on reschedule or cancel.</span><span data-ar>يعمل من اليوم الأول. بلا إعداد Microsoft وبلا تكلفة غير حساب Teams الطبيب. لا شيء ينكسر عند التغيير أو الإلغاء.</span></td>
+          <td class="bad"><span data-en>Same link for every patient: the lobby and the doctor checking the name are the protection. “Audio only” is a request, not enforced. A cancelled patient still knows the link (we only show it near the time).</span><span data-ar>الرابط نفسه لكل المرضى: الحماية هي صالة الانتظار وتحقق الطبيب من الاسم. «صوت فقط» طلب لا يُفرض. والمريض الذي ألغى يعرف الرابط (نعرضه فقط قرب الموعد).</span></td>
+          <td><span data-en>A Teams work account per doctor (Microsoft 365), lobby set to “only me can bypass”.</span><span data-ar>حساب Teams للعمل لكل طبيب (Microsoft 365)، وصالة الانتظار على «أنا فقط أتجاوزها».</span></td></tr>
+        <tr><td><span data-en>B. A link pasted on one booking</span><span data-ar>ب. رابط يُلصق على حجز واحد</span></td>
+          <td><span data-en>Staff or the doctor create a meeting in Outlook/Teams and paste it on the booking. Overrides A for that visit.</span><span data-ar>ينشئ الموظف أو الطبيب اجتماعاً في Outlook/Teams ويلصقه على الحجز. يحلّ محل (أ) لتلك الزيارة.</span></td>
+          <td class="good"><span data-en>A separate meeting per patient. Useful as a fallback when Teams misbehaves.</span><span data-ar>اجتماع منفصل لكل مريض. ومفيد كبديل عندما يتعطل Teams.</span></td>
+          <td class="bad"><span data-en>Manual work for every visit; easy to forget or paste the wrong link.</span><span data-ar>عمل يدوي لكل زيارة؛ سهل النسيان أو لصق رابط خاطئ.</span></td>
+          <td><span data-en>Nothing new.</span><span data-ar>لا شيء جديد.</span></td></tr>
+        <tr><td><span data-en>C. Automatic, on the clinic's Microsoft 365 (Microsoft Graph)</span><span data-ar>ج. تلقائي، على Microsoft 365 الخاص بالعيادة (Microsoft Graph)</span></td>
+          <td><span data-en>Limitsiz creates a new Teams meeting for each confirmed online visit, with the doctor as organiser: lobby on (only the doctor lets people in), camera off for audio-only visits, chat and recording off. Moves it when the time changes, deletes it on cancel.</span><span data-ar>ينشئ Limitsiz اجتماع Teams جديداً لكل زيارة أونلاين مؤكدة، والطبيب هو المنظّم: صالة انتظار (الطبيب وحده يُدخل)، الكاميرا مطفأة لزيارات الصوت فقط، المحادثة والتسجيل مطفآن. ينقله عند تغيير الوقت ويحذفه عند الإلغاء.</span></td>
+          <td class="good"><span data-en>One meeting per patient, no manual work, audio-only really enforced, a cancelled link stops working.</span><span data-ar>اجتماع لكل مريض، بلا عمل يدوي، و«صوت فقط» مفروض فعلاً، والرابط الملغى يتوقف.</span></td>
+          <td class="bad"><span data-en>Each clinic's IT administrator must approve the Limitsiz app once and run one Teams PowerShell command (an “application access policy”; it takes up to 30 minutes to work). More to build and to support.</span><span data-ar>يجب أن يوافق مسؤول تقنية المعلومات في كل عيادة على تطبيق Limitsiz مرة واحدة وينفّذ أمر PowerShell واحداً في Teams («سياسة وصول التطبيق»؛ يحتاج حتى 30 دقيقة ليعمل). بناء ودعم أكثر.</span></td>
+          <td><span data-en>The clinic has Microsoft 365 with Teams for each doctor. Limitsiz registers one app in Microsoft Entra (permission OnlineMeetings.ReadWrite.All); its secret lives in booking/.env.</span><span data-ar>لدى العيادة Microsoft 365 مع Teams لكل طبيب. وتسجّل Limitsiz تطبيقاً واحداً في Microsoft Entra (صلاحية OnlineMeetings.ReadWrite.All)؛ وسرّه في booking/.env.</span></td></tr>
+        <tr><td><span data-en>D. Automatic, on Limitsiz's own Microsoft 365</span><span data-ar>د. تلقائي، على Microsoft 365 الخاص بـ Limitsiz</span></td>
+          <td><span data-en>As C, but the meetings live in Limitsiz's tenant; each doctor gets a Limitsiz Teams account.</span><span data-ar>مثل (ج)، لكن الاجتماعات في حساب Limitsiz؛ ولكل طبيب حساب Teams من Limitsiz.</span></td>
+          <td class="good"><span data-en>No IT work at the clinic.</span><span data-ar>بلا عمل تقني في العيادة.</span></td>
+          <td class="bad"><span data-en>Limitsiz pays for and manages a licence per doctor, and becomes Microsoft's customer for the clinic's patient calls (a bigger processor role). Doctors sign in to a second Microsoft account.</span><span data-ar>تدفع Limitsiz وتدير ترخيصاً لكل طبيب، وتصبح عميل Microsoft لمكالمات مرضى العيادة (دور معالج بيانات أكبر). ويدخل الطبيب بحساب Microsoft ثانٍ.</span></td>
+          <td><span data-en>A licence per doctor (Microsoft 365 Business Basic, roughly US$6–7 a month each; check the current price).</span><span data-ar>ترخيص لكل طبيب (Microsoft 365 Business Basic، نحو 6–7 دولارات شهرياً لكل واحد؛ تحقق من السعر الحالي).</span></td></tr>
+        <tr><td><span data-en>E. Microsoft's own “Virtual Appointments” (Bookings / Teams Premium)</span><span data-ar>هـ. «المواعيد الافتراضية» من Microsoft (Bookings / Teams Premium)</span></td>
+          <td><span data-en>Microsoft's booking app with SMS and a branded waiting room.</span><span data-ar>تطبيق الحجز من Microsoft مع SMS وصالة انتظار بشعار العيادة.</span></td>
+          <td class="good"><span data-en>Joining from a phone browser without the app.</span><span data-ar>الدخول من متصفح الهاتف بدون التطبيق.</span></td>
+          <td class="bad"><span data-en>A second booking calendar beside ours, no WhatsApp, extra Teams Premium cost per doctor. Not recommended.</span><span data-ar>تقويم حجز ثانٍ بجانب تقويمنا، بلا واتساب، وتكلفة Teams Premium إضافية لكل طبيب. لا ننصح به.</span></td>
+          <td>—</td></tr>
+      </tbody>
+    </table></div>
+    <p><span data-en><b>Recommendation:</b> build A with B as the fallback first (phase 1, no Microsoft setup), then C (phase 3) for clinics that have Microsoft 365. Keep D only for a clinic that has no Microsoft 365 and doesn't want one. Either way the patient never sees the raw Teams address in a message. Every channel sends <b>our own “Join the visit” link</b> (book.limitsiz.si/j/…). It opens Teams only in the joining window, so a change of time, doctor or meeting never leaves an old link behind.</span><span data-ar><b>التوصية:</b> نبني (أ) مع (ب) كبديل أولاً (المرحلة ١، بلا إعداد Microsoft)، ثم (ج) (المرحلة ٣) للعيادات التي لديها Microsoft 365. ونُبقي (د) فقط لعيادة ليس لديها Microsoft 365 ولا تريده. وفي كل الحالات لا يرى المريض عنوان Teams نفسه في أي رسالة. كل طريقة ترسل <b>رابطنا «ادخل الزيارة»</b> (book.limitsiz.si/j/…). يفتح Teams فقط في وقت الدخول، فتغيير الوقت أو الطبيب أو الاجتماع لا يترك رابطاً قديماً.</span></p>
+
+    <h3><span data-en>2. What the patient needs</span><span data-ar>٢. ما يحتاجه المريض</span></h3>
+    <ul>
+      <li><span data-en><b>On a phone: the free Microsoft Teams app.</b> They join as a guest with no account. Microsoft says Teams in a phone's browser isn't supported for normal meetings, so the page sends them to the app store first. <b>On a computer:</b> Chrome or Edge, “Continue on this browser”, with no install.</span><span data-ar><b>على الهاتف: تطبيق Microsoft Teams المجاني.</b> يدخل كضيف بلا حساب. تقول Microsoft إن Teams في متصفح الهاتف غير مدعوم للاجتماعات العادية، لذا ترسله الصفحة إلى متجر التطبيقات أولاً. <b>على الكمبيوتر:</b> Chrome أو Edge و«المتابعة على هذا المتصفح»، بلا تنزيل.</span></li>
+      <li><span data-en>A steady internet connection, a quiet private place, and, for skin problems in a video visit, good light and the area ready to show.</span><span data-ar>اتصال إنترنت ثابت، ومكان هادئ وخاص، ولمشاكل الجلد في زيارة الفيديو إضاءة جيدة والمنطقة جاهزة للعرض.</span></li>
+      <li><span data-en>Their name exactly as booked (the doctor sees it in the lobby) and the date of birth or file number for the identity check.</span><span data-ar>الاسم كما في الحجز (يراه الطبيب في صالة الانتظار) وتاريخ الميلاد أو رقم الملف للتحقق من الهوية.</span></li>
+      <li><span data-en>The phone number on the booking: if Teams fails, the doctor calls instead (the page says so).</span><span data-ar>رقم الهاتف في الحجز: إذا تعطّل Teams يتصل الطبيب بدلاً منه (والصفحة تقول ذلك).</span></li>
+      <li><span data-en>It is not for emergencies: every page and message says so, as the chat does today.</span><span data-ar>ليست للطوارئ: كل صفحة ورسالة تقول ذلك، كما تفعل المحادثة اليوم.</span></li>
+    </ul>
+
+    <h3><span data-en>3. Privacy and the law in Jordan (for the legal review already on your list)</span><span data-ar>٣. الخصوصية والقانون في الأردن (للمراجعة القانونية الموجودة على قائمتك)</span></h3>
+    <ul>
+      <li><span data-en><b>Jordan's telemedicine rules.</b> Reviews of the Ministry of Health's regulations report that they took effect on 10 February 2022. They are said to cover written, voice and video consultations, remote prescribing and follow-up (with conditions), and checking the patient's identity at every consultation. One review says audio-only is allowed only when nothing else is available. <b>I could not find the official text</b>, so the lawyer must confirm what a private clinic needs before going live: whether there is a Ministry approval or licence for telemedicine, and the rules for first visits, audio-only visits and patients outside Jordan. The feature stays off for every clinic until then.</span><span data-ar><b>قواعد الطب عن بُعد في الأردن.</b> تذكر مراجعاتٌ لأنظمة وزارة الصحة أنها نافذة منذ 10 شباط 2022. ويُقال إنها تشمل الاستشارات المكتوبة والصوتية والمرئية، والوصف والمتابعة عن بُعد (بشروط)، والتحقق من هوية المريض في كل استشارة. وتذكر مراجعة أن الصوت فقط مسموح فقط عند عدم توفر غيره. <b>لم أجد النص الرسمي</b>، لذا يجب أن يؤكد المحامي ما تحتاجه العيادة الخاصة قبل التشغيل: هل هناك موافقة أو ترخيص من الوزارة للطب عن بُعد، وقواعد الزيارة الأولى وزيارات الصوت فقط والمرضى خارج الأردن. وتبقى الميزة متوقفة لكل العيادات حتى ذلك الحين.</span></li>
+      <li><span data-en><b>Medicines:</b> later instructions (2025) are reported to bar remote dispensing of high-risk and controlled medicines. Prescriptions after an online visit follow the doctor's usual rules. The printed prescription in Records will say “Online visit”.</span><span data-ar><b>الأدوية:</b> يُذكر أن تعليمات لاحقة (2025) تمنع صرف الأدوية عالية الخطورة والمراقَبة عن بُعد. الوصفات بعد زيارة أونلاين تتبع قواعد الطبيب المعتادة. والوصفة المطبوعة في السجلات الطبية تذكر «زيارة أونلاين».</span></li>
+      <li><span data-en><b>Personal Data Protection Law No. 24 of 2023:</b> health data is sensitive. The patient ticks a separate consent for an online visit. We store the time and the wording version with the booking, as the privacy notice works today.</span><span data-ar><b>قانون حماية البيانات الشخصية رقم 24 لسنة 2023:</b> البيانات الصحية حساسة. يضع المريض علامة موافقة منفصلة على الزيارة أونلاين. ونحفظ الوقت ونسخة النص مع الحجز، كما يعمل إشعار الخصوصية اليوم.</span></li>
+      <li><span data-en><b>Microsoft carries the call</b> (audio and video pass through its data centres, outside Jordan). With way C, the clinic's own Microsoft 365 contract covers it. With way D, Limitsiz's would. Limitsiz stores only the link, never audio or video. The lawyer should confirm the cross-border transfer.</span><span data-ar><b>Microsoft تنقل المكالمة</b> (الصوت والصورة يمرّان عبر مراكز بياناتها، خارج الأردن). في الطريقة (ج) يغطيها عقد Microsoft 365 الخاص بالعيادة، وفي (د) عقد Limitsiz. ولا تحفظ Limitsiz إلا الرابط، لا صوتاً ولا صورة. ويجب أن يؤكد المحامي النقل عبر الحدود.</span></li>
+      <li><span data-en><b>No recording.</b> Limitsiz never records. With C, Teams recording and chat are off for these meetings. The AI Scribe is not part of online visits (it would need its own consent and design).</span><span data-ar><b>لا تسجيل.</b> Limitsiz لا تسجّل أبداً. وفي (ج) يكون تسجيل Teams والمحادثة مطفأين لهذه الاجتماعات. والكاتب الذكي ليس جزءاً من الزيارات أونلاين (يحتاج موافقته وتصميمه الخاص).</span></li>
+      <li><span data-en><b>Identity:</b> the doctor admits from the lobby by name, then checks the date of birth or file number. A tick on the booking records “Identity checked” with the name and time.</span><span data-ar><b>الهوية:</b> يُدخل الطبيب المريض من صالة الانتظار حسب الاسم، ثم يتحقق من تاريخ الميلاد أو رقم الملف. وعلامة على الحجز تسجّل «تم التحقق من الهوية» مع الاسم والوقت.</span></li>
+      <li><span data-en><b>Messages carry no medical details:</b> only the clinic, doctor, time and the Join link, as the reminders do today. Meta's health-information rule is already on the legal list. SMS and email are not end-to-end private, which is one more reason they carry only our time-limited link.</span><span data-ar><b>الرسائل بلا تفاصيل طبية:</b> فقط العيادة والطبيب والوقت ورابط الدخول، كما التذكيرات اليوم. وقاعدة Meta للمعلومات الصحية موجودة على القائمة القانونية. رسائل SMS والبريد ليست خاصة بالكامل، وهذا سبب آخر لأنها تحمل فقط رابطنا محدود الوقت.</span></li>
+      <li><span data-en><b>The Join link is separate from the private change/cancel link.</b> It only joins: it can't change or cancel anything, and it works only for that visit, from a few minutes before until shortly after it ends. A printed slip or a forwarded SMS is therefore low risk.</span><span data-ar><b>رابط الدخول منفصل عن الرابط الخاص للتعديل والإلغاء.</b> يُدخل فقط: لا يغيّر ولا يلغي شيئاً، ويعمل لتلك الزيارة فقط، من دقائق قبلها حتى بعد انتهائها بقليل. لذا الورقة المطبوعة أو رسالة SMS المُعاد إرسالها قليلة الخطر.</span></li>
+    </ul>
+
+    <h3><span data-en>4. Reschedule, cancel and other changes</span><span data-ar>٤. تغيير الموعد والإلغاء والتغييرات الأخرى</span></h3>
+    <div class="tablewrap"><table style="min-width:720px">
+      <thead><tr><th><span data-en>What happens</span><span data-ar>ما يحدث</span></th><th><span data-en>The Join link</span><span data-ar>رابط الدخول</span></th><th><span data-en>The Teams meeting (way C)</span><span data-ar>اجتماع Teams (الطريقة ج)</span></th><th><span data-en>The patient is told</span><span data-ar>يُبلَّغ المريض</span></th></tr></thead>
+      <tbody>
+        <tr><td><span data-en>Patient books online</span><span data-ar>المريض يحجز أونلاين</span></td><td><span data-en>Not yet shown (“after the clinic confirms”)</span><span data-ar>لا يظهر بعد («بعد تأكيد العيادة»)</span></td><td><span data-en>Not made yet (no meetings for spam bookings)</span><span data-ar>لا يُنشأ بعد (لا اجتماعات لحجوزات وهمية)</span></td><td><span data-en>Done page, as today</span><span data-ar>صفحة الإتمام، كما اليوم</span></td></tr>
+        <tr><td><span data-en>Clinic confirms</span><span data-ar>العيادة تؤكد</span></td><td><span data-en>Made and sent by the chosen ways</span><span data-ar>يُنشأ ويُرسل بالطرق المختارة</span></td><td><span data-en>Created</span><span data-ar>يُنشأ</span></td><td><span data-en>WhatsApp / SMS / email; print at the desk</span><span data-ar>واتساب / SMS / بريد؛ طباعة في الاستقبال</span></td></tr>
+        <tr><td><span data-en>Reminders (as set in Reminders)</span><span data-ar>التذكيرات (حسب التذكيرات)</span></td><td><span data-en>The same link again, with Confirm / Change</span><span data-ar>الرابط نفسه مرة أخرى، مع تأكيد / تغيير</span></td><td>—</td><td><span data-en>Online-visit reminder text</span><span data-ar>نص تذكير الزيارة أونلاين</span></td></tr>
+        <tr><td><span data-en>Patient changes the time (private link)</span><span data-ar>المريض يغيّر الوقت (الرابط الخاص)</span></td><td><span data-en>Still valid; opens only at the new time; held until the clinic confirms again (as today)</span><span data-ar>يبقى صالحاً؛ يفتح فقط في الوقت الجديد؛ ينتظر حتى تؤكد العيادة مجدداً (كما اليوم)</span></td><td><span data-en>Moved, same address</span><span data-ar>يُنقل، بالعنوان نفسه</span></td><td><span data-en>“New time confirmed” by the chosen ways</span><span data-ar>«تم تأكيد الوقت الجديد» بالطرق المختارة</span></td></tr>
+        <tr><td><span data-en>Staff change the time or doctor</span><span data-ar>الموظف يغيّر الوقت أو الطبيب</span></td><td><span data-en>Still valid (now opens the new doctor's meeting)</span><span data-ar>يبقى صالحاً (يفتح الآن اجتماع الطبيب الجديد)</span></td><td><span data-en>Moved; or deleted and made under the new doctor</span><span data-ar>يُنقل؛ أو يُحذف ويُنشأ للطبيب الجديد</span></td><td><span data-en>Yes</span><span data-ar>نعم</span></td></tr>
+        <tr><td><span data-en>Changed between online and in clinic</span><span data-ar>التحويل بين أونلاين وفي العيادة</span></td><td><span data-en>Stops / starts</span><span data-ar>يتوقف / يبدأ</span></td><td><span data-en>Deleted / created</span><span data-ar>يُحذف / يُنشأ</span></td><td><span data-en>Yes, with the clinic address or the link</span><span data-ar>نعم، مع عنوان العيادة أو الرابط</span></td></tr>
+        <tr><td><span data-en>Cancelled or voided (anyone)</span><span data-ar>إلغاء أو إبطال (من أي طرف)</span></td><td><span data-en>Stops working at once</span><span data-ar>يتوقف فوراً</span></td><td><span data-en>Deleted</span><span data-ar>يُحذف</span></td><td><span data-en>As cancellations today</span><span data-ar>كالإلغاء اليوم</span></td></tr>
+        <tr><td><span data-en>Patient doesn't join</span><span data-ar>المريض لا يدخل</span></td><td><span data-en>Closes after the visit</span><span data-ar>يُغلق بعد الزيارة</span></td><td>—</td><td><span data-en>Doctor marks No-show, as today</span><span data-ar>الطبيب يعلّم «لم يحضر»، كما اليوم</span></td></tr>
+        <tr><td><span data-en>Teams fails</span><span data-ar>تعطّل Teams</span></td><td><span data-en>Staff paste another link on the booking (B)</span><span data-ar>يلصق الموظف رابطاً آخر على الحجز (ب)</span></td><td>—</td><td><span data-en>The page shows “The doctor will call you” and the clinic phone</span><span data-ar>الصفحة تعرض «سيتصل بك الطبيب» وهاتف العيادة</span></td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ================================================================ DECISIONS -->
+  <section class="an dec" id="d">
+    <h2 class="display" style="font-size:20px"><span data-en>B · Your decisions (each with my recommendation)</span><span data-ar>ب · قراراتك (مع توصيتي لكل منها)</span></h2>
+    <div class="q"><b><span data-en>1. How should the Teams link be made at the start?</span><span data-ar>١. كيف يُصنع رابط Teams في البداية؟</span></b>
+      <span class="rec"><span data-en>Recommended: each doctor's own link (A), with a link per booking as the fallback (B). Automatic meetings (C) come in phase 3.</span><span data-ar>التوصية: رابط كل طبيب (أ)، مع رابط لكل حجز كبديل (ب). والاجتماعات التلقائية (ج) في المرحلة ٣.</span></span>
+      <span class="alt"><span data-en>Other: start straight with automatic meetings (needs a clinic with Microsoft 365 and its IT administrator to test).</span><span data-ar>غير ذلك: البدء مباشرة بالاجتماعات التلقائية (يحتاج عيادة لديها Microsoft 365 ومسؤول تقنية للاختبار).</span></span></div>
+    <div class="q"><b><span data-en>2. For automatic meetings, whose Microsoft 365?</span><span data-ar>٢. للاجتماعات التلقائية، Microsoft 365 لمن؟</span></b>
+      <span class="rec"><span data-en>Recommended: the clinic's own (C). The clinic keeps the contract with Microsoft and its doctors' own accounts.</span><span data-ar>التوصية: الخاص بالعيادة (ج). تحتفظ العيادة بعقدها مع Microsoft وبحسابات أطبائها.</span></span>
+      <span class="alt"><span data-en>Other: Limitsiz's (D), with Limitsiz paying a licence per doctor.</span><span data-ar>غير ذلك: الخاص بـ Limitsiz (د)، وتدفع Limitsiz ترخيصاً لكل طبيب.</span></span></div>
+    <div class="q"><b><span data-en>3. Video or audio only?</span><span data-ar>٣. فيديو أم صوت فقط؟</span></b>
+      <span class="rec"><span data-en>Your answer (12 Nov): Video, Audio only, or Patient chooses. It is set at three levels: the clinic default (Settings), the patient's profile, and the “next follow-up” tick, set by the doctor or staff. The most specific one wins. Staff can still change one booking. <b>Clinic default: Audio only</b> (your choice, 12 Nov). Please ask the lawyer about it: the reported Jordan rule allows audio-only only when nothing else is available. If that is confirmed, the default is a one-click change in Settings.</span><span data-ar>جوابك (12 تشرين الثاني): فيديو، أو صوت فقط، أو يختار المريض. يُضبط على ثلاثة مستويات: افتراضي العيادة (الإعدادات)، وملف المريض، وعلامة «المتابعة القادمة»، ويضبطها الطبيب أو الموظف. والأكثر تحديداً هو الذي يُطبّق. ويستطيع الموظف تغيير حجز واحد. <b>افتراضي العيادة: صوت فقط</b> (اختيارك، 12 تشرين الثاني). يُرجى سؤال المحامي عنه: القاعدة الأردنية المذكورة تسمح بالصوت فقط عند عدم توفر غيره. وإذا تأكد ذلك، فتغيير الافتراضي نقرة واحدة في الإعدادات.</span></span></div>
+    <div class="q"><b><span data-en>4. When does the patient get the Join link?</span><span data-ar>٤. متى يصل المريض رابط الدخول؟</span></b>
+      <span class="rec"><span data-en>Recommended (as you said): when the clinic confirms, then again in each reminder. The button opens Teams from 10 minutes before until 15 minutes after the end (both are settings).</span><span data-ar>التوصية (كما قلت): عندما تؤكد العيادة، ثم مرة أخرى في كل تذكير. والزر يفتح Teams من قبل الموعد بـ10 دقائق حتى 15 دقيقة بعد نهايته (وكلاهما إعداد).</span></span>
+      <span class="alt"><span data-en>Other: right after booking, before the clinic confirms.</span><span data-ar>غير ذلك: مباشرة بعد الحجز، قبل تأكيد العيادة.</span></span></div>
+    <div class="q"><b><span data-en>5. Which ways of sending it, and which first?</span><span data-ar>٥. ما طرق الإرسال، وأيها أولاً؟</span></b>
+      <span class="rec"><span data-en>Recommended: all four are switches in Settings. Phase 1 builds <b>email</b>, a <b>printed copy with a QR code</b>, and <b>WhatsApp from the clinic's own number</b> (one button for the secretary, as “Send booking link” works today). Phase 2 adds <b>automatic WhatsApp</b> (once Meta approves the message) and <b>SMS</b>, once you choose an SMS provider. In Jordan the sender name must be registered with the provider, and each message costs money (an Arabic SMS holds about 70 characters per part). The patient picks one when booking. Staff can send again by any way that is switched on.</span><span data-ar>التوصية: الطرق الأربع مفاتيح في الإعدادات. المرحلة ١ تبني <b>البريد الإلكتروني</b> و<b>النسخة المطبوعة برمز QR</b> و<b>واتساب من رقم العيادة نفسها</b> (زر واحد للسكرتيرة، كما يعمل «إرسال رابط الحجز» اليوم). والمرحلة ٢ تضيف <b>واتساب التلقائي</b> (بعد موافقة Meta على الرسالة) و<b>SMS</b> بعد اختيارك مزوّد الرسائل. في الأردن يجب تسجيل اسم المرسل لدى المزوّد، ولكل رسالة تكلفة (رسالة SMS العربية تتسع لنحو 70 حرفاً للجزء). يختار المريض طريقة عند الحجز. ويستطيع الموظف الإرسال مجدداً بأي طريقة مفعّلة.</span></span>
+      <span class="alt"><span data-en>Other: WhatsApp only at the start; or SMS in phase 1 (tell me the provider).</span><span data-ar>غير ذلك: واتساب فقط في البداية؛ أو SMS في المرحلة ١ (أخبرني بالمزوّد).</span></span></div>
+    <div class="q"><b><span data-en>6. Who may book an online visit themselves?</span><span data-ar>٦. من يستطيع حجز زيارة أونلاين بنفسه؟</span></b>
+      <span class="rec"><span data-en>Your answer (12 Nov): a setting with three choices. (1) Only patients marked “Can book online visits” on their profile (set by the doctor or staff). (2) Patients seen at the clinic before. (3) All patients. Separately, a one-time “next follow-up can be online” tick on a visit, set by the doctor and changeable by staff, works with every option. Staff can always book an online visit for anyone. My suggestion for the start: (1), because the doctor decides.</span><span data-ar>جوابك (12 تشرين الثاني): إعداد بثلاثة خيارات. (١) فقط المرضى المعلَّمون «يمكنه حجز زيارات أونلاين» في ملفهم (يضعها الطبيب أو الموظف). (٢) المرضى الذين زاروا العيادة من قبل. (٣) كل المرضى. وبشكل منفصل، علامة لمرة واحدة «المتابعة القادمة يمكن أن تكون أونلاين» على الزيارة، يضعها الطبيب ويستطيع الموظف تغييرها، وتعمل مع كل الخيارات. والموظف يستطيع دائماً حجز زيارة أونلاين لأي مريض. اقتراحي للبداية: (١)، لأن الطبيب هو من يقرر.</span></span></div>
+    <div class="q"><b><span data-en>7. The doctor's buffer (for example 1 hour from now): for whom?</span><span data-ar>٧. مهلة الطبيب (مثلاً ساعة من الآن): على من تنطبق؟</span></b>
+      <span class="rec"><span data-en>Recommended: patients (page, chat, WhatsApp) can't book inside it. Staff see a warning and can still book, as with the other staff rules.</span><span data-ar>التوصية: المرضى (الصفحة والمحادثة وواتساب) لا يحجزون داخلها. والموظف يرى تحذيراً ويستطيع الحجز، كبقية قواعد الموظفين.</span></span>
+      <span class="alt"><span data-en>Other: block staff too.</span><span data-ar>غير ذلك: منع الموظفين أيضاً.</span></span></div>
+    <div class="q"><b><span data-en>8. Payment for online visits?</span><span data-ar>٨. الدفع للزيارات أونلاين؟</span></b>
+      <span class="rec"><span data-en>Your answer (12 Nov): a new Settings page, <b>Payment</b>. For now it has CliQ, under the clinic's own CliQ name (alias), for online visits. The patient sees the price, the CliQ name and a Copy button. The money goes straight to the clinic, and staff check it in their bank app. Card payment or a “Paid” tick can come later.</span><span data-ar>جوابك (12 تشرين الثاني): صفحة إعدادات جديدة، <b>الدفع</b>. حالياً فيها CliQ، باسم CliQ الخاص بالعيادة، للزيارات أونلاين. يرى المريض السعر واسم CliQ وزر «نسخ». المال يذهب مباشرة للعيادة، ويتحقق منه الموظف في تطبيق البنك. والدفع بالبطاقة أو علامة «مدفوع» يمكن أن تأتي لاحقاً.</span></span></div>
+    <div class="q"><b><span data-en>9. The name patients see</span><span data-ar>٩. الاسم الذي يراه المريض</span></b>
+      <span class="rec"><span data-en>Recommended: “Online visit” / «زيارة أونلاين», with a camera mark everywhere in the staff app. (The staff app already says “Online” for bookings made on the online page; the camera mark keeps the two apart.)</span><span data-ar>التوصية: «Online visit» / «زيارة أونلاين»، مع علامة الكاميرا في كل مكان في تطبيق الموظفين. (تطبيق الموظفين يقول «إلكتروني» للحجوزات من الصفحة الإلكترونية؛ وعلامة الكاميرا تفرّق بينهما.)</span></span>
+      <span class="alt"><span data-en>Other: «زيارة عن بُعد» (“remote visit”).</span><span data-ar>غير ذلك: «زيارة عن بُعد».</span></span></div>
+    <div class="q"><b><span data-en>10. Legal check before any clinic switches it on</span><span data-ar>١٠. الفحص القانوني قبل أن تشغّلها أي عيادة</span></b>
+      <span class="rec"><span data-en>Recommended: build phase 1 now with the feature off everywhere; switch it on for the demo clinic only after the lawyer confirms the Ministry of Health requirements and the consent wording.</span><span data-ar>التوصية: نبني المرحلة ١ الآن والميزة متوقفة في كل مكان؛ ونشغّلها للعيادة التجريبية فقط بعد أن يؤكد المحامي متطلبات وزارة الصحة ونص الموافقة.</span></span></div>
+  </section>
+
+  <!-- ================================================================ 1 SETTINGS -->
+  <h2 class="display s" id="s1"><span data-en>1 · Settings › Online visits (clinic administrator)</span><span data-ar>١ · الإعدادات › الزيارات أونلاين (مدير العيادة)</span></h2>
+  <div class="frame">
+<header class="bar"><div class="wrap">
+  <span class="brand"><svg width="30" height="16" viewBox="0 0 60 32" aria-hidden="true"><path d="M16 4C8 4 4 10 4 16s4 12 12 12c10 0 18-24 28-24 8 0 12 6 12 12s-4 12-12 12" fill="none" stroke="#2EE6B5" stroke-width="5" stroke-linecap="round"/></svg>Limitsiz Clinic · <span data-en>Booking</span><span data-ar>المواعيد</span></span>
+  <nav><a href="#"><span data-en>Calendar</span><span data-ar>التقويم</span></a><a href="#"><span data-en>Bookings</span><span data-ar>المواعيد</span></a><a href="#"><span data-en>Patients</span><span data-ar>المرضى</span></a></nav>
+  <span class="grow"></span>
+  <span class="clinic"><span data-en>Limitsiz Demo Dermatology</span><span data-ar>عيادة Limitsiz التجريبية للجلدية</span></span>
+  <span class="iconbtn on" aria-label="Settings"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span>
+  <button class="linkbtn" type="button" onclick="flip()"><span data-en>العربية</span><span data-ar>English</span></button>
+  <div class="um"><button type="button"><span data-en>Clinic Admin</span><span data-ar>مدير العيادة</span> <span aria-hidden="true">▾</span></button></div>
+</div></header>
+    <div class="wrap page">
+      <h1 class="display"><span data-en>Settings</span><span data-ar>الإعدادات</span></h1>
+      <div class="setwrap">
+        <nav class="settabs">
+          <button><span data-en>Clinic profile</span><span data-ar>ملف العيادة</span></button><button><span data-en>Working hours</span><span data-ar>ساعات العمل</span></button><button><span data-en>Doctors</span><span data-ar>الأطباء</span></button><button><span data-en>Services</span><span data-ar>الخدمات</span></button><button><span data-en>Booking rules</span><span data-ar>قواعد الحجز</span></button><button><span data-en>Online booking</span><span data-ar>الحجز الإلكتروني</span></button>
+          <button class="on new"><span data-en>Online visits</span><span data-ar>الزيارات أونلاين</span><span class="newtag"><span data-en>new</span><span data-ar>جديد</span></span></button>
+          <button class="new"><span data-en>Payment</span><span data-ar>الدفع</span><span class="newtag"><span data-en>new</span><span data-ar>جديد</span></span></button>
+          <button><span data-en>AI Scribe</span><span data-ar>الكاتب الذكي</span></button><button><span data-en>Reminders</span><span data-ar>التذكيرات</span></button><button><span data-en>WhatsApp assistant</span><span data-ar>مساعد واتساب</span></button><button><span data-en>Security</span><span data-ar>الأمان</span></button><button><span data-en>Audit</span><span data-ar>سجل التدقيق</span></button>
+        </nav>
+        <div class="setbody new">
+          <section class="panel stack">
+            <div class="row between"><h2><span data-en>Online visits</span><span data-ar>الزيارات أونلاين</span></h2><span class="pill"><span data-en>Off</span><span data-ar>مُطفأ</span></span></div>
+            <label class="check"><input type="checkbox"> <span><span data-en>Offer online visits on Microsoft Teams</span><span data-ar>تقديم زيارات أونلاين عبر Microsoft Teams</span><br><small class="hint"><span data-en>Off for every clinic until you switch it on. Only the doctors and services chosen below can be booked online.</span><span data-ar>متوقفة لكل العيادات حتى تشغّلها. فقط الأطباء والخدمات المختارة أدناه يمكن حجزها أونلاين.</span></small></span></label>
+            <div class="banner warn"><span data-en>Before switching on: the legal review (Jordan's telemedicine rules and the consent text).</span><span data-ar>قبل التشغيل: المراجعة القانونية (قواعد الطب عن بُعد في الأردن ونص الموافقة).</span></div>
+          </section>
+          <section class="panel stack">
+            <h2><span data-en>How the Teams link is made</span><span data-ar>كيف يُصنع رابط Teams</span></h2>
+            <div class="radios">
+              <label class="radio on"><input type="radio" checked name="src"><span><b><span data-en>Each doctor's own Teams link</span><span data-ar>رابط Teams الخاص بكل طبيب</span></b><br><small class="hint"><span data-en>Set under Doctors. Staff can paste a different link on one booking.</span><span data-ar>يُضبط في الأطباء. ويستطيع الموظف لصق رابط آخر على حجز واحد.</span></small></span></label>
+              <label class="radio dis"><input type="radio" disabled name="src"><span><b><span data-en>Automatically, with your clinic's Microsoft 365</span><span data-ar>تلقائياً، عبر Microsoft 365 الخاص بعيادتك</span></b> <span class="pill"><span data-en>Phase 3</span><span data-ar>المرحلة ٣</span></span><br><small class="hint"><span data-en>A new meeting for every confirmed visit, moved or deleted with it. Your IT administrator approves the Limitsiz app once.</span><span data-ar>اجتماع جديد لكل زيارة مؤكدة، يُنقل أو يُحذف معها. يوافق مسؤول تقنية المعلومات لديك على تطبيق Limitsiz مرة واحدة.</span></small><br><button type="button" class="btn btn-outline btn-sm" disabled style="margin-top:6px"><span data-en>Connect Microsoft 365</span><span data-ar>ربط Microsoft 365</span></button></span></label>
+            </div>
+          </section>
+          <section class="panel stack">
+            <h2><span data-en>The visit</span><span data-ar>الزيارة</span></h2>
+            <div class="grid2">
+              <label class="field new"><span data-en>Video or audio (clinic default)</span><span data-ar>فيديو أم صوت (افتراضي العيادة)</span><select><option data-en>Audio only</option><option data-ar>صوت فقط</option><option data-en>Video (camera on)</option><option data-ar>فيديو (الكاميرا تعمل)</option><option data-en>Patient chooses when booking</option><option data-ar>يختار المريض عند الحجز</option></select><span class="hint"><span data-en>The doctor or staff can set it per patient (profile) and per next follow-up. “Audio only” is enforced only with automatic meetings; with doctors' own links it is a request to the patient.</span><span data-ar>يستطيع الطبيب أو الموظف ضبطه لكل مريض (الملف) ولكل متابعة قادمة. «صوت فقط» يُفرض فقط في الاجتماعات التلقائية؛ ومع روابط الأطباء هو طلب من المريض.</span></span></label>
+              <label class="field new"><span data-en>Patients who can book online visits themselves</span><span data-ar>المرضى الذين يحجزون زيارة أونلاين بأنفسهم</span><select><option data-en>Only patients marked “Can book online visits”</option><option data-ar>فقط المرضى المعلَّمون «يمكنه حجز زيارات أونلاين»</option><option data-en>Patients seen at the clinic before</option><option data-ar>المرضى الذين زاروا العيادة من قبل</option><option data-en>All patients</option><option data-ar>كل المرضى</option></select><span class="hint"><span data-en>The mark is on the patient's profile, set by the doctor or staff. A doctor's “next follow-up can be online” tick also lets that patient book that one follow-up, whatever is chosen here. Matched by phone number. Staff can always book an online visit for anyone.</span><span data-ar>العلامة في ملف المريض، يضعها الطبيب أو الموظف. وعلامة الطبيب «المتابعة القادمة يمكن أن تكون أونلاين» تسمح أيضاً لذلك المريض بحجز تلك المتابعة الواحدة، أياً كان الاختيار هنا. المطابقة برقم الهاتف. والموظف يستطيع دائماً حجز زيارة أونلاين لأي مريض.</span></span></label>
+              <label class="field"><span data-en>The patient gets the Join link</span><span data-ar>يصل المريض رابط الدخول</span><select><option data-en>When the clinic confirms</option><option data-ar>عندما تؤكد العيادة</option></select></label>
+              <label class="field"><span data-en>Join button opens</span><span data-ar>زر الدخول يفتح</span><select><option data-en>10 minutes before</option><option data-ar>قبل 10 دقائق</option></select></label>
+              <label class="field"><span data-en>Join link works until</span><span data-ar>رابط الدخول يعمل حتى</span><select><option data-en>15 minutes after the end</option><option data-ar>15 دقيقة بعد النهاية</option></select></label>
+            </div>
+            <label class="check"><input type="checkbox" checked> <span><span data-en>Staff can change video / audio on one booking</span><span data-ar>يستطيع الموظف تغيير فيديو / صوت لحجز واحد</span></span></label>
+          </section>
+          <section class="panel stack">
+            <h2><span data-en>Services offered online</span><span data-ar>الخدمات المتاحة أونلاين</span></h2>
+            <p class="hint"><span data-en>Only these can be online, with their usual length and price. The same tick is also on each service. At the start: Follow-up consultation only.</span><span data-ar>فقط هذه يمكن أن تكون أونلاين، بمدتها وسعرها المعتادين. والعلامة نفسها موجودة على كل خدمة أيضاً. في البداية: استشارة المتابعة فقط.</span></p>            <label class="check"><input type="checkbox" checked> <span><span data-en>Follow-up consultation · 20 min</span><span data-ar>استشارة متابعة · 20 دقيقة</span></span></label>
+            <label class="check"><input type="checkbox"> <span><span data-en>Acne treatment review · 15 min</span><span data-ar>مراجعة علاج حب الشباب · 15 دقيقة</span></span></label>
+            <label class="check"><input type="checkbox"> <span><span data-en>Lab results review · 15 min</span><span data-ar>مراجعة نتائج التحاليل · 15 دقيقة</span></span></label>
+            <label class="check"><input type="checkbox"> <span><span data-en>New consultation · 30 min</span><span data-ar>استشارة جديدة · 30 دقيقة</span></span></label>
+            <label class="check"><input type="checkbox"> <span><span data-en>Laser hair removal · 45 min</span><span data-ar>إزالة الشعر بالليزر · 45 دقيقة</span></span></label>
+          </section>
+          <section class="panel stack">
+            <h2><span data-en>Sending the “Join the visit” link</span><span data-ar>إرسال رابط «ادخل الزيارة»</span></h2>
+            <p class="hint"><span data-en>Switch on the ways you want. Each one sends the same Join link, which only joins this visit and only near its time.</span><span data-ar>فعّل الطرق التي تريدها. كل طريقة ترسل رابط الدخول نفسه، الذي يُدخل هذه الزيارة فقط وقرب موعدها فقط.</span></p>
+            <div>
+              <div class="chan"><input type="checkbox" checked><div><b><span data-en>WhatsApp</span><span data-ar>واتساب</span></b><span class="hint"><span data-en>Sent automatically once your WhatsApp number is connected and Meta approves the message. Until then staff send it from the clinic's WhatsApp with one button.</span><span data-ar>يُرسل تلقائياً بعد ربط رقم واتساب العيادة وموافقة Meta على الرسالة. وحتى ذلك يرسله الموظف من واتساب العيادة بزر واحد.</span></span></div><span class="pill warn"><span data-en>Not connected</span><span data-ar>غير مربوط</span></span></div>
+              <div class="chan"><input type="checkbox" disabled><div><b>SMS</b><span class="hint"><span data-en>Needs an SMS provider and a registered sender name. Each message costs money; an Arabic SMS holds about 70 characters per part.</span><span data-ar>يحتاج مزوّد رسائل واسم مرسل مسجّلاً. لكل رسالة تكلفة؛ رسالة SMS العربية تتسع لنحو 70 حرفاً للجزء.</span></span>
+                <label class="field" style="margin-top:6px"><span data-en>Sender name</span><span data-ar>اسم المرسل</span><input class="mono" value="DemoDerma" disabled style="max-width:220px"></label></div><span class="pill"><span data-en>Phase 2</span><span data-ar>المرحلة ٢</span></span></div>
+              <div class="chan"><input type="checkbox" checked><div><b><span data-en>Email</span><span data-ar>البريد الإلكتروني</span></b><span class="hint"><span data-en>Sent from Limitsiz's mail server in your clinic's name. Patients type an email address when they choose it.</span><span data-ar>يُرسل من خادم بريد Limitsiz باسم عيادتك. يكتب المريض بريده عندما يختار هذه الطريقة.</span></span></div><span class="pill ok"><span data-en>Ready</span><span data-ar>جاهز</span></span></div>
+              <div class="chan"><input type="checkbox" checked><div><b><span data-en>Printed copy with a QR code</span><span data-ar>نسخة مطبوعة برمز QR</span></b><span class="hint"><span data-en>Staff print it at the desk, for example when the doctor gives the next visit as an online one. The QR code is made in the browser.</span><span data-ar>يطبعها الموظف في الاستقبال، مثلاً عندما يجعل الطبيب الزيارة القادمة أونلاين. ورمز QR يُصنع في المتصفح.</span></span>
+                <div class="grid2" style="margin-top:6px">
+                  <label class="field"><span data-en>Size</span><span data-ar>المقاس</span><select><option data-en>A6 card (105 × 148 mm)</option><option data-ar>بطاقة A6 (105 × 148 مم)</option></select></label>
+                  <label class="field"><span data-en>Languages</span><span data-ar>اللغات</span><select><option data-en>Patient's language</option><option data-ar>لغة المريض</option></select></label>
+                </div></div><span class="pill ok"><span data-en>Ready</span><span data-ar>جاهز</span></span></div>
+            </div>
+            <label class="check"><input type="checkbox" checked> <span><span data-en>Patients choose how they get it (from the ways switched on)</span><span data-ar>المريض يختار كيف يصله (من الطرق المفعّلة)</span></span></label>
+            <label class="field" style="max-width:320px"><span data-en>First choice shown</span><span data-ar>الخيار الأول المعروض</span><select><option data-en>WhatsApp</option><option data-ar>واتساب</option></select></label>
+          </section>
+          <section class="panel stack">
+            <h2><span data-en>Texts</span><span data-ar>النصوص</span></h2>
+            <p class="hint"><span data-en>{clinic}, {doctor}, {when} and {link} are filled in. No medical details in messages.</span><span data-ar>تُملأ {clinic} و{doctor} و{when} و{link} تلقائياً. بلا تفاصيل طبية في الرسائل.</span></p>
+            <div class="grid2">
+              <label class="field"><span data-en>Consent (Arabic)</span><span data-ar>الموافقة (عربي)</span><textarea dir="rtl" rows="3">أوافق على زيارة أونلاين عبر Microsoft Teams. لا تُسجَّل الزيارة. قد يطلب الطبيب حضوري للعيادة إذا لم تكفِ الزيارة أونلاين. ليست للطوارئ.</textarea></label>
+              <label class="field"><span data-en>Consent (English)</span><span data-ar>الموافقة (إنجليزي)</span><textarea dir="ltr" rows="3">I agree to an online visit on Microsoft Teams. It is not recorded. The doctor may ask me to come to the clinic if an online visit isn't enough. Not for emergencies.</textarea></label>
+              <label class="field"><span data-en>How to join (Arabic)</span><span data-ar>طريقة الدخول (عربي)</span><textarea dir="rtl" rows="3">على الهاتف: نزّل تطبيق Microsoft Teams المجاني واختر «الانضمام كضيف». على الكمبيوتر: افتح الرابط في Chrome أو Edge. اكتب اسمك وانتظر، وسيُدخلك الطبيب.</textarea></label>
+              <label class="field"><span data-en>How to join (English)</span><span data-ar>طريقة الدخول (إنجليزي)</span><textarea dir="ltr" rows="3">On a phone: install the free Microsoft Teams app and choose “Join as a guest”. On a computer: open the link in Chrome or Edge. Type your name and wait; the doctor will let you in.</textarea></label>
+              <label class="field"><span data-en>SMS and WhatsApp text (Arabic)</span><span data-ar>نص SMS وواتساب (عربي)</span><textarea dir="rtl" rows="2">{clinic}: زيارتك أونلاين مع {doctor} {when}. ادخل من: {link}</textarea></label>
+              <label class="field"><span data-en>SMS and WhatsApp text (English)</span><span data-ar>نص SMS وواتساب (إنجليزي)</span><textarea dir="ltr" rows="2">{clinic}: your online visit with {doctor} on {when}. Join: {link}</textarea></label>
+              <label class="field"><span data-en>Email subject (Arabic)</span><span data-ar>عنوان البريد (عربي)</span><input dir="rtl" value="رابط زيارتك أونلاين – {clinic}"></label>
+              <label class="field"><span data-en>Email subject (English)</span><span data-ar>عنوان البريد (إنجليزي)</span><input dir="ltr" value="Your online visit link – {clinic}"></label>
+            </div>
+          </section>
+          <div class="row"><button class="btn btn-accent"><span data-en>Save</span><span data-ar>حفظ</span></button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <ul class="notes">
+    <li><span data-en>A new Settings page after “Online booking”. Every switch, time and text is here; nothing is built into the product. Machine details (the Microsoft app secret, the SMS provider key) go in <span class="mono">booking/.env</span> only.</span><span data-ar>صفحة إعدادات جديدة بعد «الحجز الإلكتروني». كل مفتاح ووقت ونص هنا؛ لا شيء مكتوب في النظام. وتفاصيل الخادم (سرّ تطبيق Microsoft ومفتاح مزوّد الرسائل) في <span class="mono">booking/.env</span> فقط.</span></li>
+    <li><span data-en>Each service form (Settings › Services) gets the same “Can be an online visit” tick.</span><span data-ar>نموذج كل خدمة (الإعدادات › الخدمات) يحصل على العلامة نفسها «يمكن أن تكون زيارة أونلاين».</span></li>
+  </ul>
+
+  <!-- ================================================================ 1b PAYMENT -->
+  <h2 class="display s" id="s1b"><span data-en>1b · Settings › Payment (clinic administrator)</span><span data-ar>١ب · الإعدادات › الدفع (مدير العيادة)</span></h2>
+  <div class="frame">
+    <div class="wrap page">
+      <div class="setwrap">
+        <nav class="settabs">
+          <button><span data-en>Clinic profile</span><span data-ar>ملف العيادة</span></button><button><span data-en>Working hours</span><span data-ar>ساعات العمل</span></button><button><span data-en>Doctors</span><span data-ar>الأطباء</span></button><button><span data-en>Services</span><span data-ar>الخدمات</span></button><button><span data-en>Booking rules</span><span data-ar>قواعد الحجز</span></button><button><span data-en>Online booking</span><span data-ar>الحجز الإلكتروني</span></button>
+          <button><span data-en>Online visits</span><span data-ar>الزيارات أونلاين</span></button>
+          <button class="on new"><span data-en>Payment</span><span data-ar>الدفع</span><span class="newtag"><span data-en>new</span><span data-ar>جديد</span></span></button>
+          <button><span data-en>AI Scribe</span><span data-ar>الكاتب الذكي</span></button><button><span data-en>Reminders</span><span data-ar>التذكيرات</span></button><button><span data-en>WhatsApp assistant</span><span data-ar>مساعد واتساب</span></button><button><span data-en>Security</span><span data-ar>الأمان</span></button><button><span data-en>Audit</span><span data-ar>سجل التدقيق</span></button>
+        </nav>
+        <div class="setbody new">
+          <section class="panel stack">
+            <div class="row between"><h2><span data-en>Payment</span><span data-ar>الدفع</span></h2><span class="pill ok"><span data-en>CliQ on</span><span data-ar>CliQ مفعّل</span></span></div>
+            <p class="hint"><span data-en>How patients pay. For now: CliQ, for online visits. Limitsiz shows the patient where to pay; the money goes straight to the clinic's bank, and Limitsiz never handles it.</span><span data-ar>كيف يدفع المرضى. حالياً: CliQ، للزيارات أونلاين. يعرض Limitsiz للمريض أين يدفع؛ والمال يذهب مباشرة إلى بنك العيادة، ولا يمرّ عبر Limitsiz أبداً.</span></p>
+            <label class="check"><input type="checkbox" checked> <span><span data-en><b>Pay by CliQ</b></span><span data-ar><b>الدفع عبر CliQ</b></span></span></label>
+            <div class="grid2">
+              <label class="field"><span data-en>CliQ name (alias)</span><span data-ar>اسم CliQ (الاسم المستعار)</span><input class="mono" dir="ltr" value="DEMODERMA"><span class="hint"><span data-en>The name registered with the clinic's bank. Patients send to this name.</span><span data-ar>الاسم المسجّل لدى بنك العيادة. يرسل المريض إلى هذا الاسم.</span></span></label>
+              <label class="field"><span data-en>Name the patient will see</span><span data-ar>الاسم الذي يظهر للمريض</span><input value="Limitsiz Demo Dermatology"><span class="hint"><span data-en>So they can check it matches in their bank app before sending.</span><span data-ar>ليتأكد أنه مطابق في تطبيق البنك قبل الإرسال.</span></span></label>
+              <label class="field"><span data-en>Pay</span><span data-ar>وقت الدفع</span><select><option data-en>Before the visit</option><option data-ar>قبل الزيارة</option><option data-en>After the visit</option><option data-ar>بعد الزيارة</option></select></label>
+              <label class="field"><span data-en>Used for</span><span data-ar>يُستخدم لـ</span><select><option data-en>Online visits</option><option data-ar>الزيارات أونلاين</option></select><span class="hint"><span data-en>In-clinic visits keep paying at the desk.</span><span data-ar>زيارات العيادة تبقى بالدفع في الاستقبال.</span></span></label>
+            </div>
+            <div class="grid2">
+              <label class="field"><span data-en>Note to the patient (Arabic)</span><span data-ar>ملاحظة للمريض (عربي)</span><textarea dir="rtl" rows="2">حوّل {price} دينار عبر CliQ إلى {alias} ({name}) قبل الزيارة، واكتب اسمك في الملاحظة.</textarea></label>
+              <label class="field"><span data-en>Note to the patient (English)</span><span data-ar>ملاحظة للمريض (إنجليزي)</span><textarea dir="ltr" rows="2">Send {price} JOD by CliQ to {alias} ({name}) before the visit, with your name in the note.</textarea></label>
+            </div>
+            <p class="hint"><span data-en>{price} is the service's price, {alias} and {name} come from above. The note shows on the done page, the private link, the Join page and the confirmation message. Other ways to pay can come later.</span><span data-ar>{price} سعر الخدمة، و{alias} و{name} من الأعلى. تظهر الملاحظة في صفحة الإتمام والرابط الخاص وصفحة الدخول ورسالة التأكيد. وطرق دفع أخرى يمكن أن تأتي لاحقاً.</span></p>
+            <div class="row"><button class="btn btn-accent"><span data-en>Save</span><span data-ar>حفظ</span></button></div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+  <ul class="notes">
+    <li><span data-en>Staff check the CliQ transfer in the clinic's bank app themselves, as today. A “Paid” tick on the booking can come later if you want it.</span><span data-ar>يتحقق الموظف من تحويل CliQ في تطبيق بنك العيادة بنفسه، كما اليوم. وعلامة «مدفوع» على الحجز يمكن أن تأتي لاحقاً إن أردت.</span></li>
+  </ul>
+
+  <!-- ================================================================ 2 DOCTOR -->
+  <h2 class="display s" id="s2"><span data-en>2 · Settings › Doctors: the doctor's buffer and Teams link</span><span data-ar>٢ · الإعدادات › الأطباء: مهلة الطبيب ورابط Teams</span></h2>
+  <div class="frame">
+    <div class="wrap page">
+      <div class="chips"><button class="chip"><span data-en>Dr. Omar Khalil</span><span data-ar>د. عمر خليل</span></button><button class="chip on"><span data-en>Dr. Lina Haddad</span><span data-ar>د. لينا حداد</span></button><button class="chip"><span data-en>+ New doctor</span><span data-ar>+ طبيب جديد</span></button></div>
+      <section class="panel stack"><h2><span data-en>Doctor details</span><span data-ar>بيانات الطبيب</span></h2><p class="hint"><span data-en>(as today: names, titles, licence number, interval, buffer after each appointment)</span><span data-ar>(كما اليوم: الأسماء والألقاب ورقم الترخيص والفاصل والفاصل بعد كل موعد)</span></p></section>
+      <section class="panel stack new">
+        <div class="row between"><h2><span data-en>Online visits</span><span data-ar>الزيارات أونلاين</span></h2><span class="pill vt"><svg class="vic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3z"/></svg><span data-en>Offered</span><span data-ar>متاحة</span></span></div>
+        <label class="check"><input type="checkbox" checked> <span><span data-en>Dr. Lina offers online visits</span><span data-ar>د. لينا تقدّم زيارات أونلاين</span></span></label>
+        <div class="grid2">
+          <label class="field"><span data-en>Earliest online booking</span><span data-ar>أقرب حجز أونلاين</span><select><option data-en>1 hour from now</option><option data-ar>بعد ساعة من الآن</option></select><span class="hint"><span data-en>Patients can't book an online visit sooner than this. Staff see a warning. Choices: none, 30 min, 1, 2, 4, 12 hours, 1, 2 days.</span><span data-ar>لا يستطيع المريض حجز زيارة أونلاين أقرب من ذلك. ويرى الموظف تحذيراً. الخيارات: بدون، 30 دقيقة، 1، 2، 4، 12 ساعة، يوم، يومان.</span></span></label>
+          <label class="field"><span data-en>Online hours</span><span data-ar>ساعات الزيارات أونلاين</span><select><option data-en>Same as working hours</option><option data-ar>نفس ساعات العمل</option></select><span class="hint"><span data-en>Separate online hours can come later.</span><span data-ar>ساعات منفصلة للزيارات أونلاين يمكن أن تأتي لاحقاً.</span></span></label>
+        </div>
+        <label class="field"><span data-en>Teams meeting link</span><span data-ar>رابط اجتماع Teams</span>
+          <div class="linkrow"><input class="mono" dir="ltr" value="https://teams.microsoft.com/l/meetup-join/19%3ameeting_ZjQ3N2…%40thread.v2/0?context=…"><button type="button" class="btn btn-outline btn-sm"><span data-en>Open to test</span><span data-ar>افتح للتجربة</span></button></div>
+          <span class="hint"><span data-en>A recurring meeting in your Teams calendar called “Online visits”, with Meeting options › “Who can bypass the lobby: Only me” and recording off. Not shown to patients until their joining time.</span><span data-ar>اجتماع متكرر في تقويم Teams باسم «زيارات أونلاين»، مع خيارات الاجتماع › «من يتجاوز صالة الانتظار: أنا فقط» والتسجيل مطفأ. لا يظهر للمريض حتى وقت دخوله.</span></span></label>
+        <div class="row"><button class="btn btn-accent"><span data-en>Save</span><span data-ar>حفظ</span></button></div>
+      </section>
+      <section class="panel stack"><h2><span data-en>Working hours of this doctor</span><span data-ar>ساعات عمل هذا الطبيب</span></h2><p class="hint"><span data-en>(as today)</span><span data-ar>(كما اليوم)</span></p></section>
+    </div>
+  </div>
+  <ul class="notes">
+    <li><span data-en>The buffer is per doctor, counted from now. It stacks with the clinic's “Minimum notice” in Booking rules: the larger one wins. Free times shown to patients start after it.</span><span data-ar>المهلة لكل طبيب، وتُحسب من الآن. وتجتمع مع «أقل مدة قبل الموعد» في قواعد الحجز: الأكبر يُطبّق. والأوقات المتاحة للمريض تبدأ بعدها.</span></li>
+    <li><span data-en>A doctor can edit their own online settings (buffer and link). Today only administrators edit Settings, so this needs one new permission, “edit my own online-visit settings”.</span><span data-ar>يستطيع الطبيب تعديل إعداداته أونلاين (المهلة والرابط). اليوم المديرون فقط يعدّلون الإعدادات، لذا يحتاج هذا صلاحية جديدة: «تعديل إعدادات زياراتي أونلاين».</span></li>
+    <li><span data-en>The calendar is shared: an online visit takes the doctor's time like any other, so in-clinic and online visits can never overlap (the existing database rule).</span><span data-ar>التقويم واحد: الزيارة أونلاين تأخذ وقت الطبيب كأي زيارة، فلا تتداخل زيارات العيادة والزيارات أونلاين أبداً (قاعدة قاعدة البيانات الحالية).</span></li>
+  </ul>
+
+  <!-- ================================================================ 3 PATIENT CHOOSES -->
+  <h2 class="display s" id="s3"><span data-en>3 · The patient chooses “Online visit” (book.limitsiz.si/demo-derma)</span><span data-ar>٣ · المريض يختار «زيارة أونلاين» (book.limitsiz.si/demo-derma)</span></h2>
+  <div class="phones">
+    <div><div class="phone"><main class="bk">
+      <header class="bk-head"><div class="bk-logo"><svg width="28" height="14" viewBox="0 0 40 20" aria-hidden="true"><path d="M20 10 C16.6 5.5 13.2 2 8.8 2 A8 8 0 0 0 8.8 18 C13.2 18 16.6 14.5 20 10 C23.4 5.5 26.8 2 31.2 2 A8 8 0 0 1 38.4 12.9" fill="none" stroke="#2EE6B5" stroke-width="2.8" stroke-linecap="round"/><circle cx="33.6" cy="17.2" r="1.8" fill="#2EE6B5"/></svg></div><div class="bk-name"><b><span data-en>Limitsiz Demo Dermatology</span><span data-ar>عيادة Limitsiz التجريبية للجلدية</span></b><span><span data-en>Abdoun, Amman</span><span data-ar>عبدون، عمّان</span></span></div><button class="bk-lang" type="button" onclick="flip()"><span data-en>العربية</span><span data-ar>English</span></button></header>
+      <div class="bk-steps"><i class="on"></i><i></i><i></i><i></i></div>
+      <div class="new" style="display:flex;flex-direction:column;gap:10px">
+        <h2 class="bk-title sm"><span data-en>How would you like to be seen?</span><span data-ar>كيف تحب أن تكون الزيارة؟</span></h2>
+        <div class="bk-seg">
+          <button type="button" class="bk-choice"><span class="bk-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 10l9-6 9 6v10H3z"/><path d="M10 20v-5h4v5"/></svg></span><span><b><span data-en>At the clinic</span><span data-ar>في العيادة</span></b><small><span data-en>Abdoun, Amman</span><span data-ar>عبدون، عمّان</span></small></span></button>
+          <button type="button" class="bk-choice on"><span class="bk-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3z"/></svg></span><span><b><span data-en>Online visit</span><span data-ar>زيارة أونلاين</span></b><small><span data-en>A call on Microsoft Teams</span><span data-ar>مكالمة عبر Microsoft Teams</span></small></span></button>
+        </div>
+        <div class="bk-banner info"><span data-en>For patients the doctor has allowed to book online. You'll need the free Teams app on your phone, or Chrome or Edge on a computer.</span><span data-ar>للمرضى الذين سمح لهم الطبيب بالحجز أونلاين. ستحتاج تطبيق Teams المجاني على هاتفك، أو Chrome أو Edge على الكمبيوتر.</span></div>
+      </div>
+      <h2 class="bk-title sm"><span data-en>What is the visit for?</span><span data-ar>ما سبب الزيارة؟</span></h2>
+      <div class="bk-stack">
+        <button type="button" class="bk-choice on"><span><b><span data-en>Follow-up consultation</span><span data-ar>استشارة متابعة</span></b><small><span data-en>20 min · 25 JOD</span><span data-ar>20 دقيقة · 25 دينار</span></small></span><span class="bk-end bk-tick">✓</span></button>
+      </div>
+      <h2 class="bk-title sm"><span data-en>Which doctor?</span><span data-ar>أي طبيب؟</span></h2>
+      <div class="bk-stack"><button type="button" class="bk-choice on"><span><b><span data-en>Dr. Lina Haddad</span><span data-ar>د. لينا حداد</span></b><small><span data-en>Dermatologist · online from 1 hour ahead</span><span data-ar>أخصائية جلدية · أونلاين بعد ساعة على الأقل</span></small></span><span class="bk-end bk-tick">✓</span></button></div>
+      <div class="bk-row"><button class="bk-btn ghost"><span data-en>Back</span><span data-ar>رجوع</span></button><button class="bk-btn ink"><span data-en>Next</span><span data-ar>التالي</span></button></div>
+    </main></div><p class="cap"><span data-en>Step 1: the new choice at the top. Online shows only the online services and doctors.</span><span data-ar>الخطوة ١: الخيار الجديد في الأعلى. «أونلاين» يعرض فقط خدمات وأطباء الزيارات أونلاين.</span></p></div>
+
+    <div><div class="phone"><main class="bk">
+      <header class="bk-head"><div class="bk-logo"><svg width="28" height="14" viewBox="0 0 40 20"><path d="M20 10 C16.6 5.5 13.2 2 8.8 2 A8 8 0 0 0 8.8 18 C13.2 18 16.6 14.5 20 10 C23.4 5.5 26.8 2 31.2 2 A8 8 0 0 1 38.4 12.9" fill="none" stroke="#2EE6B5" stroke-width="2.8" stroke-linecap="round"/><circle cx="33.6" cy="17.2" r="1.8" fill="#2EE6B5"/></svg></div><div class="bk-name"><b><span data-en>Limitsiz Demo Dermatology</span><span data-ar>عيادة Limitsiz التجريبية للجلدية</span></b><span><span data-en>Abdoun, Amman</span><span data-ar>عبدون، عمّان</span></span></div><button class="bk-lang" type="button" onclick="flip()"><span data-en>العربية</span><span data-ar>English</span></button></header>
+      <div class="bk-steps"><i class="on"></i><i class="on"></i><i></i><i></i></div>
+      <h2 class="bk-title sm"><span data-en>Choose a day and time</span><span data-ar>اختر اليوم والوقت</span></h2>
+      <p class="bk-hint"><span data-en>Follow-up consultation · 20 min · </span><span data-ar>استشارة متابعة · 20 دقيقة · </span><span class="pill vt new" style="font-size:12px"><svg class="vic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3z"/></svg><span data-en>Online</span><span data-ar>أونلاين</span></span></p>
+      <div class="bk-nav"><button disabled><span class="flip">‹</span> <span data-en>Earlier</span><span data-ar>السابق</span></button><b><span data-en>November</span><span data-ar>تشرين الثاني</span></b><button><span data-en>Later</span><span data-ar>التالي</span> <span class="flip">›</span></button></div>
+      <div class="bk-days" style="grid-template-columns:repeat(5,1fr)"><button class="on"><span data-en>Wed</span><span data-ar>أربعاء</span><b>11</b></button><button><span data-en>Thu</span><span data-ar>خميس</span><b>12</b></button><button disabled><span data-en>Fri</span><span data-ar>جمعة</span><b>13</b></button><button><span data-en>Sat</span><span data-ar>سبت</span><b>14</b></button><button><span data-en>Sun</span><span data-ar>أحد</span><b>15</b></button></div>
+      <p class="bk-hint"><span data-en>Wednesday, 11 November 2026</span><span data-ar>الأربعاء، 11 تشرين الثاني 2026</span></p>
+      <p class="bk-hint new" style="padding:4px 6px"><span data-en>Online visits with Dr. Lina start at least 1 hour from now.</span><span data-ar>الزيارات أونلاين مع د. لينا تبدأ بعد ساعة على الأقل من الآن.</span></p>
+      <div class="bk-times"><button>16:30</button><button>16:50</button><button class="on">17:10</button><button>17:30</button><button>18:10</button><button>18:30</button></div>
+      <div class="bk-row"><button class="bk-btn ghost"><span data-en>Back</span><span data-ar>رجوع</span></button><button class="bk-btn ink"><span data-en>Next</span><span data-ar>التالي</span></button></div>
+    </main></div><p class="cap"><span data-en>Step 2: it's 15:20 now, so the first online time is 16:30 (the buffer of 1 hour, then the next free slot).</span><span data-ar>الخطوة ٢: الساعة الآن 15:20، فأول وقت أونلاين 16:30 (مهلة ساعة، ثم أول وقت فارغ).</span></p></div>
+
+    <div><div class="phone"><main class="bk">
+      <header class="bk-head"><div class="bk-logo"><svg width="28" height="14" viewBox="0 0 40 20"><path d="M20 10 C16.6 5.5 13.2 2 8.8 2 A8 8 0 0 0 8.8 18 C13.2 18 16.6 14.5 20 10 C23.4 5.5 26.8 2 31.2 2 A8 8 0 0 1 38.4 12.9" fill="none" stroke="#2EE6B5" stroke-width="2.8" stroke-linecap="round"/><circle cx="33.6" cy="17.2" r="1.8" fill="#2EE6B5"/></svg></div><div class="bk-name"><b><span data-en>Limitsiz Demo Dermatology</span><span data-ar>عيادة Limitsiz التجريبية للجلدية</span></b><span><span data-en>Abdoun, Amman</span><span data-ar>عبدون، عمّان</span></span></div><button class="bk-lang" type="button" onclick="flip()"><span data-en>العربية</span><span data-ar>English</span></button></header>
+      <div class="bk-steps"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div>
+      <h2 class="bk-title sm"><span data-en>Your details</span><span data-ar>بياناتك</span></h2>
+      <label class="bk-field"><span data-en>Full name</span><span data-ar>الاسم الكامل</span><input value="Huda Al-Khatib"></label>
+      <label class="bk-field"><span data-en>Mobile number</span><span data-ar>رقم الهاتف</span><span class="bk-tel" dir="ltr"><span class="mono">+962</span><input class="mono" value="079 555 0142"></span><small><span data-en>The clinic will contact you on this number.</span><span data-ar>ستتواصل العيادة معك على هذا الرقم.</span></small></label>
+      <div class="bk-field new"><span data-en>How would you like to talk with the doctor?</span><span data-ar>كيف تحب أن تتحدث مع الطبيب؟</span>
+        <div class="bk-chips"><span class="on"><span data-en>Video</span><span data-ar>فيديو</span></span><span><span data-en>Audio only</span><span data-ar>صوت فقط</span></span></div>
+        <small><span data-en>Shown only when the doctor left the choice to you.</span><span data-ar>يظهر فقط عندما يترك الطبيب الاختيار لك.</span></small></div>
+      <div class="bk-field new"><span data-en>Send me the visit link by</span><span data-ar>أرسل لي رابط الزيارة عبر</span>
+        <div class="bk-chips"><span class="on"><span data-en>WhatsApp</span><span data-ar>واتساب</span></span><span>SMS</span><span><span data-en>Email</span><span data-ar>البريد الإلكتروني</span></span></div>
+        <small><span data-en>Email asks for your address. A printed copy is given at the clinic.</span><span data-ar>البريد يطلب عنوانك. والنسخة المطبوعة تُعطى في العيادة.</span></small></div>
+      <label class="bk-check"><input type="checkbox" checked><span><span data-en>Remind me on WhatsApp before the appointment</span><span data-ar>ذكّرني على واتساب قبل الموعد</span></span></label>
+      <label class="bk-check new"><input type="checkbox" checked><span><span data-en>I agree to an online visit on Microsoft Teams. It is not recorded. The doctor may ask me to come to the clinic if an online visit isn't enough. Not for emergencies.</span><span data-ar>أوافق على زيارة أونلاين عبر Microsoft Teams. لا تُسجَّل الزيارة. قد يطلب الطبيب حضوري للعيادة إذا لم تكفِ الزيارة أونلاين. ليست للطوارئ.</span></span></label>
+      <label class="bk-check"><input type="checkbox" checked><span><span data-en>I agree to the </span><span data-ar>أوافق على </span><a href="#"><span data-en>privacy notice</span><span data-ar>إشعار الخصوصية</span></a><span data-en>. My name and number are used only for this booking.</span><span data-ar>. يُستخدم اسمي ورقمي لهذا الحجز فقط.</span></span></label>
+      <div class="bk-card soft"><div class="bk-sum"><span><span data-en>Follow-up consultation</span><span data-ar>استشارة متابعة</span></span><b><span data-en>Dr. Lina Haddad</span><span data-ar>د. لينا حداد</span></b></div><div class="bk-sum"><span><span data-en>Wednesday, 11 November</span><span data-ar>الأربعاء، 11 تشرين الثاني</span></span><b class="mono">17:10</b></div><div class="bk-sum new"><span><span data-en>Visit</span><span data-ar>الزيارة</span></span><b><span data-en>Online · video</span><span data-ar>أونلاين · فيديو</span></b></div></div>
+      <div class="bk-row"><button class="bk-btn ghost"><span data-en>Back</span><span data-ar>رجوع</span></button><button class="bk-btn accent"><span data-en>Book this time</span><span data-ar>احجز هذا الموعد</span></button></div>
+    </main></div><p class="cap"><span data-en>Step 3: how to get the link (only the ways switched on), and the online consent. Both are saved with the booking.</span><span data-ar>الخطوة ٣: طريقة وصول الرابط (الطرق المفعّلة فقط)، وموافقة الزيارة أونلاين. وكلاهما يُحفظ مع الحجز.</span></p></div>
+  </div>
+  <ul class="notes">
+    <li><span data-en>The number is checked when the patient presses “Book this time”. If the setting doesn't allow this patient (not marked, or not seen before, depending on the setting), the page says “Online visits are for patients the clinic has invited. Please book at the clinic or call us.” It never says whether the number exists, so nobody can learn who visits the clinic.</span><span data-ar>يُفحص الرقم عندما يضغط المريض «احجز هذا الموعد». إذا لم يسمح الإعداد لهذا المريض (غير معلَّم، أو لم يزر العيادة، حسب الإعداد)، تقول الصفحة «الزيارات أونلاين للمرضى الذين دعتهم العيادة. احجز في العيادة أو اتصل بنا.» ولا تقول أبداً إن كان الرقم موجوداً، فلا يعرف أحد من يزور العيادة.</span></li>
+    <li><span data-en>Everything else is as today: four steps, “any doctor” (only online doctors), the clinic's check of online bookings, the private link.</span><span data-ar>كل شيء آخر كما اليوم: أربع خطوات، «أي طبيب» (من أطباء الزيارات أونلاين فقط)، مراجعة العيادة للحجوزات الإلكترونية، الرابط الخاص.</span></li>
+  </ul>
+
+  <!-- ================================================================ 4 CONFIRMATION -->
+  <h2 class="display s" id="s4"><span data-en>4 · Done, then confirmed: the Join link</span><span data-ar>٤ · تم الحجز، ثم التأكيد: رابط الدخول</span></h2>
+  <div class="phones">
+    <div><div class="phone"><main class="bk">
+      <header class="bk-head"><div class="bk-logo"><svg width="28" height="14" viewBox="0 0 40 20"><path d="M20 10 C16.6 5.5 13.2 2 8.8 2 A8 8 0 0 0 8.8 18 C13.2 18 16.6 14.5 20 10 C23.4 5.5 26.8 2 31.2 2 A8 8 0 0 1 38.4 12.9" fill="none" stroke="#2EE6B5" stroke-width="2.8" stroke-linecap="round"/><circle cx="33.6" cy="17.2" r="1.8" fill="#2EE6B5"/></svg></div><div class="bk-name"><b><span data-en>Limitsiz Demo Dermatology</span><span data-ar>عيادة Limitsiz التجريبية للجلدية</span></b></div><button class="bk-lang" type="button" onclick="flip()"><span data-en>العربية</span><span data-ar>English</span></button></header>
+      <div class="bk-steps"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div>
+      <div class="bk-done"><span class="bk-ok">✓</span><h2 class="bk-title sm"><span data-en>Your booking is in</span><span data-ar>تم استلام حجزك</span></h2></div>
+      <div class="bk-banner warn"><span data-en>Waiting for the clinic to confirm. They may call or message you on +962 79 555 0142.</span><span data-ar>بانتظار تأكيد العيادة. قد يتصلون بك أو يراسلونك على ⁦+962 79 555 0142⁩.</span></div>
+      <div class="bk-card"><div class="bk-sum"><span><span data-en>Service</span><span data-ar>الخدمة</span></span><b><span data-en>Follow-up consultation</span><span data-ar>استشارة متابعة</span></b></div><div class="bk-sum"><span><span data-en>Doctor</span><span data-ar>الطبيب</span></span><b><span data-en>Dr. Lina Haddad</span><span data-ar>د. لينا حداد</span></b></div><div class="bk-sum"><span><span data-en>When</span><span data-ar>الموعد</span></span><b><span data-en>Wednesday, 11 November, </span><span data-ar>الأربعاء، 11 تشرين الثاني، </span><span class="mono">17:10</span></b></div><div class="bk-sum new"><span><span data-en>Visit</span><span data-ar>الزيارة</span></span><b><span data-en>Online · video · Teams</span><span data-ar>أونلاين · فيديو · Teams</span></b></div></div>
+      <div class="bk-join wait new"><b><span data-en>Your Join link</span><span data-ar>رابط دخولك</span></b><span class="bk-hint"><span data-en>It comes by WhatsApp when the clinic confirms, and it also appears on your private link below.</span><span data-ar>يصلك على واتساب عندما تؤكد العيادة، ويظهر أيضاً على رابطك الخاص أدناه.</span></span></div>
+      <div class="bk-card stack new"><b><span data-en>Payment</span><span data-ar>الدفع</span></b><span class="bk-note"><span data-en>Send 25 JOD by CliQ to DEMODERMA (Limitsiz Demo Dermatology) before the visit, with your name in the note.</span><span data-ar>حوّل 25 دينار عبر CliQ إلى DEMODERMA (عيادة Limitsiz التجريبية للجلدية) قبل الزيارة، واكتب اسمك في الملاحظة.</span></span>
+        <div class="bk-link"><span class="mono">DEMODERMA</span><button type="button"><span data-en>Copy</span><span data-ar>نسخ</span></button></div></div>
+      <div class="bk-field"><span data-en>Your private link: status, change or cancel</span><span data-ar>رابطك الخاص: حالة الحجز أو تعديله أو إلغاؤه</span><a class="bk-btn wa"><span data-en>Send the link to yourself on WhatsApp</span><span data-ar>أرسل الرابط لنفسك على واتساب</span></a></div>
+      <p class="bk-hint"><span data-en>(Add to calendar, as today. The calendar entry's place says “Online visit, Microsoft Teams” instead of the clinic address.)</span><span data-ar>(أضف إلى التقويم، كما اليوم. ومكان الموعد في التقويم يقول «زيارة أونلاين، Microsoft Teams» بدل عنوان العيادة.)</span></p>
+    </main></div><p class="cap"><span data-en>Right after booking: no link yet.</span><span data-ar>مباشرة بعد الحجز: لا رابط بعد.</span></p></div>
+
+    <div><div class="phone"><main class="bk">
+      <header class="bk-head"><div class="bk-logo"><svg width="28" height="14" viewBox="0 0 40 20"><path d="M20 10 C16.6 5.5 13.2 2 8.8 2 A8 8 0 0 0 8.8 18 C13.2 18 16.6 14.5 20 10 C23.4 5.5 26.8 2 31.2 2 A8 8 0 0 1 38.4 12.9" fill="none" stroke="#2EE6B5" stroke-width="2.8" stroke-linecap="round"/><circle cx="33.6" cy="17.2" r="1.8" fill="#2EE6B5"/></svg></div><div class="bk-name"><b><span data-en>Limitsiz Demo Dermatology</span><span data-ar>عيادة Limitsiz التجريبية للجلدية</span></b></div><button class="bk-lang" type="button" onclick="flip()"><span data-en>العربية</span><span data-ar>English</span></button></header>
+      <h1 class="bk-title sm"><span data-en>Your appointment</span><span data-ar>موعدك</span></h1>
+      <div class="bk-card"><div class="bk-sum"><span><span data-en>When</span><span data-ar>الموعد</span></span><b><span data-en>Wednesday, 11 November, </span><span data-ar>الأربعاء، 11 تشرين الثاني، </span><span class="mono">17:10</span></b></div><div class="bk-sum"><span><span data-en>Visit</span><span data-ar>الزيارة</span></span><b><span data-en>Online · video · Teams</span><span data-ar>أونلاين · فيديو · Teams</span></b></div><div class="bk-sum"><span><span data-en>Status</span><span data-ar>الحالة</span></span><b><span class="bk-pill ok"><span data-en>Confirmed</span><span data-ar>مؤكد</span></span></b></div></div>
+      <div class="bk-join wait new"><b><span data-en>Join the visit</span><span data-ar>ادخل الزيارة</span></b><span class="bk-hint"><span data-en>The button works from 17:00, 10 minutes before. Get ready now:</span><span data-ar>الزر يعمل من 17:00، قبل الموعد بـ10 دقائق. تجهّز الآن:</span></span>
+        <ol><li><span data-en>On a phone: install the free <b>Microsoft Teams</b> app.</span><span data-ar>على الهاتف: نزّل تطبيق <b>Microsoft Teams</b> المجاني.</span></li><li><span data-en>A quiet place, good light, and the area to show.</span><span data-ar>مكان هادئ، إضاءة جيدة، والمنطقة جاهزة للعرض.</span></li><li><span data-en>Have your date of birth ready for the identity check.</span><span data-ar>جهّز تاريخ ميلادك للتحقق من الهوية.</span></li></ol>
+        <div class="bk-row"><a class="bk-btn ghost"><span data-en>App Store</span><span data-ar>App Store</span></a><a class="bk-btn ghost"><span data-en>Google Play</span><span data-ar>Google Play</span></a></div>
+        <button class="bk-btn accent" disabled><span data-en>Join on Microsoft Teams</span><span data-ar>ادخل عبر Microsoft Teams</span></button></div>
+      <button class="bk-btn ink"><span data-en>Change the time</span><span data-ar>تغيير الوقت</span></button>
+      <button class="bk-btn danger"><span data-en>Cancel the booking</span><span data-ar>إلغاء الحجز</span></button>
+    </main></div><p class="cap"><span data-en>Confirmed, before the time: the private link (and the Join link) show how to get ready.</span><span data-ar>مؤكد، قبل الوقت: الرابط الخاص (ورابط الدخول) يشرحان كيف تتجهّز.</span></p></div>
+
+    <div><div class="phone"><main class="bk">
+      <header class="bk-head"><div class="bk-logo"><svg width="28" height="14" viewBox="0 0 40 20"><path d="M20 10 C16.6 5.5 13.2 2 8.8 2 A8 8 0 0 0 8.8 18 C13.2 18 16.6 14.5 20 10 C23.4 5.5 26.8 2 31.2 2 A8 8 0 0 1 38.4 12.9" fill="none" stroke="#2EE6B5" stroke-width="2.8" stroke-linecap="round"/><circle cx="33.6" cy="17.2" r="1.8" fill="#2EE6B5"/></svg></div><div class="bk-name"><b><span data-en>Limitsiz Demo Dermatology</span><span data-ar>عيادة Limitsiz التجريبية للجلدية</span></b></div><button class="bk-lang" type="button" onclick="flip()"><span data-en>العربية</span><span data-ar>English</span></button></header>
+      <h1 class="bk-title sm"><span data-en>Your online visit</span><span data-ar>زيارتك أونلاين</span></h1>
+      <p class="bk-hint"><span data-en>book.limitsiz.si/j/… · this link only joins the visit</span><span data-ar>book.limitsiz.si/j/… · هذا الرابط للدخول فقط</span></p>
+      <div class="bk-card"><div class="bk-sum"><span><span data-en>Doctor</span><span data-ar>الطبيب</span></span><b><span data-en>Dr. Lina Haddad</span><span data-ar>د. لينا حداد</span></b></div><div class="bk-sum"><span><span data-en>When</span><span data-ar>الموعد</span></span><b><span data-en>Today, </span><span data-ar>اليوم، </span><span class="mono">17:10</span></b></div></div>
+      <div class="bk-join new"><b><span data-en>It's time: join now</span><span data-ar>حان الوقت: ادخل الآن</span></b>
+        <a class="bk-btn accent"><svg class="vic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3z"/></svg><span data-en>Join on Microsoft Teams</span><span data-ar>ادخل عبر Microsoft Teams</span></a>
+        <ol><li><span data-en>Choose “Join as a guest” (phone) or “Continue on this browser” (computer).</span><span data-ar>اختر «الانضمام كضيف» (الهاتف) أو «المتابعة على هذا المتصفح» (الكمبيوتر).</span></li><li><span data-en>Type your name: <b>Huda Al-Khatib</b>.</span><span data-ar>اكتب اسمك: <b>هدى الخطيب</b>.</span></li><li><span data-en>Wait in the lobby; Dr. Lina will let you in.</span><span data-ar>انتظر في صالة الانتظار؛ ستُدخلك د. لينا.</span></li></ol>
+        <span class="bk-hint"><span data-en>Not working? The doctor will call you on your number, or call the clinic:</span><span data-ar>لا يعمل؟ ستتصل بك الطبيبة على رقمك، أو اتصل بالعيادة:</span> <a class="mono" dir="ltr">+962 6 555 0100</a></span></div>
+      <div class="bk-banner warn"><span data-en>Not for emergencies. In an emergency call 911.</span><span data-ar>ليست للطوارئ. في حالة الطوارئ اتصل بـ 911.</span></div>
+    </main></div><p class="cap"><span data-en>The Join link (/j/…), at the time: the button opens Teams. Nothing here can change or cancel.</span><span data-ar>رابط الدخول (/j/…) في الوقت: الزر يفتح Teams. لا شيء هنا يغيّر أو يلغي.</span></p></div>
+  </div>
+
+  <!-- ================================================================ 5 CHANNELS -->
+  <h2 class="display s" id="s5"><span data-en>5 · How the Join link reaches the patient: WhatsApp, SMS, email, print</span><span data-ar>٥ · كيف يصل رابط الدخول للمريض: واتساب، SMS، بريد، طباعة</span></h2>
+  <div class="phones">
+    <div><div class="phone" style="background:#ECE5DD"><div class="wa-top"><i></i><b><span data-en>Limitsiz Demo Dermatology</span><span data-ar>عيادة Limitsiz التجريبية للجلدية</span></b></div>
+      <div class="wa-chat">
+        <div class="wa-msg new"><span data-en>Your online visit with <b>Dr. Lina Haddad</b> is confirmed: <b>Wed 11 Nov at 17:10</b>. Join from the button below, from 10 minutes before. Not for emergencies.</span><span data-ar>تم تأكيد زيارتك أونلاين مع <b>د. لينا حداد</b>: <b>الأربعاء 11 تشرين الثاني الساعة 17:10</b>. ادخل من الزر أدناه، من قبل الموعد بـ10 دقائق. ليست للطوارئ.</span><small>15:42</small></div>
+        <div class="wa-btns"><span>↗ <span data-en>Join the visit</span><span data-ar>ادخل الزيارة</span></span></div>
+        <div class="wa-msg"><span data-en>Reminder of your online visit: Follow-up consultation with Dr. Lina Haddad today at 17:10. Will you attend?</span><span data-ar>تذكير بزيارتك أونلاين: استشارة متابعة مع د. لينا حداد اليوم الساعة 17:10. هل ستحضر؟</span><small>15:10</small></div>
+        <div class="wa-btns"><span><span data-en>Confirm</span><span data-ar>تأكيد الموعد</span></span><span><span data-en>Change</span><span data-ar>تغيير الموعد</span></span><span>↗ <span data-en>Join the visit</span><span data-ar>ادخل الزيارة</span></span></div>
+      </div></div><p class="cap"><span data-en>WhatsApp, automatic: two new messages for Meta to approve (“visit link”, and the online version of the reminder), each with a Join button that opens book.limitsiz.si/j/…. Until then: the secretary's one-button send from the clinic's WhatsApp, with the same text.</span><span data-ar>واتساب تلقائياً: رسالتان جديدتان لموافقة Meta («رابط الزيارة»، ونسخة التذكير للزيارة أونلاين)، كلٌ منهما بزر دخول يفتح book.limitsiz.si/j/…. وحتى ذلك: إرسال السكرتيرة بزر واحد من واتساب العيادة، بالنص نفسه.</span></p></div>
+
+    <div style="display:flex;flex-direction:column;gap:18px">
+      <div><div class="phone"><div class="sms"><div class="from">DemoDerma · SMS</div>
+        <div class="b new"><span data-en>Limitsiz Demo Dermatology: your online visit with Dr. Lina Haddad on Wed 11 Nov 17:10. Join: book.limitsiz.si/j/k7Qx2</span><span data-ar>عيادة Limitsiz التجريبية للجلدية: زيارتك أونلاين مع د. لينا حداد الأربعاء 11/11 الساعة 17:10. ادخل من: book.limitsiz.si/j/k7Qx2</span></div></div></div>
+        <p class="cap"><span data-en>SMS (phase 2, once a provider is chosen). A short link keeps it to 1–2 parts.</span><span data-ar>SMS (المرحلة ٢، بعد اختيار المزوّد). الرابط القصير يبقيها جزءاً أو جزأين.</span></p></div>
+      <div class="mail new"><div class="hd"><b><span data-en>Your online visit link – Limitsiz Demo Dermatology</span><span data-ar>رابط زيارتك أونلاين – عيادة Limitsiz التجريبية للجلدية</span></b><span class="hint"><span data-en>From: Limitsiz Demo Dermatology (via Limitsiz) · To: huda@example.com</span><span data-ar>من: عيادة Limitsiz التجريبية للجلدية (عبر Limitsiz) · إلى: huda@example.com</span></span></div>
+        <span><span data-en>Your online visit with Dr. Lina Haddad is confirmed for <b>Wednesday 11 November at 17:10</b> (Amman time).</span><span data-ar>تم تأكيد زيارتك أونلاين مع د. لينا حداد <b>الأربعاء 11 تشرين الثاني الساعة 17:10</b> (بتوقيت عمّان).</span></span>
+        <a class="btn btn-accent btn-sm" style="align-self:flex-start"><span data-en>Join the visit</span><span data-ar>ادخل الزيارة</span></a>
+        <span class="hint"><span data-en>How to join: (the clinic's text). Not for emergencies. To change or cancel, use your private link or call +962 6 555 0100.</span><span data-ar>طريقة الدخول: (نص العيادة). ليست للطوارئ. للتغيير أو الإلغاء استخدم رابطك الخاص أو اتصل بـ ⁦+962 6 555 0100⁩.</span></span>
+        <p class="cap" style="text-align:start"><span data-en>Email, in the patient's language, with a calendar file attached.</span><span data-ar>البريد بلغة المريض، مع ملف تقويم مرفق.</span></p></div>
+    </div>
+
+    <div><div class="slip new">
+      <div class="top"><svg width="28" height="14" viewBox="0 0 40 20"><path d="M20 10 C16.6 5.5 13.2 2 8.8 2 A8 8 0 0 0 8.8 18 C13.2 18 16.6 14.5 20 10 C23.4 5.5 26.8 2 31.2 2 A8 8 0 0 1 38.4 12.9" fill="none" stroke="#0B7A64" stroke-width="2.8" stroke-linecap="round"/><circle cx="33.6" cy="17.2" r="1.8" fill="#0B7A64"/></svg><b><span data-en>Limitsiz Demo Dermatology</span><span data-ar>عيادة Limitsiz التجريبية للجلدية</span></b></div>
+      <h3 class="display"><span data-en>Your online visit</span><span data-ar>زيارتك أونلاين</span></h3>
+      <div><b><span data-en>Dr. Lina Haddad</span><span data-ar>د. لينا حداد</span></b><br><span data-en>Wednesday 25 November 2026 · </span><span data-ar>الأربعاء 25 تشرين الثاني 2026 · </span><b class="mono">17:10</b></div>
+      <div class="qrz"><svg class="fakeqr" viewBox="0 0 25 25" shape-rendering="crispEdges"></svg><span><span data-en>Scan with your phone's camera from 10 minutes before. It opens your visit on Microsoft Teams.</span><span data-ar>امسح الرمز بكاميرا هاتفك من قبل الموعد بـ10 دقائق. يفتح زيارتك على Microsoft Teams.</span></span></div>
+      <span class="mono" style="font-size:12px">book.limitsiz.si/j/k7Qx2</span>
+      <ol><li><span data-en>Install the free Microsoft Teams app now.</span><span data-ar>نزّل تطبيق Microsoft Teams المجاني الآن.</span></li><li><span data-en>“Join as a guest”, type your name, wait for the doctor.</span><span data-ar>«الانضمام كضيف»، اكتب اسمك، وانتظر الطبيب.</span></li></ol>
+      <div class="foot"><span><span data-en>Not for emergencies</span><span data-ar>ليست للطوارئ</span></span><span class="mono">+962 6 555 0100</span></div>
+    </div><p class="cap"><span data-en>Printed copy with a QR code (A6), from the booking page. No medical details on it. The QR is the same time-limited Join link.</span><span data-ar>نسخة مطبوعة برمز QR (A6)، من صفحة الحجز. بلا تفاصيل طبية. والرمز هو رابط الدخول نفسه محدود الوقت.</span></p></div>
+  </div>
+  <ul class="notes">
+    <li><span data-en>The patient's choice is saved on the booking. Confirmation and every reminder use it; WhatsApp reminders go out as today when the patient asked for them.</span><span data-ar>يُحفظ اختيار المريض على الحجز. والتأكيد وكل تذكير يستخدمه؛ وتذكيرات واتساب تُرسل كما اليوم عندما يطلبها المريض.</span></li>
+    <li><span data-en>Each send makes its own Join link, so the booking page can show “sent by SMS at 15:42, opened at 17:02”, and one link can be stopped without the others.</span><span data-ar>كل إرسال يصنع رابط دخول خاصاً به، فتعرض صفحة الحجز «أُرسل بـ SMS الساعة 15:42، فُتح 17:02»، ويمكن إيقاف رابط دون الآخرين.</span></li>
+    <li><span data-en>Patients have no email field today: the patient gets an optional email (typed on the booking page, or by staff), used only for these messages.</span><span data-ar>لا يوجد حقل بريد للمريض اليوم: يحصل المريض على بريد اختياري (يكتبه في صفحة الحجز أو يكتبه الموظف)، يُستخدم لهذه الرسائل فقط.</span></li>
+  </ul>
+
+  <!-- ================================================================ 6 CHAT -->
+  <h2 class="display s" id="s6"><span data-en>6 · The chat assistant (and the WhatsApp assistant, in phase 2)</span><span data-ar>٦ · المساعد في المحادثة (ومساعد واتساب في المرحلة ٢)</span></h2>
+  <div class="phones">
+    <div><div class="phone"><main class="bk">
+      <header class="bk-head"><div class="bk-logo"><svg width="28" height="14" viewBox="0 0 40 20"><path d="M20 10 C16.6 5.5 13.2 2 8.8 2 A8 8 0 0 0 8.8 18 C13.2 18 16.6 14.5 20 10 C23.4 5.5 26.8 2 31.2 2 A8 8 0 0 1 38.4 12.9" fill="none" stroke="#2EE6B5" stroke-width="2.8" stroke-linecap="round"/><circle cx="33.6" cy="17.2" r="1.8" fill="#2EE6B5"/></svg></div><div class="bk-name"><b><span data-en>Limitsiz Demo Dermatology</span><span data-ar>عيادة Limitsiz التجريبية للجلدية</span></b></div><button class="bk-lang" type="button" onclick="flip()"><span data-en>العربية</span><span data-ar>English</span></button></header>
+      <div class="ch">
+        <div class="ch-head"><span class="ch-ai">AI</span><span data-en>Clinic assistant</span><span data-ar>مساعد العيادة</span><button class="ch-person"><span data-en>Talk to a person</span><span data-ar>التحدث مع شخص</span></button></div>
+        <div class="ch-b me"><span data-en>Can I see Dr. Lina online today? Just a follow-up</span><span data-ar>بقدر أشوف د. لينا أونلاين اليوم؟ بس متابعة</span></div>
+        <div class="ch-b ai"><span data-en>Yes, Dr. Lina does online follow-ups on Microsoft Teams. Today's online times start from 16:30:</span><span data-ar>أكيد، د. لينا بتعمل متابعات أونلاين على Microsoft Teams. مواعيد اليوم أونلاين بتبلش من 16:30:</span></div>
+        <div class="ch-chips"><button class="mono">16:30</button><button class="mono">17:10</button><button class="mono">18:10</button></div>
+        <div class="ch-b me">17:10</div>
+        <div class="ch-card new">
+          <div class="bk-sum"><span><span data-en>Service</span><span data-ar>الخدمة</span></span><b><span data-en>Follow-up consultation</span><span data-ar>استشارة متابعة</span></b></div>
+          <div class="bk-sum"><span><span data-en>Doctor</span><span data-ar>الطبيب</span></span><b><span data-en>Dr. Lina Haddad</span><span data-ar>د. لينا حداد</span></b></div>
+          <div class="bk-sum"><span><span data-en>When</span><span data-ar>الموعد</span></span><b><span data-en>Wednesday, 11 November, </span><span data-ar>الأربعاء، 11 تشرين الثاني، </span><span class="mono">17:10</span></b></div>
+          <div class="bk-sum"><span><span data-en>Visit</span><span data-ar>الزيارة</span></span><b><span data-en>Online · video · Teams</span><span data-ar>أونلاين · فيديو · Teams</span></b></div>
+          <span class="bk-hint"><span data-en>(name, number, how to get the link, online consent: in this small form, never sent to the AI, as today)</span><span data-ar>(الاسم والرقم وطريقة وصول الرابط وموافقة الزيارة أونلاين: في هذا النموذج الصغير، ولا تُرسل للذكاء الاصطناعي، كما اليوم)</span></span>
+          <div class="bk-row"><button class="bk-btn accent"><span data-en>Yes, book it</span><span data-ar>نعم، احجز</span></button><button class="bk-btn ghost"><span data-en>No, change</span><span data-ar>لا، غيّر</span></button></div>
+        </div>
+      </div>
+    </main></div></div>
+    <div class="an" style="align-self:start"><h3 style="margin:0"><span data-en>What the assistants learn</span><span data-ar>ما يتعلمه المساعدان</span></h3>
+      <ul>
+        <li><span data-en>A visit type (in clinic / online) on the free-times and booking tools. Only online services and doctors, after the doctor's buffer, and only patients seen before when that setting is on (checked on the server, not by the AI).</span><span data-ar>نوع الزيارة (في العيادة / أونلاين) في أدوات الأوقات المتاحة والحجز. فقط خدمات وأطباء الزيارات أونلاين، بعد مهلة الطبيب، وفقط من زار العيادة من قبل عندما يكون الإعداد مفعّلاً (يُفحص على الخادم، لا عند الذكاء الاصطناعي).</span></li>
+        <li><span data-en>Rules: never says online is right for a medical problem (“the doctor decides; for a new problem an in-clinic visit may be needed”); never gives the Teams address; emergencies go to 911 as today.</span><span data-ar>القواعد: لا يقول أبداً إن الزيارة أونلاين مناسبة لمشكلة طبية («الطبيب يقرر؛ للمشكلة الجديدة قد تلزم زيارة في العيادة»)؛ ولا يعطي عنوان Teams؛ والطوارئ تُحوّل إلى 911 كما اليوم.</span></li>
+        <li><span data-en>The free times must stay identical between the Booking server and the WhatsApp agent (today 2416 slots, 0 differences), so the buffer is added to both in the same change, with the same test.</span><span data-ar>يجب أن تبقى الأوقات المتاحة متطابقة بين خادم المواعيد ووكيل واتساب (اليوم 2416 وقتاً، 0 فروق)، لذا تُضاف المهلة للاثنين في التغيير نفسه، بالاختبار نفسه.</span></li>
+        <li><span data-en>New test cases in the 51-case set: online booking, buffer refusal, a new patient asking online, “is online OK for my rash?”.</span><span data-ar>حالات اختبار جديدة في مجموعة الـ51: حجز أونلاين، رفض بسبب المهلة، مريض جديد يطلب أونلاين، «هل أونلاين مناسب للطفح عندي؟».</span></li>
+      </ul></div>
+  </div>
+
+  <!-- ================================================================ 7 STAFF FORM -->
+  <h2 class="display s" id="s7"><span data-en>7 · Staff booking form: “Online visit”</span><span data-ar>٧ · نموذج حجز الموظف: «زيارة أونلاين»</span></h2>
+  <div class="frame">
+<header class="bar"><div class="wrap">
+  <span class="brand"><svg width="30" height="16" viewBox="0 0 60 32" aria-hidden="true"><path d="M16 4C8 4 4 10 4 16s4 12 12 12c10 0 18-24 28-24 8 0 12 6 12 12s-4 12-12 12" fill="none" stroke="#2EE6B5" stroke-width="5" stroke-linecap="round"/></svg>Limitsiz Clinic · <span data-en>Booking</span><span data-ar>المواعيد</span></span>
+  <nav><a href="#" aria-current="page"><span data-en>Calendar</span><span data-ar>التقويم</span></a><a href="#"><span data-en>Bookings</span><span data-ar>المواعيد</span></a><a href="#"><span data-en>Patients</span><span data-ar>المرضى</span></a></nav>
+  <span class="grow"></span>
+  <span class="clinic"><span data-en>Limitsiz Demo Dermatology</span><span data-ar>عيادة Limitsiz التجريبية للجلدية</span></span>
+  <button class="linkbtn" type="button" onclick="flip()"><span data-en>العربية</span><span data-ar>English</span></button>
+  <div class="um"><button type="button"><span data-en>Sara Secretary</span><span data-ar>سارة السكرتيرة</span> <span aria-hidden="true">▾</span></button></div>
+</div></header>
+    <div class="wrap page">
+      <h1 class="display"><span data-en>New booking</span><span data-ar>حجز جديد</span></h1>
+      <form class="panel formgrid">
+        <section><h2><span data-en>Patient</span><span data-ar>المريض</span></h2>
+          <div class="row"><b><span data-en>Huda Al-Khatib</span><span data-ar>هدى الخطيب</span></b><span class="mono hint">+962795550142</span><button type="button" class="link"><span data-en>Clear</span><span data-ar>مسح</span></button></div>
+          <div class="field new" style="margin-top:14px"><span data-en>Email (optional)</span><span data-ar>البريد الإلكتروني (اختياري)</span><input class="mono" dir="ltr" value="huda@example.com"><span class="hint"><span data-en>Only for the visit link and reminders by email.</span><span data-ar>فقط لرابط الزيارة والتذكيرات بالبريد.</span></span></div>
+        </section>
+        <section class="stack"><h2><span data-en>Details</span><span data-ar>التفاصيل</span></h2>
+          <div class="new stack"><b class="lbl"><span data-en>Visit</span><span data-ar>الزيارة</span></b>
+            <div class="seg"><button type="button"><span data-en>At the clinic</span><span data-ar>في العيادة</span></button><button type="button" class="on"><svg class="vic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3z"/></svg> <span data-en>Online visit</span><span data-ar>زيارة أونلاين</span></button></div>
+            <div class="grid2">
+              <label class="field"><span data-en>Video or audio</span><span data-ar>فيديو أم صوت</span><select><option data-en>Audio only</option><option data-ar>صوت فقط</option><option data-en>Video</option><option data-ar>فيديو</option><option data-en>Patient chooses</option><option data-ar>يختار المريض</option></select></label>
+              <label class="field"><span data-en>Send the Join link by</span><span data-ar>إرسال رابط الدخول عبر</span><select><option data-en>WhatsApp</option><option data-ar>واتساب</option></select></label>
+            </div>
+            <span class="hint"><span data-en>Teams link: Dr. Lina's link.</span><span data-ar>رابط Teams: رابط د. لينا.</span> <button type="button" class="link"><span data-en>Use another link for this booking</span><span data-ar>استخدام رابط آخر لهذا الحجز</span></button></span>
+          </div>
+          <label class="field"><span data-en>Service</span><span data-ar>الخدمة</span><select><option data-en>Follow-up consultation · 20 min · 25 JOD</option><option data-ar>استشارة متابعة · 20 دقيقة · 25 دينار</option></select></label>
+          <label class="field"><span data-en>Doctor</span><span data-ar>الطبيب</span><select><option data-en>Dr. Lina Haddad</option><option data-ar>د. لينا حداد</option></select></label>
+          <label class="field"><span data-en>Date</span><span data-ar>التاريخ</span><input type="date" value="2026-11-11"></label>
+          <div><b class="lbl"><span data-en>Free times</span><span data-ar>الأوقات المتاحة</span></b>
+            <div class="chips"><button type="button" class="chip">15:50</button><button type="button" class="chip">16:10</button><button type="button" class="chip on">16:30</button><button type="button" class="chip">17:10</button><button type="button" class="chip"><span data-en>Other time</span><span data-ar>وقت آخر</span></button></div>
+            <div class="banner warn new"><span data-en>15:50 and 16:10 are inside Dr. Lina's 1-hour buffer for online visits. You can still book them.</span><span data-ar>15:50 و16:10 داخل مهلة د. لينا (ساعة) للزيارات أونلاين. يمكنك حجزها مع ذلك.</span></div></div>
+          <label class="field"><span data-en>Internal note</span><span data-ar>ملاحظة داخلية</span><textarea class="ta" rows="2"></textarea><span class="hint"><span data-en>Staff only. No medical details here.</span><span data-ar>للموظفين فقط. بدون تفاصيل طبية.</span></span></label>
+        </section>
+        <div class="formfoot"><div class="row"><button class="btn btn-accent"><span data-en>Book</span><span data-ar>احجز</span></button><a class="btn btn-outline"><span data-en>Cancel</span><span data-ar>إلغاء</span></a></div></div>
+      </form>
+    </div>
+  </div>
+  <ul class="notes">
+    <li><span data-en>“Online visit” shows only if the clinic has online visits on. Choosing it narrows services and doctors to the online ones. “Video or audio” shows only when staff may change it.</span><span data-ar>«زيارة أونلاين» تظهر فقط إذا فعّلت العيادة الزيارات أونلاين. واختيارها يحصر الخدمات والأطباء بتلك المتاحة أونلاين. و«فيديو أم صوت» يظهر فقط إذا سُمح للموظف بتغييره.</span></li>
+    <li><span data-en>Editing a booking can switch it between at the clinic and online. The patient is told by the chosen way (see the table in Analysis).</span><span data-ar>تعديل الحجز يستطيع تحويله بين العيادة وأونلاين. ويُبلَّغ المريض بالطريقة المختارة (انظر الجدول في التحليل).</span></li>
+  </ul>
+
+  <!-- ================================================================ 8 BOOKING PAGE -->
+  <h2 class="display s" id="s8"><span data-en>8 · The booking page for an online visit</span><span data-ar>٨ · صفحة الحجز لزيارة أونلاين</span></h2>
+  <div class="frame">
+    <div class="wrap page">
+      <div class="row between"><h1 class="display"><span data-en>Huda Al-Khatib</span><span data-ar>هدى الخطيب</span></h1><div class="row"><span class="pill ok"><span data-en>Confirmed</span><span data-ar>مؤكد</span></span><span class="pill vt new"><svg class="vic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3z"/></svg><span data-en>Online visit</span><span data-ar>زيارة أونلاين</span></span></div></div>
+      <section class="panel">
+        <dl class="facts">
+          <dt><span data-en>Time</span><span data-ar>الوقت</span></dt><dd><span data-en>Wed 11 Nov 2026, 17:10 – 17:30</span><span data-ar>الأربعاء 11 تشرين الثاني 2026، 17:10 – 17:30</span></dd>
+          <dt><span data-en>Service</span><span data-ar>الخدمة</span></dt><dd><span data-en>Follow-up consultation · 20 min · 25 JOD</span><span data-ar>استشارة متابعة · 20 دقيقة · 25 دينار</span></dd>
+          <dt><span data-en>Doctor</span><span data-ar>الطبيب</span></dt><dd><span data-en>Dr. Lina Haddad</span><span data-ar>د. لينا حداد</span></dd>
+          <dt><span data-en>Patient</span><span data-ar>المريض</span></dt><dd><a href="#"><span data-en>Huda Al-Khatib</span><span data-ar>هدى الخطيب</span></a> <span class="mono">+962795550142</span></dd>
+          <dt class="new"><span data-en>Visit</span><span data-ar>الزيارة</span></dt><dd><span data-en>Online · video · Microsoft Teams · consent given 11 Nov 15:21</span><span data-ar>أونلاين · فيديو · Microsoft Teams · الموافقة 11 تشرين الثاني 15:21</span></dd>
+          <dt class="new"><span data-en>Join link sent</span><span data-ar>أُرسل رابط الدخول</span></dt><dd><ul class="sentlog"><li><span data-en>WhatsApp · 15:42 · opened 17:02</span><span data-ar>واتساب · 15:42 · فُتح 17:02</span></li><li><span data-en>Printed · 11 Nov 12:05 · Sara</span><span data-ar>طُبع · 11 تشرين الثاني 12:05 · سارة</span></li></ul></dd>
+          <dt><span data-en>How it was booked</span><span data-ar>طريقة الحجز</span></dt><dd><span data-en>Online page · Came from qr</span><span data-ar>الصفحة الإلكترونية · جاء من qr</span></dd>
+        </dl>
+        <div class="row new" style="margin-top:12px">
+          <a class="btn btn-accent btn-sm"><svg class="vic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3z"/></svg><span data-en>Start the visit in Teams</span><span data-ar>ابدأ الزيارة في Teams</span></a>
+          <div class="sendmenu"><button class="btn btn-wa btn-sm" type="button"><span data-en>Send the visit link ▾</span><span data-ar>إرسال رابط الزيارة ▾</span></button>
+            <div class="um-list"><button><span data-en>WhatsApp (clinic's number)</span><span data-ar>واتساب (رقم العيادة)</span></button><button disabled>SMS <small><span data-en>not set up</span><span data-ar>غير مُعدّ</span></small></button><button><span data-en>Email</span><span data-ar>البريد الإلكتروني</span> <small class="mono">huda@example.com</small></button><button><span data-en>Print with QR code</span><span data-ar>طباعة برمز QR</span></button><button><span data-en>Copy the link</span><span data-ar>نسخ الرابط</span></button></div></div>
+          <label class="check" style="align-items:center"><input type="checkbox" style="margin-top:0"> <span><span data-en>Identity checked (name and date of birth)</span><span data-ar>تم التحقق من الهوية (الاسم وتاريخ الميلاد)</span></span></label>
+        </div>
+        <div class="row" style="margin-top:12px"><a class="btn btn-accent btn-sm"><span data-en>Start visit note</span><span data-ar>بدء ملاحظة الزيارة</span></a><a class="btn btn-ink btn-sm"><span data-en>Edit</span><span data-ar>تعديل</span></a><button class="btn btn-sm btn-accent"><span data-en>Mark completed</span><span data-ar>تم الحضور</span></button><button class="btn btn-sm btn-accent"><span data-en>No-show</span><span data-ar>لم يحضر</span></button><button class="btn btn-sm btn-outline"><span data-en>Cancel booking</span><span data-ar>إلغاء الحجز</span></button></div>
+      </section>
+    </div>
+  </div>
+  <ul class="notes">
+    <li><span data-en>“Start the visit in Teams” opens the doctor's meeting, shown to the doctor of the visit (and administrators). Secretaries get “Send the visit link” and print.</span><span data-ar>«ابدأ الزيارة في Teams» يفتح اجتماع الطبيب، ويظهر لطبيب الزيارة (والمديرين). والسكرتيرة لها «إرسال رابط الزيارة» والطباعة.</span></li>
+    <li><span data-en>Every send, open, print and identity tick goes in the booking's history and the audit log.</span><span data-ar>كل إرسال وفتح وطباعة وعلامة تحقق من الهوية تدخل سجل الحجز وسجل التدقيق.</span></li>
+  </ul>
+
+  <!-- ================================================================ 9 CALENDAR -->
+  <h2 class="display s" id="s9"><span data-en>9 · Calendar: online visits are marked</span><span data-ar>٩ · التقويم: الزيارات أونلاين مميّزة</span></h2>
+  <div class="frame">
+    <div class="wrap page">
+      <div class="todayline"><b><span data-en>Today</span><span data-ar>اليوم</span></b><a href="#"><span data-en><b>9</b> booked</span><span data-ar><b>9</b> محجوزة</span></a><a href="#" class="tl-vt new"><svg class="vic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3z"/></svg> <span data-en><b>2</b> online</span><span data-ar><b>2</b> أونلاين</span></a><a href="#" class="tl-warn"><span data-en><b>1</b> not checked</span><span data-ar><b>1</b> غير مُراجَعة</span></a></div>
+      <div class="cal" style="--cols:2">
+        <div class="cal-head"><span class="cal-gutter"></span><b><span data-en>Dr. Omar Khalil</span><span data-ar>د. عمر خليل</span></b><b><span data-en>Dr. Lina Haddad</span><span data-ar>د. لينا حداد</span></b></div>
+        <div class="cal-body" style="height:288px">
+          <div class="cal-gutter"><span style="top:0">15:00</span><span style="top:72px">16:00</span><span style="top:144px">17:00</span><span style="top:216px">18:00</span><span style="top:288px">19:00</span></div>
+          <div class="cal-col"><i class="cal-line" style="top:0"></i><i class="cal-line" style="top:72px"></i><i class="cal-line" style="top:144px"></i><i class="cal-line" style="top:216px"></i>
+            <a class="cal-card st-confirmed tall" style="top:18px;height:52px"><b>15:15 <span data-en>Dana Mansour</span><span data-ar>دانا منصور</span></b><span><span data-en>New consultation</span><span data-ar>استشارة جديدة</span></span><em><span data-en>Phone</span><span data-ar>هاتف</span></em></a>
+            <a class="cal-card vt-online st-confirmed short new" style="top:108px;height:22px"><b><svg class="vic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3z"/></svg> 16:30 <span data-en>Sami Ali</span><span data-ar>سامي علي</span></b><span><span data-en>Results review</span><span data-ar>مراجعة نتائج</span></span></a>
+          </div>
+          <div class="cal-col"><i class="cal-line" style="top:0"></i><i class="cal-line" style="top:72px"></i><i class="cal-line" style="top:144px"></i><i class="cal-line" style="top:216px"></i>
+            <a class="cal-card st-completed short" style="top:36px;height:22px"><b>15:30 <span data-en>Noor Haddad</span><span data-ar>نور حداد</span></b><span><span data-en>Acne review</span><span data-ar>مراجعة حب الشباب</span></span></a>
+            <a class="cal-card vt-online st-confirmed src-web tall new" style="top:156px;height:22px"><b><svg class="vic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3z"/></svg> 17:10 <span data-en>Huda Al-Khatib</span><span data-ar>هدى الخطيب</span></b></a>
+            <a class="cal-card unchecked short" style="top:216px;height:34px"><b>18:00 <span data-en>Lina Saeed</span><span data-ar>لينا سعيد</span></b><span><span data-en>Laser</span><span data-ar>ليزر</span></span></a>
+          </div>
+        </div>
+      </div>
+      <div class="ag-day new" style="max-width:420px"><div class="row between"><b><span data-en>Wed 11 (week view on a phone)</span><span data-ar>الأربعاء 11 (عرض الأسبوع على الهاتف)</span></b></div><a class="ag-row st-completed"><b class="mono">15:30</b><span><span data-en>Noor Haddad</span><span data-ar>نور حداد</span></span></a><a class="ag-row vt-online"><b class="mono">17:10</b><svg class="vic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3z"/></svg><span><span data-en>Huda Al-Khatib</span><span data-ar>هدى الخطيب</span></span></a></div>
+    </div>
+  </div>
+  <ul class="notes">
+    <li><span data-en>Online visits get a camera mark before the time and a dashed border, in the day view, week view and the phone list. The status colours and the green WhatsApp edge stay as they are. The “today” line counts them, and the number opens the Bookings list filtered to online visits.</span><span data-ar>الزيارات أونلاين لها علامة كاميرا قبل الوقت وإطار منقّط، في عرض اليوم والأسبوع وقائمة الهاتف. وألوان الحالات والحافة الخضراء لواتساب تبقى كما هي. وسطر «اليوم» يعدّها، والرقم يفتح قائمة المواعيد مُصفّاة للزيارات أونلاين.</span></li>
+    <li><span data-en>Bookings list: a filter “Visit: all / at the clinic / online”, and a column in the Excel export.</span><span data-ar>قائمة المواعيد: مُرشِّح «الزيارة: الكل / في العيادة / أونلاين»، وعمود في التصدير إلى Excel.</span></li>
+  </ul>
+
+  <!-- ================================================================ 10 NEXT VISIT -->
+  <h2 class="display s" id="s10"><span data-en>10 · The doctor gives the next visit as an online one (visit note)</span><span data-ar>١٠ · الطبيب يجعل الزيارة القادمة أونلاين (ملاحظة الزيارة)</span></h2>
+  <div class="frame">
+    <div class="wrap page">
+      <div class="locked"><span data-en>Signed by Dr. Lina Haddad, 11 Nov 2026 12:02. This note is locked.</span><span data-ar>وقّعتها د. لينا حداد، 11 تشرين الثاني 2026 12:02. هذه الملاحظة مقفلة.</span></div>
+      <div class="nextbox new">
+        <b><span data-en>Book the next visit</span><span data-ar>احجز الزيارة القادمة</span></b>
+        <div class="row"><div class="seg"><button type="button"><span data-en>At the clinic</span><span data-ar>في العيادة</span></button><button type="button" class="on"><span data-en>Online visit</span><span data-ar>زيارة أونلاين</span></button></div>
+          <div class="chips" style="margin:0"><button class="chip"><span data-en>In 1 week</span><span data-ar>بعد أسبوع</span></button><button class="chip on"><span data-en>In 2 weeks</span><span data-ar>بعد أسبوعين</span></button><button class="chip"><span data-en>In 1 month</span><span data-ar>بعد شهر</span></button><button class="chip"><span data-en>Other date</span><span data-ar>تاريخ آخر</span></button></div></div>
+        <label class="check"><input type="checkbox" checked> <span><span data-en><b>Next follow-up can be online</b> (this time only)</span><span data-ar><b>المتابعة القادمة يمكن أن تكون أونلاين</b> (هذه المرة فقط)</span><br><small class="hint"><span data-en>The patient doesn't need to come to the clinic for the next follow-up. Online is chosen in the form, and the patient may also book this one follow-up online themselves. It doesn't change the “Can book online visits” mark on the patient's profile. Staff can change it on this booking.</span><span data-ar>لا يحتاج المريض الحضور للعيادة في المتابعة القادمة. يُختار «أونلاين» في النموذج، ويستطيع المريض أيضاً حجز هذه المتابعة الواحدة أونلاين بنفسه. ولا يغيّر علامة «يمكنه حجز زيارات أونلاين» في ملف المريض. ويستطيع الموظف تغييره على هذا الحجز.</span></small></span></label>
+        <div class="row" style="padding-inline-start:30px"><b class="lbl"><span data-en>Video or audio</span><span data-ar>فيديو أم صوت</span></b>
+          <div class="seg"><button type="button"><span data-en>Video</span><span data-ar>فيديو</span></button><button type="button" class="on"><span data-en>Audio only</span><span data-ar>صوت فقط</span></button><button type="button"><span data-en>Patient chooses</span><span data-ar>يختار المريض</span></button></div>
+          <span class="hint"><span data-en>Starts on the clinic default (Audio only).</span><span data-ar>يبدأ على افتراضي العيادة (صوت فقط).</span></span></div>
+        <div class="row"><a class="btn btn-accent btn-sm"><span data-en>Choose a time</span><span data-ar>اختر الوقت</span></a><span class="hint"><span data-en>Opens the booking form filled in: Huda Al-Khatib, Dr. Lina, Follow-up consultation, online, Wed 25 Nov.</span><span data-ar>يفتح نموذج الحجز مُعبّأً: هدى الخطيب، د. لينا، استشارة متابعة، أونلاين، الأربعاء 25 تشرين الثاني.</span></span></div>
+      </div>
+    </div>
+  </div>
+  <ul class="notes">
+    <li><span data-en><b>Two different things:</b> this tick is for <b>one</b> next follow-up, decided at this visit. The standing “Can book online visits” mark lives only on the patient's profile (screen 11).</span><span data-ar><b>أمران مختلفان:</b> هذه العلامة لمتابعة قادمة <b>واحدة</b>، تُقرَّر في هذه الزيارة. أما علامة «يمكنه حجز زيارات أونلاين» الدائمة فمكانها ملف المريض فقط (الشاشة ١١).</span></li>
+    <li><span data-en>On the completed booking, the doctor and staff see “Next follow-up: online (Dr. Lina, 11 Nov)” with Change. Once an online follow-up is booked, the tick is used up. Every change goes in the booking's history and the audit log.</span><span data-ar>على الحجز المكتمل، يرى الطبيب والموظف «المتابعة القادمة: أونلاين (د. لينا، 11 تشرين الثاني)» مع «تغيير». وعند حجز متابعة أونلاين تُستهلك العلامة. وكل تغيير يدخل سجل الحجز وسجل التدقيق.</span></li>
+    <li><span data-en>“Online visit” in this box shows whenever online visits are switched on in Settings and the service is offered online. There is no separate switch for it.</span><span data-ar>«زيارة أونلاين» في هذا المربع تظهر كلما كانت الزيارات أونلاين مفعّلة في الإعدادات والخدمة متاحة أونلاين. ولا يوجد مفتاح منفصل لها.</span></li>
+    <li><span data-en>Under the signed visit note and on a completed booking. The doctor (or the secretary at the desk) picks the time in the normal form, then prints the slip with the QR code or sends the link.</span><span data-ar>تحت ملاحظة الزيارة الموقّعة وعلى الحجز المكتمل. يختار الطبيب (أو السكرتيرة في الاستقبال) الوقت في النموذج العادي، ثم تُطبع الورقة برمز QR أو يُرسل الرابط.</span></li>
+    <li><span data-en>“In 1 week / 2 weeks / 1 month” are a Settings list, not fixed.</span><span data-ar>«بعد أسبوع / أسبوعين / شهر» قائمة في الإعدادات، وليست ثابتة.</span></li>
+  </ul>
+
+  <!-- ================================================================ 11 PATIENT PROFILE -->
+  <h2 class="display s" id="s11"><span data-en>11 · Patient profile: “Can book online visits”</span><span data-ar>١١ · ملف المريض: «يمكنه حجز زيارات أونلاين»</span></h2>
+  <div class="frame">
+<header class="bar"><div class="wrap">
+  <span class="brand"><svg width="30" height="16" viewBox="0 0 60 32" aria-hidden="true"><path d="M16 4C8 4 4 10 4 16s4 12 12 12c10 0 18-24 28-24 8 0 12 6 12 12s-4 12-12 12" fill="none" stroke="#2EE6B5" stroke-width="5" stroke-linecap="round"/></svg>Limitsiz Clinic · <span data-en>Booking</span><span data-ar>المواعيد</span></span>
+  <nav><a href="#"><span data-en>Calendar</span><span data-ar>التقويم</span></a><a href="#"><span data-en>Bookings</span><span data-ar>المواعيد</span></a><a href="#" aria-current="page"><span data-en>Patients</span><span data-ar>المرضى</span></a></nav>
+  <span class="grow"></span>
+  <span class="clinic"><span data-en>Limitsiz Demo Dermatology</span><span data-ar>عيادة Limitsiz التجريبية للجلدية</span></span>
+  <button class="linkbtn" type="button" onclick="flip()"><span data-en>العربية</span><span data-ar>English</span></button>
+  <div class="um"><button type="button"><span data-en>Sara Secretary</span><span data-ar>سارة السكرتيرة</span> <span aria-hidden="true">▾</span></button></div>
+</div></header>
+    <div class="wrap page">
+      <div class="row between"><h1 class="display"><span data-en>Patient details</span><span data-ar>بيانات المريض</span></h1><a class="btn btn-outline btn-sm"><span data-en>Open in Records ↗</span><span data-ar>فتح في السجلات الطبية ↗</span></a></div>
+      <form class="panel stack">
+        <label class="field"><span data-en>Full name</span><span data-ar>الاسم الكامل</span><input value="Huda Al-Khatib"></label>
+        <label class="field"><span data-en>Phone (optional)</span><span data-ar>الهاتف (اختياري)</span><input class="mono" value="+962795550142"></label>
+        <label class="field new"><span data-en>Email (optional)</span><span data-ar>البريد الإلكتروني (اختياري)</span><input class="mono" dir="ltr" value="huda@example.com"><span class="hint"><span data-en>Only for the visit link and reminders by email.</span><span data-ar>فقط لرابط الزيارة والتذكيرات بالبريد.</span></span></label>
+        <label class="field"><span data-en>Language</span><span data-ar>اللغة</span><select><option>العربية</option></select></label>
+        <label class="check"><input type="checkbox" checked> <span><span data-en>WhatsApp reminders</span><span data-ar>تذكيرات واتساب</span><br><small class="hint"><span data-en>The patient agreed to receive WhatsApp reminders.</span><span data-ar>وافق المريض على استلام تذكيرات واتساب.</span></small></span></label>
+        <div class="new stack" style="padding:12px 14px;border:1px solid var(--rule);border-radius:14px">
+          <b><svg class="vic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3z"/></svg> <span data-en>Online visits</span><span data-ar>الزيارات أونلاين</span></b>
+          <label class="check"><input type="checkbox" checked> <span><span data-en><b>Can book online visits</b></span><span data-ar><b>يمكنه حجز زيارات أونلاين</b></span><br><small class="hint"><span data-en>Lets this patient book online visits themselves, any time, for the services offered online (page, chat, WhatsApp). Set by Dr. Lina Haddad, 11 Nov 2026. The doctor or staff can change it.</span><span data-ar>يسمح لهذا المريض بحجز زيارات أونلاين بنفسه، في أي وقت، للخدمات المتاحة أونلاين (الصفحة، المحادثة، واتساب). وضعتها د. لينا حداد، 11 تشرين الثاني 2026. ويستطيع الطبيب أو الموظف تغييرها.</span></small></span></label>
+          <div class="row" style="padding-inline-start:30px"><b class="lbl"><span data-en>Video or audio</span><span data-ar>فيديو أم صوت</span></b>
+            <div class="seg"><button type="button"><span data-en>Video</span><span data-ar>فيديو</span></button><button type="button"><span data-en>Audio only</span><span data-ar>صوت فقط</span></button><button type="button" class="on"><span data-en>Patient chooses</span><span data-ar>يختار المريض</span></button></div>
+            <span class="hint"><span data-en>For the visits this patient books themselves.</span><span data-ar>للزيارات التي يحجزها هذا المريض بنفسه.</span></span></div>
+          <p class="hint" style="margin:0"><span data-en>Also open now: next follow-up online, this time only (Dr. Lina, from the visit on 11 Nov).</span><span data-ar>مفتوح أيضاً الآن: المتابعة القادمة أونلاين، هذه المرة فقط (د. لينا، من زيارة 11 تشرين الثاني).</span> <a href="#"><span data-en>Open that booking</span><span data-ar>فتح ذلك الحجز</span></a></p>
+        </div>
+        <div class="row"><button class="btn btn-accent"><span data-en>Save</span><span data-ar>حفظ</span></button></div>
+      </form>
+      <section class="panel"><div class="row between"><h2><span data-en>Bookings</span><span data-ar>المواعيد</span></h2></div><p class="hint"><span data-en>(as today; online visits show the camera mark)</span><span data-ar>(كما اليوم؛ والزيارات أونلاين تظهر بعلامة الكاميرا)</span></p></section>
+    </div>
+  </div>
+  <ul class="notes">
+    <li><span data-en><b>“Can book online visits”</b> is a standing mark that lives only here, on the profile. It's used when Settings says “Only patients marked ‘Can book online visits’”. With “seen before” or “all patients” it isn't needed.</span><span data-ar><b>«يمكنه حجز زيارات أونلاين»</b> علامة دائمة مكانها هنا فقط، في الملف. تُستخدم عندما يقول الإعداد «فقط المرضى المعلَّمون». ومع «من زار العيادة من قبل» أو «كل المرضى» لا حاجة لها.</span></li>
+    <li><span data-en><b>“Next follow-up can be online”</b> is a one-time tick on a visit (screen 10). It works with every setting and is used up by the next online follow-up.</span><span data-ar><b>«المتابعة القادمة يمكن أن تكون أونلاين»</b> علامة لمرة واحدة على زيارة (الشاشة ١٠). تعمل مع كل الإعدادات وتُستهلك بالمتابعة أونلاين القادمة.</span></li>
+    <li><span data-en>Both are changed by the doctor or staff, and both go in the audit log with the name and time.</span><span data-ar>كلاهما يغيّره الطبيب أو الموظف، وكلاهما يدخل سجل التدقيق مع الاسم والوقت.</span></li>
+    <li><span data-en><b>Video or audio</b> is decided in this order: the “next follow-up” tick's choice for that one visit, then the patient's profile, then the clinic's default in Settings. “Patient chooses” shows the patient a Video / Audio only choice when they book (screen 3). Staff can still change one booking.</span><span data-ar><b>فيديو أم صوت</b> يُحدَّد بهذا الترتيب: اختيار علامة «المتابعة القادمة» لتلك الزيارة، ثم ملف المريض، ثم الافتراضي للعيادة في الإعدادات. و«يختار المريض» يعرض على المريض اختيار فيديو / صوت فقط عند الحجز (الشاشة ٣). ويستطيع الموظف تغيير حجز واحد.</span></li>
+  </ul>
+
+  <!-- ================================================================ DATA -->
+  <section class="an" id="data">
+    <h2 class="display" style="font-size:20px"><span data-en>C · Data changes (a sketch of migration 0024)</span><span data-ar>ج · تغييرات البيانات (مسودة الترحيل 0024)</span></h2>
+    <p><span data-en>One migration with its undo in <span class="mono">db/rollback/0024_down.sql</span>. Like 0011 onwards, it takes the default rights away from anon and authenticated. The patient page never reads a Teams address directly: a function returns it only for a confirmed visit, inside its joining window.</span><span data-ar>ترحيل واحد مع التراجع في <span class="mono">db/rollback/0024_down.sql</span>. ومثل 0011 وما بعده، يسحب الصلاحيات الافتراضية من anon وauthenticated. صفحة المريض لا تقرأ عنوان Teams مباشرة أبداً: دالة تُرجعه فقط لزيارة مؤكدة، داخل وقت دخولها.</span></p>
+<pre class="sql"><i>-- 0024_online_visits.sql (sketch; design: booking/design/online-visits.html). Off for every clinic.</i>
+create table online_visits (                                   <i>-- one row per clinic, like online_booking</i>
+  clinic_id            uuid primary key references clinics (id) on delete cascade,
+  enabled              boolean not null default false,
+  link_source          text not null default 'doctor' check (link_source in ('doctor', 'graph')),
+  mode                 text not null default 'audio'  check (mode in ('video', 'audio', 'patient')),   <i>-- clinic default</i>
+  staff_change_mode    boolean not null default true,
+  who_can_book         text not null default 'marked' check (who_can_book in ('marked', 'seen_before', 'everyone')),  link_when            text not null default 'confirmed' check (link_when in ('confirmed', 'booked')),
+  join_opens_minutes   int  not null default 10 check (join_opens_minutes between 0 and 120),
+  join_closes_minutes  int  not null default 15 check (join_closes_minutes between 0 and 240),
+  channels             text[] not null default '{whatsapp,email,print}'
+                       check (channels &lt;@ '{whatsapp,sms,email,print}'),
+  patient_picks        boolean not null default true,
+  default_channel      text not null default 'whatsapp',
+  sms_sender           text check (sms_sender ~ '^[A-Za-z0-9]{3,11}$'),
+  print_size           text not null default 'a6' check (print_size in ('a6', 'a5')),
+  print_languages      text not null default 'patient' check (print_languages in ('patient', 'ar_en')),
+  next_visit_choices   int[] not null default '{7,14,30}',       <i>-- days, for "Book the next visit"</i>
+  consent_en text not null, consent_ar text not null, consent_version int not null default 1,
+  how_to_en  text not null, how_to_ar  text not null,
+  message_en text not null, message_ar text not null,           <i>-- SMS and WhatsApp-from-the-clinic text</i>
+  email_subject_en text not null, email_subject_ar text not null,
+  ms_tenant_id    uuid,                                         <i>-- phase 3; the app's secret stays in booking/.env</i>
+  ms_connected_at timestamptz,
+  updated_at timestamptz not null default now(), updated_by_name text, row_version int not null default 1
+);
+<i>-- + default row for every clinic and a trigger for new clinics; audit trigger as on the other settings tables</i>
+
+create table clinic_payment (                                  <i>-- Settings › Payment; one row per clinic</i>
+  clinic_id       uuid primary key references clinics (id) on delete cascade,
+  cliq_enabled    boolean not null default false,
+  cliq_alias      text check (cliq_alias ~ '^[A-Za-z0-9]{1,20}$'),     <i>-- the CliQ name registered with the clinic's bank (check JoPACC's length rule)</i>
+  cliq_name       text check (char_length(cliq_name) &lt;= 80),         <i>-- the name the patient should see</i>
+  pay_when        text not null default 'before' check (pay_when in ('before', 'after')),
+  for_online      boolean not null default true,                    <i>-- online visits now; other uses later</i>
+  note_en text not null, note_ar text not null,                    <i>-- {price} {alias} {name}</i>
+  updated_at timestamptz not null default now(), updated_by_name text, row_version int not null default 1
+);
+
+alter table doctors  add column online_enabled           boolean not null default false;
+alter table doctors  add column online_min_notice_minutes int not null default 60 check (online_min_notice_minutes between 0 and 10080);
+alter table doctors  add column teams_link  text check (teams_link ~ '^https://teams\.(microsoft|live)\.com/');
+alter table doctors  add column ms_user_id  uuid;                                    <i>-- phase 3</i>
+alter table services add column online_allowed boolean not null default false;
+alter table patients add column online_allowed    boolean not null default false;    <i>-- "Can book online visits"</i>
+alter table patients add column online_allowed_by uuid references accounts.users (id), add column online_allowed_at timestamptz;
+alter table patients add column online_mode text check (online_mode in ('video', 'audio', 'patient'));  <i>-- null = clinic default</i>
+alter table patients add column email text check (email ~* '^[^@\s]+@[^@\s]+\.[^@\s]+$' and char_length(email) &lt;= 120);
+
+alter table appointments add column visit_type   text not null default 'in_clinic' check (visit_type in ('in_clinic', 'online'));
+alter table appointments add column online_mode  text check (online_mode in ('video', 'audio'));
+alter table appointments add column link_channel text check (link_channel in ('whatsapp', 'sms', 'email', 'print'));
+alter table appointments add column meeting_url  text check (meeting_url ~ '^https://teams\.(microsoft|live)\.com/');  <i>-- pasted (B) or made (C)</i>
+alter table appointments add column meeting_id   text;                                <i>-- Graph's id, to move or delete (C)</i>
+alter table appointments add column online_consent_at timestamptz, add column online_consent_version int;
+alter table appointments add column identity_checked_at timestamptz, add column identity_checked_by uuid references accounts.users (id);
+<i>-- the doctor's one-time "next follow-up can be online", on the visit where it was decided; staff can change it</i>
+alter table appointments add column next_online     boolean not null default false;
+alter table appointments add column next_online_mode text check (next_online_mode in ('video', 'audio', 'patient'));
+alter table appointments add column next_online_by  uuid references accounts.users (id), add column next_online_at timestamptz;
+alter table appointments add column next_online_used_by uuid references appointments (id);   <i>-- the online follow-up that used it</i>
+alter table appointments add constraint online_needs_mode check (visit_type = 'in_clinic' or online_mode is not null);
+
+create table join_links (                                      <i>-- one per send: book.limitsiz.si/j/&lt;token&gt;</i>
+  id             uuid primary key default gen_random_uuid(),
+  clinic_id      uuid not null references clinics (id) on delete cascade,
+  appointment_id uuid not null references appointments (id) on delete cascade,
+  token_hash     text not null unique check (token_hash ~ '^[0-9a-f]{64}$'),   <i>-- only the hash is kept, as manage links</i>
+  channel        text not null check (channel in ('whatsapp', 'sms', 'email', 'print', 'copy', 'page')),
+  sent_at        timestamptz not null default now(),
+  sent_by        uuid references accounts.users (id),
+  first_opened_at timestamptz, last_opened_at timestamptz,
+  stopped_at     timestamptz
+);
+create index on join_links (appointment_id);
+
+<i>-- the patient page's only way to the Teams address: confirmed, online, within the window, link not stopped</i>
+create function public.join_target(p_token_hash text) returns table (status text, opens_at timestamptz, closes_at timestamptz, url text)
+  language plpgsql security definer set search_path = '' as $$ … $$;
+
+<i>-- rights: revoke all from anon and authenticated (Supabase's defaults); booking_app reads and writes the new table and columns;
+-- public_app reads online_visits, doctors(online_enabled, online_min_notice_minutes), services(online_allowed),
+-- inserts join_links and executes join_target(); never doctors.teams_link or appointments.meeting_url directly.</i></pre>
+    <ul>
+      <li><span data-en><b>Server settings (.env), not in the database:</b> phase 2: the SMS provider's key in booking/.env and the template names (<span class="mono">WA_VISIT_LINK_TEMPLATE</span>, <span class="mono">WA_ONLINE_REMINDER_TEMPLATE</span>) in agent/.env. Phase 3: <span class="mono">MS_CLIENT_ID</span> and <span class="mono">MS_CLIENT_SECRET</span> (the Limitsiz app) in booking/.env. Email uses the SMTP that Booking already has for the nightly audit email.</span><span data-ar><b>إعدادات الخادم (.env)، لا في قاعدة البيانات:</b> المرحلة ٢: مفتاح مزوّد الرسائل في booking/.env وأسماء رسائل واتساب (<span class="mono">WA_VISIT_LINK_TEMPLATE</span>، <span class="mono">WA_ONLINE_REMINDER_TEMPLATE</span>) في agent/.env. المرحلة ٣: <span class="mono">MS_CLIENT_ID</span> و<span class="mono">MS_CLIENT_SECRET</span> (تطبيق Limitsiz) في booking/.env. والبريد يستخدم SMTP الموجود في المواعيد للبريد الليلي للتدقيق.</span></li>
+      <li><span data-en>Free times: the doctor's buffer is added in <span class="mono">booking/server/slots.js</span> and <span class="mono">agent/…/booking/slots.py</span> together, and the comparison test (0 differences) is extended to online visits.</span><span data-ar>الأوقات المتاحة: تُضاف مهلة الطبيب في <span class="mono">booking/server/slots.js</span> و<span class="mono">agent/…/booking/slots.py</span> معاً، ويُوسّع اختبار المقارنة (0 فروق) ليشمل الزيارات أونلاين.</span></li>
+    </ul>
+  </section>
+
+  <!-- ================================================================ BUILD -->
+  <section class="an" id="build">
+    <h2 class="display" style="font-size:20px"><span data-en>D · Build order</span><span data-ar>د · ترتيب البناء</span></h2>
+    <div class="phase">
+      <div><span class="pill ok" style="align-self:flex-start"><span data-en>Phase 1: online visits with doctors' links</span><span data-ar>المرحلة ١: الزيارات أونلاين بروابط الأطباء</span></span>
+        <ul><li><span data-en>Migration 0024 and its undo</span><span data-ar>الترحيل 0024 والتراجع</span></li><li><span data-en>Settings › Online visits; Settings › Payment (CliQ); doctor panel; service tick</span><span data-ar>الإعدادات › الزيارات أونلاين؛ الإعدادات › الدفع (CliQ)؛ لوحة الطبيب؛ علامة الخدمة</span></li><li><span data-en>Booking page: choice, buffer, consent, how to get the link</span><span data-ar>صفحة الحجز: الاختيار، المهلة، الموافقة، طريقة وصول الرابط</span></li><li><span data-en>Private link and the /j/ Join page</span><span data-ar>الرابط الخاص وصفحة الدخول /j/</span></li><li><span data-en>Staff form, booking page, calendar, list filter, export</span><span data-ar>نموذج الموظف، صفحة الحجز، التقويم، المرشّح، التصدير</span></li><li><span data-en>“Book the next visit” (online) on the visit note and completed bookings; the patient's “Can book online visits” mark</span><span data-ar>«احجز الزيارة القادمة» (أونلاين) على ملاحظة الزيارة والحجوزات المكتملة؛ وعلامة «يمكنه حجز زيارات أونلاين» على المريض</span></li><li><span data-en>Starts with Follow-up consultation only</span><span data-ar>تبدأ باستشارة المتابعة فقط</span></li><li><span data-en>Sending: email, print with QR, WhatsApp from the clinic's number</span><span data-ar>الإرسال: البريد، الطباعة برمز QR، واتساب من رقم العيادة</span></li><li><span data-en>Tests (buffer, window, rights, 0-difference slots)</span><span data-ar>الاختبارات (المهلة، نافذة الدخول، الصلاحيات، تطابق الأوقات)</span></li></ul>
+        <span class="hint"><span data-en>Your go-ahead: apply 0024 on live, then push. No server setup.</span><span data-ar>موافقتك: تطبيق 0024 على النظام الحي، ثم الرفع. بلا إعداد خادم.</span></span></div>
+      <div><span class="pill warn" style="align-self:flex-start"><span data-en>Phase 2: assistants and automatic messages</span><span data-ar>المرحلة ٢: المساعدان والرسائل التلقائية</span></span>
+        <ul><li><span data-en>Web chat and WhatsApp assistant: online visits, with new test cases</span><span data-ar>المحادثة ومساعد واتساب: الزيارات أونلاين، مع حالات اختبار جديدة</span></li><li><span data-en>Two WhatsApp messages for Meta to approve (visit link, online reminder)</span><span data-ar>رسالتا واتساب لموافقة Meta (رابط الزيارة، تذكير أونلاين)</span></li><li><span data-en>SMS through the provider you choose</span><span data-ar>SMS عبر المزوّد الذي تختاره</span></li></ul>
+        <span class="hint"><span data-en>Your part: the Meta message approvals, the SMS provider and its key, the agent redeploy.</span><span data-ar>دورك: موافقات رسائل Meta، مزوّد الرسائل ومفتاحه، إعادة نشر الوكيل.</span></span></div>
+      <div><span class="pill" style="align-self:flex-start"><span data-en>Phase 3: automatic Teams meetings</span><span data-ar>المرحلة ٣: اجتماعات Teams التلقائية</span></span>
+        <ul><li><span data-en>The Limitsiz app in Microsoft Entra (multi-tenant)</span><span data-ar>تطبيق Limitsiz في Microsoft Entra (لعدة عيادات)</span></li><li><span data-en>“Connect Microsoft 365” in Settings (the clinic administrator approves), with the PowerShell command shown on screen</span><span data-ar>«ربط Microsoft 365» في الإعدادات (يوافق مدير العيادة)، مع أمر PowerShell معروض على الشاشة</span></li><li><span data-en>Match doctors to their Microsoft accounts</span><span data-ar>ربط الأطباء بحساباتهم في Microsoft</span></li><li><span data-en>Create on confirm, move on change, delete on cancel; lobby, camera off for audio, no recording or chat; retry and an email to the admin on failure; fallback to the doctor's link</span><span data-ar>إنشاء عند التأكيد، نقل عند التغيير، حذف عند الإلغاء؛ صالة انتظار، كاميرا مطفأة للصوت، بلا تسجيل أو محادثة؛ إعادة المحاولة وبريد للمدير عند الفشل؛ والرجوع لرابط الطبيب</span></li></ul>
+        <span class="hint"><span data-en>Your part: a Microsoft account for Limitsiz to register the app, the secret in booking/.env, and a clinic (or a Microsoft 365 trial) to test with.</span><span data-ar>دورك: حساب Microsoft لـ Limitsiz لتسجيل التطبيق، والسرّ في booking/.env، وعيادة (أو تجربة Microsoft 365) للاختبار.</span></span></div>
+      <div><span class="pill" style="align-self:flex-start"><span data-en>Later</span><span data-ar>لاحقاً</span></span>
+        <ul><li><span data-en>Separate online hours per doctor</span><span data-ar>ساعات أونلاين منفصلة لكل طبيب</span></li><li><span data-en>A different price for online visits; online payment</span><span data-ar>سعر مختلف للزيارة أونلاين؛ الدفع الإلكتروني</span></li><li><span data-en>Photos before the visit (through the Records forms link)</span><span data-ar>صور قبل الزيارة (عبر رابط نماذج السجلات الطبية)</span></li><li><span data-en>AI Scribe in online visits (its own consent)</span><span data-ar>الكاتب الذكي في الزيارات أونلاين (بموافقته الخاصة)</span></li><li><span data-en>Our own video page instead of Teams, if needed</span><span data-ar>صفحة فيديو خاصة بنا بدل Teams، إن لزم</span></li></ul></div>
+    </div>
+    <p class="hint"><span data-en>Nothing has been built, pushed or changed on the database or the server. Each live step will get your go-ahead when we reach it.</span><span data-ar>لم يُبنَ أو يُرفع أو يُغيَّر شيء في قاعدة البيانات أو الخادم. كل خطوة على النظام الحي تنتظر موافقتك عند الوصول إليها.</span></p>
+    <p class="hint"><span data-en>Sources checked on 11 Nov 2026: Microsoft Learn (onlineMeeting resource; application access policy), Microsoft Q&amp;A (joining Teams from a phone browser), reviews of telemedicine regulation (Intelehealth 2024, DLA Piper telehealth handbook), MDPI 2025 study on telemedicine dispensing in Jordan. The Jordan points are second-hand, so the lawyer should confirm them.</span><span data-ar>المصادر التي رُوجعت في 11 تشرين الثاني 2026: Microsoft Learn (مورد onlineMeeting؛ سياسة وصول التطبيق)، Microsoft Q&amp;A (دخول Teams من متصفح الهاتف)، مراجعات أنظمة الطب عن بُعد (Intelehealth 2024، دليل DLA Piper للرعاية عن بُعد)، دراسة MDPI 2025 عن صرف الأدوية عن بُعد في الأردن. نقاط الأردن غير مباشرة، لذا يجب أن يؤكدها المحامي.</span></p>
+  </section>
+</main>
+<script>
+/* pick lists show the option in the page's language (each list holds one English and one Arabic option) */
+function pick(){var l=document.documentElement.lang;document.querySelectorAll("select").forEach(function(s){for(var i=0;i<s.options.length;i++){if(s.options[i].hasAttribute(l==="ar"?"data-ar":"data-en")){s.selectedIndex=i;break}}})}
+function flip(){var h=document.documentElement,ar=h.lang==="en";h.lang=ar?"ar":"en";h.dir=ar?"rtl":"ltr";pick();try{localStorage.setItem("lc_design_lang",h.lang)}catch(e){}}
+try{if(localStorage.getItem("lc_design_lang")==="ar")flip()}catch(e){}
+pick();
+/* a stand-in QR picture for the printed slip (the real one is drawn from the link, as the online-booking QR) */
+document.querySelectorAll("svg.fakeqr").forEach(function(s){var n=25,r="",seed=7;function rnd(){seed=(seed*9301+49297)%233280;return seed/233280}
+  function finder(x,y){r+='<rect x="'+x+'" y="'+y+'" width="7" height="7"/><rect x="'+(x+1)+'" y="'+(y+1)+'" width="5" height="5" fill="#fff"/><rect x="'+(x+2)+'" y="'+(y+2)+'" width="3" height="3"/>'}
+  for(var y=0;y<n;y++)for(var x=0;x<n;x++){var f=(x<8&&y<8)||(x>16&&y<8)||(x<8&&y>16);if(!f&&rnd()>.52)r+='<rect x="'+x+'" y="'+y+'" width="1" height="1"/>'}
+  finder(0,0);finder(18,0);finder(0,18);s.innerHTML='<rect width="25" height="25" fill="#fff"/><g fill="#0A0F14">'+r+'</g>'});
+</script>
+</body>
+</html>

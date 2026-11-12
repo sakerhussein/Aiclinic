@@ -5,6 +5,8 @@ import { addDays, dayOf, fmtDay, fromHere, hm, localToIso, minutesOfDay, todayIn
 import { useI18n } from "../i18n";
 import { useApp } from "../session";
 import { useN } from "./notes-text";
+import { Cam } from "./form";
+import { fill, useOV } from "./online-text";
 
 const PX = 1.3;            // pixels per minute (day view)
 const WPX = 0.8;           // pixels per minute (week view)
@@ -104,9 +106,9 @@ function useData(from: string, to: string) {
 }
 
 // ---------------------------------------------------------------- the "today" line
-type Line = { date: string; booked: number; notChecked: number; completed: number; noShow: number; nextFree: string | null };
+type Line = { date: string; booked: number; notChecked: number; completed: number; noShow: number; online?: number; nextFree: string | null };
 function TodayLine() {
-  const { t } = useI18n();
+  const { t } = useI18n(); const ov = useOV();
   const { look } = useApp();
   const [l, setL] = useState<Line | null>(null);
   useEffect(() => {
@@ -122,6 +124,7 @@ function TodayLine() {
       {l.notChecked > 0 && <Link className="tl-warn" to={list("&unchecked=1")}>{t("tlNotChecked", { n: l.notChecked })}</Link>}
       {l.completed > 0 && <Link to={list("&status=completed")}>{t("tlCompleted", { n: l.completed })}</Link>}
       {l.noShow > 0 && <Link className="tl-warn" to={list("&status=no_show")}>{t("tlNoShow", { n: l.noShow })}</Link>}
+      {!!l.online && <Link className="tl-vt" to={list("&visit=online")}><Cam /> {fill(ov.tlOnline, { n: l.online })}</Link>}
       <span className="hint">{l.nextFree ? t("tlNextFree", { t: hm(l.nextFree, look.clinic.timezone) }) : t("tlNoFree")}</span>
     </div>
   );
@@ -170,8 +173,8 @@ function DayGrid({ day, doctors }: { day: string; doctors: { id: string; name_en
                 {appts.filter((a) => a.doctor_id === doc.id && a.status !== "cancelled").map((a) => {
                   const s = minutesOfDay(a.starts_at, tz), h = Math.max(a.duration_minutes, 15);
                   return (
-                    <Link key={a.id} to={`/bookings/${a.id}`} state={here} className={`cal-card st-${a.status} src-${a.source}${a.unchecked || a.moved_by_patient ? " unchecked" : ""} ${h * PX >= 58 ? "tall" : "short"}`} style={{ top: (s - from) * PX, height: h * PX - 2 }}>
-                      <b>{hm(a.starts_at, tz)} {a.patient_name || a.patient_phone || "?"}</b>
+                    <Link key={a.id} to={`/bookings/${a.id}`} state={here} className={`cal-card st-${a.status} src-${a.source}${a.unchecked || a.moved_by_patient ? " unchecked" : ""}${a.visit_type === "online" ? " vt-online" : ""} ${h * PX >= 58 ? "tall" : "short"}`} style={{ top: (s - from) * PX, height: h * PX - 2 }}>
+                      <b>{a.visit_type === "online" && <><Cam size={12} /> </>}{hm(a.starts_at, tz)} {a.patient_name || a.patient_phone || "?"}</b>
                       <span>{lang === "ar" ? a.service_name_ar : a.service_name_en}</span>
                       <em>{d.sources[a.source] ?? a.source}{a.note_status && <span className={`cal-note n-${a.note_status}`} title={`${nt.noteLine}: ${nt.states[a.note_status] ?? a.note_status}`}> · {nt.states[a.note_status] ?? a.note_status}</span>}</em>
                     </Link>
@@ -204,7 +207,7 @@ function WeekGrid({ start, docId, onDay }: { start: string; docId: string; onDay
   const from = spans.length ? Math.floor(Math.min(...spans.map((s) => s[0])) / 60) * 60 : 8 * 60;
   const to = spans.length ? Math.ceil(Math.max(...spans.map((s) => s[1])) / 60) * 60 : 18 * 60;
   const hours = Array.from({ length: (to - from) / 60 + 1 }, (_, i) => from + i * 60);
-  const cls = (a: Appt) => `st-${a.status} src-${a.source}${a.unchecked || a.moved_by_patient ? " unchecked" : ""}`;
+  const cls = (a: Appt) => `st-${a.status} src-${a.source}${a.unchecked || a.moved_by_patient ? " unchecked" : ""}${a.visit_type === "online" ? " vt-online" : ""}`;
   const name = (a: Appt) => a.patient_name || a.patient_phone || "?";
 
   function onGrid(e: React.MouseEvent<HTMLDivElement>, day: string) {
@@ -242,7 +245,7 @@ function WeekGrid({ start, docId, onDay }: { start: string; docId: string; onDay
                 return (
                   <Link key={a.id} to={`/bookings/${a.id}`} state={here} className={`cal-card short ${cls(a)}`} style={{ top: (s - from) * WPX, height: h * WPX - 2 }}
                     title={`${hm(a.starts_at, tz)} ${name(a)} · ${lang === "ar" ? a.service_name_ar : a.service_name_en}`}>
-                    <b className="mono">{hm(a.starts_at, tz)}</b><span>{name(a)}</span>
+                    <b className="mono">{a.visit_type === "online" && <><Cam size={11} /> </>}{hm(a.starts_at, tz)}</b><span>{name(a)}</span>
                   </Link>
                 );
               })}
@@ -257,7 +260,7 @@ function WeekGrid({ start, docId, onDay }: { start: string; docId: string; onDay
               <span className="hint">{p.shifts.length ? t("nBooked", { n: p.list.length }) : t("closedDay")}</span></div>
             {p.list.map((a) => (
               <Link key={a.id} to={`/bookings/${a.id}`} state={here} className={`ag-row ${cls(a)}`}>
-                <b className="mono">{hm(a.starts_at, tz)}</b><span>{name(a)}</span><span className="hint">{lang === "ar" ? a.service_name_ar : a.service_name_en}</span>
+                <b className="mono">{hm(a.starts_at, tz)}</b>{a.visit_type === "online" && <Cam />}<span>{name(a)}</span><span className="hint">{lang === "ar" ? a.service_name_ar : a.service_name_en}</span>
               </Link>
             ))}
           </div>

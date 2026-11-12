@@ -7,20 +7,22 @@ export const MAX_EXPORT_ROWS = 50000;
 const TEXT = {
   en: {
     bookings: "Bookings", patients: "Patients",
-    bookingCols: ["Date", "Time", "Patient", "Phone", "Service", "Duration (min)", "Price (JOD)", "Doctor", "Source", "Status", "Cancel or void reason"],
+    bookingCols: ["Date", "Time", "Patient", "Phone", "Service", "Duration (min)", "Price (JOD)", "Doctor", "Source", "Status", "Cancel or void reason", "Visit"],
     patientCols: ["Name", "Phone", "Preferred language", "WhatsApp reminders", "Last visit"],
     statuses: { booked: "Booked", confirmed: "Confirmed", completed: "Completed", no_show: "No-show", cancelled: "Cancelled", voided: "Voided" },
     sources: { whatsapp: "WhatsApp", phone: "Phone", walkin: "Walk-in", staff: "Staff", web: "Web" },
     languages: { ar: "Arabic", en: "English" }, yes: "Yes", no: "No",
+    visits: { in_clinic: "At the clinic", video: "Online (video)", audio: "Online (audio)" },
     stopped: `Stopped at ${MAX_EXPORT_ROWS} rows: narrow the filters and export again.`,
   },
   ar: {
     bookings: "المواعيد", patients: "المرضى",
-    bookingCols: ["التاريخ", "الوقت", "المريض", "الهاتف", "الخدمة", "المدة (دقيقة)", "السعر (دينار)", "الطبيب", "المصدر", "الحالة", "سبب الإلغاء أو الإبطال"],
+    bookingCols: ["التاريخ", "الوقت", "المريض", "الهاتف", "الخدمة", "المدة (دقيقة)", "السعر (دينار)", "الطبيب", "المصدر", "الحالة", "سبب الإلغاء أو الإبطال", "الزيارة"],
     patientCols: ["الاسم", "الهاتف", "اللغة المفضلة", "تذكيرات واتساب", "آخر زيارة"],
     statuses: { booked: "محجوز", confirmed: "مؤكد", completed: "مكتمل", no_show: "لم يحضر", cancelled: "ملغى", voided: "مُبطل" },
     sources: { whatsapp: "واتساب", phone: "هاتف", walkin: "حضور مباشر", staff: "موظف", web: "الموقع" },
     languages: { ar: "العربية", en: "الإنجليزية" }, yes: "نعم", no: "لا",
+    visits: { in_clinic: "في العيادة", video: "أونلاين (فيديو)", audio: "أونلاين (صوت)" },
     stopped: `توقف التصدير عند ${MAX_EXPORT_ROWS} صف: ضيّق عوامل التصفية وصدّر مرة أخرى.`,
   },
 };
@@ -48,13 +50,14 @@ async function workbook({ lang, title, columns, rows, truncated, stopped }) {
 
 export function bookingsFile(rows, { lang, tz, truncated }) {
   const T = TEXT[lang];
-  const w = [12, 8, 26, 17, 26, 12, 11, 22, 13, 13, 32];
+  const w = [12, 8, 26, 17, 26, 12, 11, 22, 13, 13, 32, 16];
   const columns = T.bookingCols.map((header, i) => ({ header, width: w[i], numFmt: i === 0 ? "yyyy-mm-dd" : i === 1 ? "hh:mm" : i === 6 ? "0.00" : undefined, ltr: i === 3 }));
   const out = rows.map((a) => {
     const t = local(a.starts_at, tz);
     return [t.date, t.time, a.patient_name ?? "", a.patient_phone ?? "", lang === "ar" ? a.service_name_ar : a.service_name_en, a.duration_minutes,
       a.price_jod == null ? null : Number(a.price_jod), lang === "ar" ? a.doctor_name_ar : a.doctor_name_en,
-      T.sources[a.source] ?? a.source, T.statuses[a.status] ?? a.status, a.void_reason ?? a.cancel_reason ?? ""];
+      T.sources[a.source] ?? a.source, T.statuses[a.status] ?? a.status, a.void_reason ?? a.cancel_reason ?? "",
+      a.visit_type === "online" ? T.visits[a.online_mode] ?? "" : T.visits.in_clinic];
   });
   return workbook({ lang, title: T.bookings, columns, rows: out, truncated, stopped: T.stopped });
 }

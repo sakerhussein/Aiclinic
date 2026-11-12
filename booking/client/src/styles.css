@@ -325,3 +325,56 @@ html[dir="rtl"] input.mono{text-align:right}
 @media (max-width:720px){.cal.wk{display:none}.agenda{display:flex}}
 /* Records phase C on the booking page: the forms link to send */
 .formlink{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+
+/* ---- online visits on Microsoft Teams (design: booking/design/online-visits.html) */
+.vic{display:inline-block;vertical-align:-2px;flex:none}
+.pill.vt{background:#E8F0FF;color:#2B4FA0;gap:4px}
+.cal-card.vt-online,.ag-row.vt-online{border-style:dashed}
+.cal-card.vt-online .vic,.ag-row.vt-online .vic{color:#2B4FA0}
+.todayline .tl-vt{color:#2B4FA0}
+.linkrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.linkrow input{flex:1;min-width:0}
+.sendmenu{position:relative;display:inline-block}
+.sendmenu .um-list{inset-inline-start:0;inset-inline-end:auto;min-width:250px}
+.sendmenu .um-list button{display:flex;gap:10px;align-items:center}
+.sendmenu .um-list button[disabled]{opacity:.5;cursor:default}
+.sendmenu .um-list small{margin-inline-start:auto;color:var(--muted);font-size:12px;max-width:150px;overflow:hidden;text-overflow:ellipsis}
+.sentlog{margin:4px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px;font-size:13.5px}
+.sentlog li{display:flex;gap:8px;flex-wrap:wrap;align-items:baseline}
+.chan{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px 12px;align-items:start;padding-block:10px;border-bottom:1px solid var(--rule-soft)}
+.chan:last-child{border-bottom:0}
+.chan>input[type=checkbox]{width:20px;height:20px;margin-top:2px}
+.chan b{display:block}
+.radios{display:flex;flex-direction:column;gap:8px}
+.radio{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--rule);border-radius:14px;padding:12px 14px;background:#fff}
+.radio.on{border:2px solid var(--accent-ink);background:#F6FDFA;padding:11px 13px}
+.radio.dis{background:var(--paper);color:var(--muted)}
+.radio input{width:18px;height:18px;margin-top:3px}
+.nextbox{border:1px dashed var(--accent-ink);border-radius:16px;background:#F6FDFA;padding:14px 16px;display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.onlinebox{border:1px solid var(--rule);border-radius:14px;padding:12px 14px}
+.seg button:disabled{opacity:.45;cursor:default}
+/* the printed slip with the QR code: shown over the page, printed alone at its real size */
+.slipmodal{overflow:auto;align-items:start}
+.slipwrap{padding-block:20px}
+.slip{width:105mm;min-height:148mm;background:#fff;color:var(--ink);border-radius:6px;box-shadow:0 10px 30px #0004;padding:7mm;display:flex;flex-direction:column;gap:8px;font-size:12.5px;margin-inline:auto;page:slip-a6}
+.slip.a5{width:148mm;min-height:210mm;font-size:14px;page:slip-a5}
+.slip .top{display:flex;align-items:center;gap:8px;border-bottom:2px solid var(--ink);padding-bottom:6px}
+.slip h3{font-size:16px;margin:0 0 2px}
+.slip p{margin:4px 0}
+.slip ol{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;gap:2px;font-size:12px}
+.slip .sliptext+.sliptext{border-top:1px dashed var(--rule);padding-top:6px}
+.slip .qrz{display:flex;gap:10px;align-items:center}
+.slip .qrz canvas{width:32mm!important;height:32mm!important;flex:none}
+.slip .foot{margin-top:auto;font-size:11px;color:var(--muted);display:flex;justify-content:space-between;gap:8px}
+html[lang="ar"] .slip [lang="en"]{font-family:var(--font-body)}
+@page slip-a6{size:A6;margin:0}
+@page slip-a5{size:A5;margin:0}
+@media print{
+  body *{visibility:hidden}
+  .slipmodal,.slipmodal *{visibility:visible}
+  .slipmodal{position:absolute;inset:0;background:none;display:block;padding:0}
+  .slipwrap{padding:0}
+  .slip{box-shadow:none;border-radius:0;margin:0}
+  .noprint{display:none!important}
+}
+.onlinebox select,.nextbox select{font:inherit;min-height:38px;border:1px solid var(--field);border-radius:10px;padding:0 8px;background:#fff}

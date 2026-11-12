@@ -4,10 +4,10 @@
 import { HttpError } from "./http.js";
 
 export const TYPES = {
-  bookings: ["appointment"],
+  bookings: ["appointment", "join_link"],
   patients: ["patient"],
   notes: ["visit_note"],
-  settings: ["clinic", "doctor", "service", "clinic_hours", "doctor_hours", "time_off", "doctor_service", "booking_rules", "clinic_settings", "clinic_faq", "online_booking", "scribe_settings"],
+  settings: ["clinic", "doctor", "service", "clinic_hours", "doctor_hours", "time_off", "doctor_service", "booking_rules", "clinic_settings", "clinic_faq", "online_booking", "scribe_settings", "online_visits", "clinic_payment"],
   security: ["session", "user", "membership", "invite"],
   audit: ["audit"],
 };

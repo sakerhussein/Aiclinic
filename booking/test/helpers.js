@@ -32,7 +32,10 @@ export async function setup() {
   const drafter = { fail: null, calls: [], async draft(x) { drafter.calls.push(x); if (drafter.fail) throw new ScribeError(drafter.fail); return sampleDrafter.draft(x); } };
   const scribe = createScribe({ pool, audioDir, drafter, now: () => new Date(a.clock.t), log: { error() {} } });
   const tidier = { fail: null, calls: [], async tidy(x) { tidier.calls.push(x); if (tidier.fail) throw new ScribeError(tidier.fail); return sampleTidier.tidy(x); } };
-  const svc = createService({ pool, auditPool, now: () => new Date(a.clock.t), audioDir, tidier, recordsUrl: "http://records.test" });
+  // Online visits: the visit-link emails are caught here instead of sent.
+  const patientMails = [];
+  const mail = async (m) => { patientMails.push(m); return true; };
+  const svc = createService({ pool, auditPool, now: () => new Date(a.clock.t), audioDir, tidier, recordsUrl: "http://records.test", mail });
   const app = createApp({ svc, config });
   const server = await new Promise((r) => { const s = app.listen(0, "127.0.0.1", () => r(s)); });
   const base = `http://127.0.0.1:${server.address().port}`;
@@ -106,7 +109,7 @@ export async function setup() {
     fetch(`${base}/api/notes/${noteId}/audio/${seq}`, { method: "PUT", headers: { origin: base, cookie: b.cookie, "content-type": type }, body: buf })
       .then(async (r) => ({ status: r.status, json: await r.json().catch(() => null) }));
 
-  async function reset() { agent.next = []; agent.calls = []; agent.down = false; drafter.fail = null; drafter.calls = []; tidier.fail = null; tidier.calls = [];
+  async function reset() { agent.next = []; agent.calls = []; agent.down = false; drafter.fail = null; drafter.calls = []; tidier.fail = null; tidier.calls = []; patientMails.length = 0;
     for (const d of fs.readdirSync(audioDir)) fs.rmSync(path.join(audioDir, d), { recursive: true, force: true });
     await a.owner.query(`delete from prescriptions; delete from form_responses; delete from form_templates; delete from form_links; delete from treatment_courses;
       update record_settings set courses_on = false, forms_on = false, rx_on = false, form_link_hours = 24, form_message_en = default, form_message_ar = default;
@@ -121,9 +124,11 @@ export async function setup() {
       update clinic_settings set idle_timeout_minutes = 60, lock_after_minutes = 10, require_2fa_all = false, audit_retention_months = null, assistant_enabled = true;
       delete from doctors where name_en like 'Test %'; delete from services where name_en like 'Test %';
       delete from online_booking; insert into online_booking (clinic_id) select id from clinics;
+      delete from online_visits; insert into online_visits (clinic_id) select id from clinics; delete from clinic_payment; insert into clinic_payment (clinic_id) select id from clinics;
+      update doctors set online_enabled = false, online_min_notice_minutes = 60, teams_link = null; update services set online_allowed = false;
       update clinics set wa_phone_number_id = null;`); publicApp.locals.forget(); await a.reset(); }
   return { ...a, accountsBase: a.base, reset, base, publicBase, pub, agent, forgetPublic: () => publicApp.locals.forget(), bookingJar: jar, login, people, seedIds, pool,
-    audioDir, scribe, drafter, tidier, putAudio,
+    audioDir, scribe, drafter, tidier, putAudio, patientMails,
     // Dictation, as the browser sends it: the whole recording at once.
     dictate: (b, noteId, q, buf = Buffer.from("fake-opus-audio"), type = "audio/webm;codecs=opus") =>
       fetch(`${base}/api/notes/${noteId}/dictate?${new URLSearchParams(q)}`, { method: "POST", headers: { origin: base, cookie: b.cookie, "content-type": type }, body: buf })

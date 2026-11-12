@@ -4,13 +4,20 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { TEXT, type Lang, type Tx } from "./text";
 
 // ---------------------------------------------------------------- types and the server
-type Service = { id: string; name_en: string; name_ar: string; duration_minutes: number; price_jod: string | null; price_is_from: boolean };
-type Doctor = { id: string; name_en: string; name_ar: string; title_en: string | null; title_ar: string | null; service_ids: string[] };
+type Service = { id: string; name_en: string; name_ar: string; duration_minutes: number; price_jod: string | null; price_is_from: boolean; online_allowed?: boolean };
+type Doctor = { id: string; name_en: string; name_ar: string; title_en: string | null; title_ar: string | null; service_ids: string[];
+                online_enabled?: boolean; online_min_notice_minutes?: number };
+// Online visits on Microsoft Teams (Settings › Online visits): what the page offers, and the way into the visit.
+export type Online = { enabled: boolean; modeChoice?: boolean; consentEn?: string; consentAr?: string; howToEn?: string; howToAr?: string;
+                       channels?: string[]; defaultChannel?: string | null; linkWhen?: string; whoCanBook?: string };
+export type Join = { state: string; opensAt: string; closesAt: string; url: string | null };
+export type Payment = { noteEn: string; noteAr: string; alias: string; name: string };
 export type Info = {
   clinic: { slug: string; nameEn: string; nameAr: string; phone: string | null; addressEn: string | null; addressAr: string | null; timezone: string; defaultLanguage: Lang };
   services: Service[]; doctors: Doctor[];
   options: { allowAnyDoctor: boolean; allowForOther: boolean; offerReminders: boolean; daysPerPage: number; windowDays: number; countryCode: string;
-             introEn: string | null; introAr: string | null; doneNoteEn: string | null; doneNoteAr: string | null; privacyUrl: string; findEnabled?: boolean; chatEnabled?: boolean };
+             introEn: string | null; introAr: string | null; doneNoteEn: string | null; doneNoteAr: string | null; privacyUrl: string; findEnabled?: boolean; chatEnabled?: boolean;
+             online?: Online };
 };
 export type Summary = {
   id: string; startsAt: string; endsAt: string; status: string; shownStatus?: string; name: string | null; waitingForCheck: boolean;
@@ -19,6 +26,7 @@ export type Summary = {
   clinic: { slug: string; nameEn: string; nameAr: string; phone: string | null; addressEn: string | null; addressAr: string | null; timezone: string;
             doneNoteEn: string | null; doneNoteAr: string | null; daysPerPage: number; windowDays: number };
   canCancel: boolean; canReschedule: boolean; tooLateToChange: boolean; changeNoticeMinutes?: number; manageToken?: string;
+  visitType?: string; onlineMode?: string | null; howToEn?: string; howToAr?: string; payment?: Payment | null; join?: Join | null;
 };
 export type Slot = { doctorId: string; startsAt: string };
 export class Fail extends Error { constructor(public status: number, public code: string) { super(code); } }
@@ -36,7 +44,8 @@ export function message(e: unknown, x: Tx) {
   const c = e instanceof Fail ? e.code : "server_error";
   return ({ slot_taken: x.slotTaken, too_many_requests: x.tooMany, invalid_phone: x.invalidPhone, invalid_input: x.invalidInput,
             link_not_found: x.linkNotFound, clinic_not_found: x.clinicNotFound, link_replaced: x.linkReplaced,
-            find_not_available: x.findNotAvailable } as Record<string, string>)[c] ?? x.serverError;
+            find_not_available: x.findNotAvailable, consent_needed: x.consentNeeded, email_needed: x.emailNeeded, choose_mode: x.chooseMode,
+            online_visits_off: x.onlineOff, service_not_online: x.onlineOff, doctor_not_online: x.onlineOff } as Record<string, string>)[c] ?? x.serverError;
 }
 
 // ---------------------------------------------------------------- dates in the clinic's time zone
@@ -66,7 +75,7 @@ function calEvent(s: Summary, l: Lang, x: Tx, link: string) {
   const doctor = l === "ar" ? s.doctor.nameAr : s.doctor.nameEn;
   return {
     title: `${svc} · ${clinic}`,
-    where: (l === "ar" ? s.clinic.addressAr : s.clinic.addressEn) || clinic,
+    where: s.visitType === "online" ? x.onlineWhere : (l === "ar" ? s.clinic.addressAr : s.clinic.addressEn) || clinic,
     note: [doctor, x.calLink.replace("{link}", link), s.clinic.phone ? `${x.callClinic}: ${s.clinic.phone}` : ""].filter(Boolean).join("\n"),
   };
 }
@@ -192,6 +201,11 @@ export function Shell({ name, place, lang, setLang, x, privacyUrl, children }: {
     </main>
   );
 }
+// "Earlier / later" and "go on" arrows, drawn rather than typed: the characters ‹ › are already mirrored in Arabic text, so turning them
+// with .flip pointed them the wrong way. A drawing is never mirrored by itself, so .flip turns it the right way round in Arabic.
+const Chev = ({ back }: { back?: boolean }) => (
+  <svg className="flip bk-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d={back ? "M15 5l-7 7 7 7" : "M9 5l7 7-7 7"} /></svg>);
 const Steps = ({ n }: { n: number }) => <div className="bk-steps" aria-hidden="true">{[1, 2, 3, 4].map((i) => <i key={i} className={i <= n ? "on" : ""} />)}</div>;
 export const Banner = ({ kind, children }: { kind: "warn" | "bad" | "ok" | "info"; children: ReactNode }) => <div className={`bk-banner ${kind}`} role={kind === "bad" ? "alert" : "status"}>{children}</div>;
 export const Phone = ({ n }: { n: string }) => <a className="mono" href={`tel:${n.replace(/[^\d+]/g, "")}`} dir="ltr">{n}</a>;
@@ -222,9 +236,9 @@ function DayTimes({ x, lang, tz, perPage, windowDays, load, chosen, onChoose }: 
   return (
     <div className="bk-stack">
       <div className="bk-nav">
-        <button type="button" disabled={start <= today} onClick={() => setStart(addDays(start, -perPage) < today ? today : addDays(start, -perPage))}><span className="flip">‹</span> {x.earlier}</button>
+        <button type="button" disabled={start <= today} onClick={() => setStart(addDays(start, -perPage) < today ? today : addDays(start, -perPage))}><Chev back /> {x.earlier}</button>
         <b>{dayParts(day ?? start, lang).month}</b>
-        <button type="button" disabled={addDays(start, perPage) > last} onClick={() => setStart(addDays(start, perPage))}>{x.later} <span className="flip">›</span></button>
+        <button type="button" disabled={addDays(start, perPage) > last} onClick={() => setStart(addDays(start, perPage))}>{x.later} <Chev /></button>
       </div>
       <div className="bk-days" style={{ gridTemplateColumns: `repeat(${Math.min(perPage, 7)}, 1fr)` }}>
         {days.map((d) => { const p = dayParts(d, lang), has = byDay(d).length > 0;
@@ -250,9 +264,92 @@ function SummaryCard({ s, x, lang, withName }: { s: Summary; x: Tx; lang: Lang; 
       <div className="bk-sum"><span>{x.service}</span><b>{lang === "ar" ? s.service.nameAr : s.service.nameEn}</b></div>
       <div className="bk-sum"><span>{x.doctor}</span><b>{lang === "ar" ? s.doctor.nameAr : s.doctor.nameEn}</b></div>
       <div className="bk-sum"><span>{x.when}</span><b>{longDate(s.startsAt, tz, lang)}{lang === "ar" ? "، " : ", "}<span className="mono">{hm(s.startsAt, tz)}</span></b></div>
+      {s.visitType === "online" && <div className="bk-sum"><span>{x.visit}</span><b>{x.visitOnline.replace("{mode}", s.onlineMode === "video" ? x.video : x.audio)}</b></div>}
       {withName && s.name && <div className="bk-sum"><span>{x.name}</span><b>{s.name}</b></div>}
       {!withName && (() => { const st = s.shownStatus ?? s.status; return <div className="bk-sum"><span>{x.status}</span><b><span className={`bk-pill ${st === "cancelled" || st === "voided" ? "bad" : st === "confirmed" ? "ok" : st === "waiting" ? "warn" : ""}`}>{x.statuses[st] ?? st}</span></b></div>; })()}
     </div>
+  );
+}
+
+// ---------------------------------------------------------------- online visits: paying, and the way into the visit
+const CamIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden="true"><rect x="2" y="6" width="14" height="12" rx="2" /><path d="M16 10l6-3v10l-6-3z" /></svg>;
+export function PaymentCard({ p, x, lang }: { p?: Payment | null; x: Tx; lang: Lang }) {
+  const [copied, setCopied] = useState(false);
+  if (!p) return null;
+  return (
+    <div className="bk-card stack"><b>{x.payment}</b><span className="bk-note">{lang === "ar" ? p.noteAr : p.noteEn}</span>
+      <div className="bk-link"><span className="mono">{p.alias}</span>
+        <button type="button" onClick={() => void navigator.clipboard?.writeText(p.alias).then(() => setCopied(true))}>{copied ? x.copied : x.copy}</button></div>
+    </div>
+  );
+}
+// The Join card: what the database said about this visit (waiting for the clinic, too early, open, over), never more.
+export function JoinCard({ j, startsAt, howTo, name, tz, phone, x, mode }: { j: Join; startsAt: string; howTo?: string; name?: string | null; tz: string; phone?: string | null; x: Tx; mode?: string | null }) {
+  const tel = phone ? <> <Phone n={phone} /></> : null;
+  if (j.state === "not_active") return null;
+  if (j.state === "open" && j.url) return (
+    <div className="bk-join"><b>{x.joinNow}</b>
+      <a className="bk-btn accent" href={j.url} target="_blank" rel="noopener noreferrer"><CamIcon />{x.joinButton}</a>
+      <ol><li>{x.guestStep}</li><li>{name ? x.typeName.replace("{name}", name) : x.typeYourName}</li><li>{x.waitLobby}</li></ol>
+      {howTo && <p className="bk-hint">{howTo}</p>}
+      {phone && <span className="bk-hint">{x.notWorking}{tel}</span>}
+    </div>);
+  if (j.state === "early") return (
+    <div className="bk-join wait"><b>{x.joinTitle}</b>
+      <span className="bk-hint">{x.joinEarly.replace("{time}", hm(j.opensAt, tz)).replace("{n}", String(Math.round((Date.parse(startsAt) - Date.parse(j.opensAt)) / 60000)))}</span>
+      <ol><li>{x.getApp}</li><li>{mode === "video" ? x.getReady : x.getReadyAudio}</li><li>{x.haveId}</li></ol>
+      <div className="bk-row"><a className="bk-btn ghost" href="https://apps.apple.com/app/microsoft-teams/id1113153706" target="_blank" rel="noopener noreferrer">App Store</a>
+        <a className="bk-btn ghost" href="https://play.google.com/store/apps/details?id=com.microsoft.teams" target="_blank" rel="noopener noreferrer">Google Play</a></div>
+      <button type="button" className="bk-btn accent" disabled><CamIcon />{x.joinButton}</button>
+    </div>);
+  const say = j.state === "waiting" ? x.joinWaiting : j.state === "over" ? x.joinOver : j.state === "no_link" ? x.joinNoLink : x.joinOff;
+  return <div className="bk-join wait"><b>{x.joinTitle}</b><span className="bk-hint">{say}{j.state === "no_link" || j.state === "off" ? tel : null}</span></div>;
+}
+// Comes back to life on its own when the joining window opens, so a patient waiting on the page sees the button appear.
+function useOpenAt(j: Join | null | undefined, reload: () => void) {
+  useEffect(() => {
+    if (j?.state !== "early") return;
+    const wait = Date.parse(j.opensAt) - Date.now() + 1500;
+    if (wait > 6 * 3600_000) return;
+    const id = setTimeout(reload, Math.max(wait, 1000));
+    return () => clearTimeout(id);
+  }, [j?.state, j?.opensAt]);                                                            // eslint-disable-line react-hooks/exhaustive-deps
+}
+
+// ---------------------------------------------------------------- "Join the visit": /<clinic>/j#<token> (only joins: nothing to change)
+type JoinData = Join & { startsAt: string; endsAt: string; name: string | null; onlineMode: string | null; service: { nameEn: string; nameAr: string };
+  doctor: { nameEn: string; nameAr: string }; clinic: { slug: string; nameEn: string; nameAr: string; phone: string | null; timezone: string; defaultLanguage: Lang };
+  howToEn: string; howToAr: string; payment: Payment | null };
+export function JoinPage({ slug }: { slug: string }) {
+  const token = useMemo(() => location.hash.replace(/^#/, ""), []);
+  const [d, setD] = useState<JoinData | null>(null);
+  const [err, setErr] = useState("");
+  const { lang, setLang, x } = useLang(d?.clinic.defaultLanguage);
+  const load = useCallback(() => call<JoinData>("POST", `/api/c/${slug}/join`, { token }).then(setD).catch((e) => setErr(e instanceof Fail ? e.code : "server_error")), [slug, token]);
+  useEffect(() => {
+    if (!token) { setErr("link_not_found"); return; }
+    void load();
+    const back = () => { if (document.visibilityState === "visible") void load(); };
+    document.addEventListener("visibilitychange", back);
+    return () => document.removeEventListener("visibilitychange", back);
+  }, [load, token]);
+  useOpenAt(d, () => void load());
+  if (!d) return <Shell name="Limitsiz" lang={lang} setLang={setLang} x={x}>{err ? <Banner kind="warn">{message(new Fail(404, err), x)}</Banner> : <p className="bk-hint">…</p>}</Shell>;
+  const c = d.clinic, tz = c.timezone;
+  return (
+    <Shell name={lang === "ar" ? c.nameAr : c.nameEn} lang={lang} setLang={setLang} x={x}>
+      <h1 className="bk-title sm">{x.yourOnlineVisit}</h1>
+      <p className="bk-hint">{x.onlyJoins}</p>
+      <div className="bk-card">
+        <div className="bk-sum"><span>{x.doctor}</span><b>{lang === "ar" ? d.doctor.nameAr : d.doctor.nameEn}</b></div>
+        <div className="bk-sum"><span>{x.service}</span><b>{lang === "ar" ? d.service.nameAr : d.service.nameEn}</b></div>
+        <div className="bk-sum"><span>{x.when}</span><b>{longDate(d.startsAt, tz, lang)}{lang === "ar" ? "، " : ", "}<span className="mono">{hm(d.startsAt, tz)}</span></b></div>
+        {d.onlineMode && <div className="bk-sum"><span>{x.visit}</span><b>{x.visitOnline.replace("{mode}", d.onlineMode === "video" ? x.video : x.audio)}</b></div>}
+      </div>
+      <JoinCard j={d} startsAt={d.startsAt} howTo={lang === "ar" ? d.howToAr : d.howToEn} name={d.name} tz={tz} phone={c.phone} x={x} mode={d.onlineMode} />
+      <PaymentCard p={d.payment} x={x} lang={lang} />
+      <Banner kind="warn">{x.notEmergency}</Banner>
+    </Shell>
   );
 }
 
@@ -268,12 +365,14 @@ export function BookPage({ slug }: { slug: string }) {
   const [serviceId, setServiceId] = useState<string | null>(null);
   const [doctorId, setDoctorId] = useState<string | "any" | null>(null);
   const [slot, setSlot] = useState<Slot | null>(null);
-  const [f, setF] = useState({ name: "", phone: "", forOther: false, reminders: false, agree: false, website: "" });
+  const [f, setF] = useState({ name: "", phone: "", forOther: false, reminders: false, agree: false, website: "", mode: "", channel: "", email: "", consent: false });
+  const [visit, setVisit] = useState<"in_clinic" | "online">("in_clinic");
+  const [needMode, setNeedMode] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<{ code: string; text: string } | null>(null);
   const [done, setDone] = useState<Summary | null>(null);
   const loadSlots = useCallback((start: string, days: number) => call<Slot[]>("GET",
-    `/api/c/${slug}/slots?service=${serviceId}${doctorId && doctorId !== "any" ? `&doctor=${doctorId}` : ""}&date=${start}&days=${days}`), [slug, serviceId, doctorId]);
+    `/api/c/${slug}/slots?service=${serviceId}${doctorId && doctorId !== "any" ? `&doctor=${doctorId}` : ""}&date=${start}&days=${days}${visit === "online" ? "&visit=online" : ""}`), [slug, serviceId, doctorId, visit]);
 
   if (!info) {
     const msg = missing === "clinic_not_found" ? x.clinicNotFound : missing ? x.serverError : "";
@@ -282,7 +381,17 @@ export function BookPage({ slug }: { slug: string }) {
   const c = info.clinic, o = info.options, tz = c.timezone;
   const nm = (v: { name_en: string; name_ar: string }) => (lang === "ar" ? v.name_ar : v.name_en);
   const service = info.services.find((s) => s.id === serviceId) ?? null;
-  const docs = info.doctors.filter((d) => serviceId && d.service_ids.includes(serviceId));
+  // Online: only the services offered online that have a doctor who offers them, and only those doctors.
+  const on = o.online?.enabled ? o.online : null, isOnline = !!on && visit === "online";
+  const onlineServices = info.services.filter((s) => s.online_allowed && info.doctors.some((d) => d.online_enabled && d.service_ids.includes(s.id)));
+  const services = isOnline ? onlineServices : info.services;
+  const docs = info.doctors.filter((d) => serviceId && d.service_ids.includes(serviceId) && (!isOnline || d.online_enabled));
+  const channel = f.channel || on?.defaultChannel || "";
+  const pickVisit = (v: "in_clinic" | "online") => {
+    setVisit(v); setSlot(null);
+    if (v === "online" && serviceId && !onlineServices.some((s) => s.id === serviceId)) { setServiceId(null); setDoctorId(null); }
+    if (v === "online" && doctorId && doctorId !== "any" && !info.doctors.find((d) => d.id === doctorId)?.online_enabled) setDoctorId(null);
+  };
   const doctorOf = (id: string) => info.doctors.find((d) => d.id === id);
   const shell = (body: ReactNode) => <Shell name={lang === "ar" ? c.nameAr : c.nameEn} place={lang === "ar" ? c.addressAr : c.addressEn} lang={lang} setLang={setLang} x={x} privacyUrl={o.privacyUrl}>{body}</Shell>;
   const callBox = c.phone && <Banner kind="info">{x.preferCall} <Phone n={c.phone} /></Banner>;
@@ -292,12 +401,12 @@ export function BookPage({ slug }: { slug: string }) {
     <p className="bk-hint">{(lang === "ar" ? o.introAr : o.introEn) || x.introDefault}</p>
     <button type="button" className="bk-choice on" onClick={() => setStep("service")}>
       <span className="bk-ic"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3" fill="none" stroke="currentColor" strokeWidth="2" /><path d="M3 10h18M8 3v4M16 3v4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg></span>
-      <span><b>{x.chooseYourself}</b><small>{x.chooseYourselfSub}</small></span><span className="bk-end flip">›</span>
+      <span><b>{x.chooseYourself}</b><small>{x.chooseYourselfSub}</small></span><span className="bk-end"><Chev /></span>
     </button>
     {o.chatEnabled
       ? <a className="bk-choice" href={`/${slug}/chat`}>
           <span className="bk-ic"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /></svg></span>
-          <span><b>{x.assistant}</b><small>{x.chatSub}</small></span><span className="bk-end flip">›</span>
+          <span><b>{x.assistant}</b><small>{x.chatSub}</small></span><span className="bk-end"><Chev /></span>
         </a>
       : <div className="bk-choice off" aria-disabled="true">
           <span className="bk-ic"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /></svg></span>
@@ -309,8 +418,19 @@ export function BookPage({ slug }: { slug: string }) {
 
   if (step === "service") return shell(<>
     <Steps n={1} />
+    {on && onlineServices.length > 0 && <>
+      <h2 className="bk-title sm">{x.howSeen}</h2>
+      <div className="bk-seg">
+        <button type="button" className={`bk-choice${visit === "in_clinic" ? " on" : ""}`} aria-pressed={visit === "in_clinic"} onClick={() => pickVisit("in_clinic")}>
+          <span className="bk-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden="true"><path d="M3 10l9-6 9 6v10H3z" /><path d="M10 20v-5h4v5" /></svg></span>
+          <span><b>{x.atClinic}</b>{(lang === "ar" ? c.addressAr : c.addressEn) && <small>{lang === "ar" ? c.addressAr : c.addressEn}</small>}</span></button>
+        <button type="button" className={`bk-choice${visit === "online" ? " on" : ""}`} aria-pressed={visit === "online"} onClick={() => pickVisit("online")}>
+          <span className="bk-ic"><CamIcon /></span><span><b>{x.onlineVisit}</b><small>{x.onlineVisitSub}</small></span></button>
+      </div>
+      {isOnline && <Banner kind="info">{on.whoCanBook === "marked" ? x.onlineForMarked + " " : on.whoCanBook === "seen_before" ? x.onlineForSeen + " " : ""}{x.onlineNeeds}</Banner>}
+    </>}
     <h2 className="bk-title sm">{x.whatFor}</h2>
-    <div className="bk-stack">{info.services.map((s) => (
+    <div className="bk-stack">{services.map((s) => (
       <button type="button" key={s.id} className={`bk-choice${serviceId === s.id ? " on" : ""}`} aria-pressed={serviceId === s.id}
         onClick={() => { setServiceId(s.id); setSlot(null); if (doctorId && doctorId !== "any" && !doctorOf(doctorId)?.service_ids.includes(s.id)) setDoctorId(null); }}>
         <span><b>{nm(s)}</b><small>{s.duration_minutes} {x.min}{s.price_jod ? ` · ${s.price_is_from ? x.from + " " : ""}${Number(s.price_jod)} ${x.jod}` : ""}</small></span>
@@ -339,7 +459,9 @@ export function BookPage({ slug }: { slug: string }) {
   if (step === "time") return shell(<>
     <Steps n={2} />
     <h2 className="bk-title sm">{x.chooseDayTime}</h2>
-    {service && <p className="bk-hint">{nm(service)} · {service.duration_minutes} {x.min}</p>}
+    {service && <p className="bk-hint">{nm(service)} · {service.duration_minutes} {x.min}{isOnline && <> · <span className="bk-pill ok">{x.onlineTag}</span></>}</p>}
+    {isOnline && doctorId && doctorId !== "any" && (doctorOf(doctorId)?.online_min_notice_minutes ?? 0) > 0 &&
+      <p className="bk-hint">{x.bufferHint.replace("{doctor}", nm(doctorOf(doctorId)!)).replace("{t}", spell(doctorOf(doctorId)!.online_min_notice_minutes!, x))}</p>}
     {err?.code === "slot_taken" && <Banner kind="warn">{err.text}</Banner>}
     <DayTimes x={x} lang={lang} tz={tz} perPage={o.daysPerPage} windowDays={o.windowDays} load={loadSlots} chosen={slot} onChoose={(s) => { setSlot(s); setErr(null); }} />
     <div className="bk-row">
@@ -353,10 +475,13 @@ export function BookPage({ slug }: { slug: string }) {
       e.preventDefault(); setBusy(true); setErr(null);
       try {
         const r = await call<Summary>("POST", `/api/c/${slug}/book`, { serviceId, doctorId: doctorId === "any" ? null : doctorId, startsAt: slot.startsAt, name: f.name,
-          phone: f.phone, language: lang, reminders: o.offerReminders && f.reminders, forOther: o.allowForOther && f.forOther, from, agree: true, website: f.website || undefined });
+          phone: f.phone, language: lang, reminders: o.offerReminders && f.reminders, forOther: o.allowForOther && f.forOther, from, agree: true, website: f.website || undefined,
+          ...(isOnline ? { visitType: "online", onlineConsent: f.consent, onlineMode: f.mode || undefined, linkChannel: channel || undefined,
+                           email: channel === "email" ? f.email.trim() || undefined : undefined } : {}) });
         setDone(r); setStep("done");
       } catch (e2) {
         const code = e2 instanceof Fail ? e2.code : "server_error";
+        if (code === "choose_mode") setNeedMode(true);
         if (code === "slot_taken") { setSlot(null); setErr({ code, text: x.slotTaken }); setStep("time"); }
         else setErr({ code, text: message(e2, x) });
       } finally { setBusy(false); }
@@ -365,7 +490,10 @@ export function BookPage({ slug }: { slug: string }) {
     return shell(<form className="bk-stack" onSubmit={submit}>
       <Steps n={3} />
       <h2 className="bk-title sm">{x.yourDetails}</h2>
-      {refused && <Banner kind="bad"><b>{x.phoneRefused}</b><br />{x.phoneRefused2}{c.phone && <> <Phone n={c.phone} /></>}</Banner>}
+      {refused && !isOnline && <Banner kind="bad"><b>{x.phoneRefused}</b><br />{x.phoneRefused2}{c.phone && <> <Phone n={c.phone} /></>}</Banner>}
+      {/* The same answer for every number (the page never says whether a number is known); the clinic visit is one tap away. */}
+      {refused && isOnline && <Banner kind="bad"><b>{x.onlineRefused}</b><br />{x.onlineRefused2}{c.phone && <> <Phone n={c.phone} /></>}</Banner>}
+      {refused && isOnline && <button type="button" className="bk-btn ghost" onClick={() => { setErr(null); pickVisit("in_clinic"); setStep("service"); }}>{x.bookAtClinic}</button>}
       {err && !refused && <Banner kind="bad">{err.text}</Banner>}
       <label className="bk-field">{f.forOther ? x.forOtherName : x.fullName}<input autoComplete="name" required minLength={2} maxLength={120} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></label>
       <label className="bk-field">{x.mobile}
@@ -375,16 +503,26 @@ export function BookPage({ slug }: { slug: string }) {
       {/* Hidden from people; bots fill it in. */}
       <label className="hp" aria-hidden="true">Website<input tabIndex={-1} autoComplete="off" value={f.website} onChange={(e) => setF({ ...f, website: e.target.value })} /></label>
       {o.allowForOther && <label className="bk-check"><input type="checkbox" checked={f.forOther} onChange={(e) => setF({ ...f, forOther: e.target.checked })} /><span>{x.forOther}</span></label>}
+      {isOnline && (on.modeChoice || needMode) && <div className="bk-field">{x.talkHow}
+        <div className="bk-chips" role="radiogroup">{(["video", "audio"] as const).map((m) => (
+          <button type="button" key={m} role="radio" aria-checked={f.mode === m} className={f.mode === m ? "on" : ""} onClick={() => setF({ ...f, mode: m })}>{m === "video" ? x.video : x.audio}</button>))}</div></div>}
+      {isOnline && (on.channels?.length ?? 0) > 1 && <div className="bk-field">{x.sendLinkBy}
+        <div className="bk-chips" role="radiogroup">{on.channels!.map((ch) => (
+          <button type="button" key={ch} role="radio" aria-checked={channel === ch} className={channel === ch ? "on" : ""} onClick={() => setF({ ...f, channel: ch })}>{ch === "email" ? x.chEmail : x.chWhatsapp}</button>))}</div>
+        <small>{x.linkByHint}</small></div>}
+      {isOnline && channel === "email" && <label className="bk-field">{x.email}<input type="email" dir="ltr" autoComplete="email" required maxLength={120} value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} /><small>{x.emailHint}</small></label>}
       {o.offerReminders && <label className="bk-check"><input type="checkbox" checked={f.reminders} onChange={(e) => setF({ ...f, reminders: e.target.checked })} /><span>{x.reminders}</span></label>}
+      {isOnline && <label className="bk-check"><input type="checkbox" required checked={f.consent} onChange={(e) => setF({ ...f, consent: e.target.checked })} /><span>{lang === "ar" ? on.consentAr : on.consentEn}</span></label>}
       <label className="bk-check"><input type="checkbox" required checked={f.agree} onChange={(e) => setF({ ...f, agree: e.target.checked })} />
         <span>{x.agree1}<a href={o.privacyUrl} target="_blank" rel="noopener noreferrer">{x.privacy}</a>{x.agree2}</span></label>
       <div className="bk-card soft">
         <div className="bk-sum"><span>{nm(service)}</span><b>{doctorId === "any" ? x.anyDoctor : nm(doctorOf(String(doctorId))!)}</b></div>
         <div className="bk-sum"><span>{longDate(slot.startsAt, tz, lang)}</span><b className="mono">{hm(slot.startsAt, tz)}</b></div>
+        {isOnline && <div className="bk-sum"><span>{x.visit}</span><b>{x.onlineVisit}{f.mode ? ` · ${f.mode === "video" ? x.video : x.audio}` : ""}</b></div>}
       </div>
       <div className="bk-row">
         <button type="button" className="bk-btn ghost" onClick={() => { setErr(null); setStep("time"); }}>{x.back}</button>
-        <button className="bk-btn accent" disabled={busy || !f.agree}>{busy ? x.booking : x.bookThis}</button>
+        <button className="bk-btn accent" disabled={busy || !f.agree || (isOnline && !f.consent)}>{busy ? x.booking : x.bookThis}</button>
       </div>
     </form>);
   }
@@ -398,7 +536,12 @@ export function BookPage({ slug }: { slug: string }) {
       <div className="bk-done"><span className="bk-ok">✓</span><h2 className="bk-title sm">{x.doneTitle}</h2></div>
       {done.waitingForCheck && <Banner kind="warn">{x.waiting.replace("{phone}", "⁦" + shownPhone + "⁩")}</Banner>}
       <SummaryCard s={done} x={x} lang={lang} withName />
-      {note && <p className="bk-note">{note}</p>}
+      {done.visitType === "online" && (done.join && done.join.state !== "waiting"
+        ? <JoinCard j={done.join} startsAt={done.startsAt} howTo={lang === "ar" ? done.howToAr : done.howToEn} name={done.name} tz={tz} phone={c.phone} x={x} mode={done.onlineMode} />
+        : <div className="bk-join wait"><b>{x.yourJoin}</b><span className="bk-hint">{channel === "whatsapp" || channel === "email"
+            ? x.joinComes.replace("{channel}", channel === "email" ? x.chEmail : x.chWhatsapp) : x.joinComesPage}</span></div>)}
+      {done.visitType === "online" && <PaymentCard p={done.payment} x={x} lang={lang} />}
+      {note && done.visitType !== "online" && <p className="bk-note">{note}</p>}{/* the clinic's arrival note is for visits at the clinic */}
       <ShareLink s={done} x={x} lang={lang} link={link} />
       <CalendarButtons s={done} x={x} lang={lang} link={link} />
       <p className="bk-hint">{x.calHint}</p>
@@ -418,6 +561,7 @@ export function ManagePage({ slug }: { slug: string }) {
   const [busy, setBusy] = useState(false);
   // Kept as what to say, not the words, so it follows the language button.
   const [note, setNote] = useState<{ ok: boolean; say: (x: Tx) => string } | null>(null);
+  useOpenAt(s?.join, () => void call<Summary>("POST", `/api/c/${slug}/manage`, { token }).then(setS).catch(() => {}));
   useEffect(() => {
     if (!token) { setErr("link_not_found"); return; }
     const load = () => call<Summary>("POST", `/api/c/${slug}/manage`, { token }).then(setS).catch((e) => setErr(e instanceof Fail ? e.code : "server_error"));
@@ -446,6 +590,8 @@ export function ManagePage({ slug }: { slug: string }) {
       <h1 className="bk-title sm">{x.yourAppt}</h1>
       <SummaryCard s={s} x={x} lang={lang} />
       {s.shownStatus === "waiting" && <Banner kind="warn">{x.waitingShort}</Banner>}
+      {s.visitType === "online" && s.join && <JoinCard j={s.join} startsAt={s.startsAt} howTo={lang === "ar" ? s.howToAr : s.howToEn} name={s.name} tz={c.timezone} phone={c.phone} x={x} mode={s.onlineMode} />}
+      {s.visitType === "online" && active && <PaymentCard p={s.payment} x={x} lang={lang} />}
       {note && <Banner kind={note.ok ? "ok" : "warn"}>{note.say(x)}</Banner>}
       {!active && <Banner kind="warn">{x.cancelled}</Banner>}
       {s.tooLateToChange && <>
