@@ -55,7 +55,7 @@ export type Lookups = { clinic: { id: string; timezone: string; slot_step_minute
 export type Block = { id: string; doctor_id: string | null; starts_at: string; ends_at: string; reason: string | null };
 export type Appt = {
   id: string; doctor_id: string; service_id: string; patient_id: string; starts_at: string; ends_at: string; status: string; source: string;
-  cancel_reason: string | null; internal_note: string | null; row_version: number; updated_at: string; void_reason: string | null;
+  cancel_reason: string | null; internal_note: string | null; row_version: number; updated_at: string; void_reason: string | null; created_at?: string;
   patient_name: string | null; patient_phone: string | null; whatsapp_reminders: boolean;
   doctor_name_en: string; doctor_name_ar: string; service_name_en: string; service_name_ar: string; duration_minutes: number; price_jod: string | null;
   outside_hours?: boolean;

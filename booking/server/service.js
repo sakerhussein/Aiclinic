@@ -177,7 +177,8 @@ export function createService({ pool, auditPool, now = () => new Date(), audioDi
     else if (q.note === "signed") where.push("vn.status = 'signed'");
     if (q.status) add("a.status = ?::appointment_status", q.status); else if (!q.includeVoided) where.push("a.status <> 'voided'");
     if (q.q) { p.push(`%${q.q.replace(/[%_\\]/g, "\\$&")}%`); where.push(`(p.full_name ilike $${p.length} or p.phone_e164 like $${p.length})`); }
-    const { rows } = await pool.query(`${SELECT} where ${where.join(" and ")} order by a.starts_at, d.name_en limit ${Number(limit)}`, p);
+    const order = { time_desc: "a.starts_at desc, d.name_en", newest: "a.created_at desc, a.starts_at" }[q.sort] ?? "a.starts_at, d.name_en";
+    const { rows } = await pool.query(`${SELECT} where ${where.join(" and ")} order by ${order} limit ${Number(limit)}`, p);
     return rows;
   }
   async function getAppointment(ctx, id, c = pool) {

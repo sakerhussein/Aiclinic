@@ -58,7 +58,7 @@ export function Calendar() {
           {can("booking.appointments.create") && <Link className="btn btn-accent btn-sm" to={`/new?date=${day}`} state={here}>{t("newBooking")}</Link>}
         </div>
       </div>
-      <TodayLine />
+      <TodayLine from={start} to={view === "week" ? addDays(start, 6) : day} />
       {view === "day" ? <DayGrid day={day} doctors={doctors} /> : weekDoc && <WeekGrid start={start} docId={weekDoc} onDay={(d) => go({ date: d, view: "day" })} />}
     </main>
   );
@@ -106,9 +106,13 @@ function useData(from: string, to: string) {
 }
 
 // ---------------------------------------------------------------- the "today" line
+// Always about the real today. When the calendar shows another day or week, it names today's date, so it is not read as
+// being about the day on screen.
+const todayLabel = (d: string, lang: string) => new Intl.DateTimeFormat(lang === "ar" ? "ar-JO-u-nu-latn" : "en-GB",
+  { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" }).format(new Date(d + "T12:00:00Z"));
 type Line = { date: string; booked: number; notChecked: number; completed: number; noShow: number; online?: number; nextFree: string | null };
-function TodayLine() {
-  const { t } = useI18n(); const ov = useOV();
+function TodayLine({ from, to }: { from: string; to: string }) {
+  const { t, lang } = useI18n(); const ov = useOV();
   const { look } = useApp();
   const [l, setL] = useState<Line | null>(null);
   useEffect(() => {
@@ -119,7 +123,7 @@ function TodayLine() {
   const list = (extra: string) => `/bookings?from=${l.date}&to=${l.date}${extra}`;
   return (
     <div className="todayline">
-      <b>{t("tlToday")}</b>
+      <b>{t("tlToday")}{(l.date < from || l.date > to) && <>{lang === "ar" ? "، " : ", "}{todayLabel(l.date, lang)}</>}</b>
       {l.booked > 0 && <Link to={list("")}>{t("tlBooked", { n: l.booked })}</Link>}
       {l.notChecked > 0 && <Link className="tl-warn" to={list("&unchecked=1")}>{t("tlNotChecked", { n: l.notChecked })}</Link>}
       {l.completed > 0 && <Link to={list("&status=completed")}>{t("tlCompleted", { n: l.completed })}</Link>}

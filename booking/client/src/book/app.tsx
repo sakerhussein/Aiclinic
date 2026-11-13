@@ -494,14 +494,15 @@ export function BookPage({ slug }: { slug: string }) {
         else { setErr({ code, text: message(e2, x) }); showError(); }
       } finally { setBusy(false); }
     };
-    const refused = err?.code === "phone_not_accepted";
+    const refused = err?.code === "phone_not_accepted", everyone = on?.whoCanBook === "everyone";
     return shell(<form ref={formTop} className="bk-stack" onSubmit={submit}>
       <Steps n={3} />
       <h2 className="bk-title sm">{x.yourDetails}</h2>
-      {refused && !isOnline && <Banner kind="bad"><b>{x.phoneRefused}</b><br />{x.phoneRefused2}{c.phone && <> <Phone n={c.phone} /></>}</Banner>}
+      {/* When every patient may book online visits, an online refusal can only be one of the clinic's limits per number: the general words. */}
+      {refused && (!isOnline || everyone) && <Banner kind="bad"><b>{x.phoneRefused}</b><br />{x.phoneRefused2}{c.phone && <> <Phone n={c.phone} /></>}</Banner>}
       {/* The same answer for every number (the page never says whether a number is known); the clinic visit is one tap away. */}
-      {refused && isOnline && <Banner kind="bad"><b>{x.onlineRefused}</b><br />{x.onlineRefused2}{c.phone && <> <Phone n={c.phone} /></>}</Banner>}
-      {refused && isOnline && <button type="button" className="bk-btn ghost" onClick={() => { setErr(null); pickVisit("in_clinic"); setStep("service"); }}>{x.bookAtClinic}</button>}
+      {refused && isOnline && !everyone && <Banner kind="bad"><b>{x.onlineRefused}</b><br />{x.onlineRefused2}{c.phone && <> <Phone n={c.phone} /></>}</Banner>}
+      {refused && isOnline && !everyone && <button type="button" className="bk-btn ghost" onClick={() => { setErr(null); pickVisit("in_clinic"); setStep("service"); }}>{x.bookAtClinic}</button>}
       {err && !refused && (isHumanError(err.code) ? <HumanError code={err.code} x={x} phone={c.phone} /> : <Banner kind="bad">{err.text}</Banner>)}
       <label className="bk-field">{f.forOther ? x.forOtherName : x.fullName}<input autoComplete="name" required minLength={2} maxLength={120} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></label>
       <label className="bk-field">{x.mobile}

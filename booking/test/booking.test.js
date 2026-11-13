@@ -339,3 +339,28 @@ test("lookups carry doctors, services and the staff rules; health works", async 
   assert.equal((await t.bookingJar().get("/api/health")).status, 200);
   assert.equal((await t.bookingJar().get("/api/health/db")).status, 200);
 });
+
+// ------------------------------------------------------------------ the Bookings list's Sort choice
+test("the Bookings list sorts by appointment time either way, or by when the booking was made; the Excel file follows", async () => {
+  const b = await secretary();
+  // Made in this order: 11:00, then 10:00, then 12:00 (each for a different patient).
+  const made = [];
+  for (const [hhmm, phone] of [["11:00", "0791110001"], ["10:00", "0791110002"], ["12:00", "0791110003"]]) {
+    const r = await book(b, { startsAt: at(TOMORROW, hhmm), newPatient: { fullName: `Sort ${hhmm}`, phone } });
+    assert.equal(r.status, 201, JSON.stringify(r.json));
+    made.push(r.json.id);
+    await new Promise((ok) => setTimeout(ok, 15));          // created_at is the database's clock: keep them apart
+  }
+  const list = async (sort) => (await b.get(`/api/appointments?from=${TOMORROW}&to=${TOMORROW}${sort ? `&sort=${sort}` : ""}`)).json.map((a) => a.id);
+  const [m11, m10, m12] = made;
+  assert.deepEqual(await list(), [m10, m11, m12], "the default: appointment time, earliest first");
+  assert.deepEqual(await list("time"), [m10, m11, m12]);
+  assert.deepEqual(await list("time_desc"), [m12, m11, m10]);
+  assert.deepEqual(await list("newest"), [m12, m10, m11], "the newest booking first");
+  assert.equal((await b.get(`/api/appointments?sort=created_at;drop`)).status, 400, "only the three orders");
+  const admin = await adminB();
+  const x = await fetch(`${t.base}/api/export/bookings?from=${TOMORROW}&to=${TOMORROW}&sort=newest&lang=en`, { headers: { cookie: admin.cookie } });
+  assert.equal(x.status, 200);
+  const ev = (await t.owner.query("select after from audit.events where action = 'data_exported' order by id desc limit 1")).rows[0];
+  assert.equal(ev?.after?.filters?.sort, "newest", "the export used the same order");
+});

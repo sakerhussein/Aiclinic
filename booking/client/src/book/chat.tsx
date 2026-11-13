@@ -164,7 +164,7 @@ export function ChatPage({ slug }: { slug: string }) {
           {details && <div className="bk-sum"><span>{x.name}</span><b>{details.name}</b></div>}
           {!it.done && !it.refused && <HumanError code={it.human} x={x} phone={c.phone} />}
           {!it.done && !it.refused && i === lastConfirm && <HumanBox h={hBook} x={x} />}
-          {!it.done && (online
+          {!it.done && (online && !(it.refused && online.whoCanBook === "everyone")
             ? <OnlineConfirm key={`o${i}`} on={online} x={x} lang={lang} busy={busy} ready={!!details} needMode={!!it.needMode} refused={!!it.refused} phone={c.phone}
                 label={busy && hBook.checking ? x.checking : it.human ? x.tryAgain : x.yesBook}
                 onBook={(oc) => details && void book(i, it.p, details, oc)}

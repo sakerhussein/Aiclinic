@@ -12,6 +12,13 @@ import { NextVisitBox, OnlineBox } from "./online-parts";
 import { Cam } from "./form";
 import { useOV } from "./online-text";
 
+// The list's order (the Sort choice): appointment time earliest first (the default), latest first, or the newest bookings first.
+// Each person's last choice is remembered in their browser; ?sort= in a link wins.
+type Sort = "time" | "time_desc" | "newest";
+const SORTS: Sort[] = ["time", "time_desc", "newest"];
+const SORT_KEY = "lc_bookings_sort";
+const savedSort = (): Sort => { try { const v = localStorage.getItem(SORT_KEY); return SORTS.includes(v as Sort) ? (v as Sort) : "time"; } catch { return "time"; } };
+
 export function BookingList() {
   const { t, lang, d } = useI18n();
   const { look, me, can } = useApp();
@@ -22,12 +29,15 @@ export function BookingList() {
   // A link can open the list already filtered (the calendar's "today" line: ?from=…&to=…&status=…&unchecked=1).
   const [sp] = useSearchParams();
   const [f, setF] = useState({ from: sp.get("from") || todayIn(tz), to: sp.get("to") || "", doctor: "", status: sp.get("status") || "", source: "", q: "",
-                               voided: false, unchecked: sp.get("unchecked") === "1", note: "", visit: sp.get("visit") || "" });
+                               voided: false, unchecked: sp.get("unchecked") === "1", note: "", visit: sp.get("visit") || "",
+                               sort: SORTS.includes(sp.get("sort") as Sort) ? (sp.get("sort") as Sort) : savedSort() });
+  const setSort = (sort: Sort) => { setF({ ...f, sort }); try { localStorage.setItem(SORT_KEY, sort); } catch { /* storage blocked */ } };
   const ov = useOV();
   const [rows, setRows] = useState<Appt[] | null>(null);
   const p = new URLSearchParams();
   if (f.from) p.set("from", f.from); if (f.to) p.set("to", f.to); if (f.doctor) p.set("doctor", f.doctor);
   if (f.status) p.set("status", f.status); if (f.source) p.set("source", f.source); if (f.q) p.set("q", f.q); if (f.voided) p.set("voided", "1"); if (f.unchecked) p.set("unchecked", "1"); if (notes && f.note) p.set("note", f.note); if (f.visit) p.set("visit", f.visit);
+  if (f.sort !== "time") p.set("sort", f.sort);
   const params = p.toString();
   const load = useCallback(() => {
     get<Appt[]>(`/api/appointments?${params}`).then(setRows).catch(() => setRows([]));
@@ -47,6 +57,8 @@ export function BookingList() {
           {look.online?.enabled && <label className="field">{ov.filterVisit}<select value={f.visit} onChange={(e) => setF({ ...f, visit: e.target.value })}>
             <option value="">{ov.filterAll}</option><option value="in_clinic">{ov.atClinic}</option><option value="online">{ov.online}</option></select></label>}
           <label className="field">{t("search")}<input value={f.q} onChange={(e) => setF({ ...f, q: e.target.value })} /></label>
+          <label className="field">{t("sortBy")}<select value={f.sort} onChange={(e) => setSort(e.target.value as Sort)}>
+            <option value="time">{t("sortTime")}</option><option value="time_desc">{t("sortTimeDesc")}</option><option value="newest">{t("sortNewest")}</option></select></label>
           <div className="filter-checks">
             <label className="check"><input type="checkbox" checked={f.voided} onChange={(e) => setF({ ...f, voided: e.target.checked })} /> {t("showVoided")}</label>
             <label className="check"><input type="checkbox" checked={f.unchecked} onChange={(e) => setF({ ...f, unchecked: e.target.checked })} /> {t("onlyUnchecked")}</label>
@@ -60,7 +72,8 @@ export function BookingList() {
               <td>{a.patient_name || "—"} <span className="mono hint">{a.patient_phone}</span>{a.name_differs && <div className="hint warntext">{t("nameDiffers", { name: a.booked_name ?? "" })}</div>}</td>
               <td>{lang === "ar" ? a.service_name_ar : a.service_name_en}</td>
               {!own && <td>{lang === "ar" ? a.doctor_name_ar : a.doctor_name_en}</td>}
-              <td>{d.sources[a.source] ?? a.source}{a.online_from ? ` · ${a.online_from}` : ""}</td>
+              <td>{d.sources[a.source] ?? a.source}{a.online_from ? ` · ${a.online_from}` : ""}
+                {f.sort === "newest" && a.created_at && <div className="hint">{t("bookedAt", { t: fmtDateTime(a.created_at, tz, lang) })}</div>}</td>
               <td><StatusPill status={a.status} />{a.unchecked && <> <span className="pill warn">{t("notChecked")}</span></>}{a.human_check === "skipped" && <> <span className="pill">{t("humanSkipped")}</span></>}{a.moved_by_patient && <> <span className="pill warn">{t("movedByPatient")}</span></>}</td>
               {notes && <td><NoteState a={a} /></td>}
             </tr>))}</tbody>
