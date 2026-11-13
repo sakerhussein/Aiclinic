@@ -60,6 +60,7 @@ export type Appt = {
   doctor_name_en: string; doctor_name_ar: string; service_name_en: string; service_name_ar: string; duration_minutes: number; price_jod: string | null;
   outside_hours?: boolean;
   online_from?: string | null; booked_name?: string | null; booked_for_other?: boolean; unchecked?: boolean; name_differs?: boolean; moved_by_patient?: boolean;
+  human_check?: "passed" | "skipped" | null;   // the booking page's human check (null: not asked)
   note_status?: string | null; note_by_hand?: boolean;   // the visit note's state only, for everyone; the content is on the visit note screen
   // Online visits (migration 0024)
   visit_type?: "in_clinic" | "online"; online_mode?: "video" | "audio" | null; link_channel?: string | null; link_email?: string | null; meeting_url?: string | null;

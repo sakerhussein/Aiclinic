@@ -2,6 +2,7 @@
 // No sign-in: what protects the clinic is
 //   - each clinic's own switch (off by default), its patient rules, and its limits in Settings > Online booking;
 //   - "Online, not checked": until WhatsApp proves who owns a number, a secretary checks each online booking;
+//   - the human check (Cloudflare Turnstile, in public-app.js): a person, not a program, sends each form;
 //   - nothing here ever says whether a number already belongs to a patient, or shows anybody's details;
 //   - the private change-or-cancel link, stored only as a hash.
 import crypto from "node:crypto";
@@ -41,9 +42,10 @@ export function createPublicService({ pool, now = () => new Date(), agent = null
     return k;
   }
   async function clinicById(c, id) { return one(c, `${ONLINE} where c.id = $1`, [id]); }
-  // The limits the HTTP layer applies per connection, read from the clinic's settings.
+  // The limits the HTTP layer applies per connection, and its human check, read from the clinic's settings.
   async function limits(slug) {
-    const k = await one(pool, `select o.lookups_per_ip_per_minute, o.bookings_per_ip_per_day, o.manage_per_ip_per_hour, o.find_per_ip_per_hour
+    const k = await one(pool, `select o.lookups_per_ip_per_minute, o.bookings_per_ip_per_day, o.manage_per_ip_per_hour, o.find_per_ip_per_hour,
+        o.human_check, o.human_check_forms, o.human_check_down, o.human_check_skip_per_hour
       from clinics c join online_booking o on o.clinic_id = c.id where c.slug = $1`, [slug]);
     return k ?? null;
   }
@@ -92,6 +94,8 @@ export function createPublicService({ pool, now = () => new Date(), agent = null
                  introEn: k.intro_en, introAr: k.intro_ar, doneNoteEn: k.done_note_en, doneNoteAr: k.done_note_ar, privacyUrl: k.privacy_url,
                  findEnabled: (await one(pool, "select public.online_find_available($1) as ok", [k.id])).ok,
                  chatEnabled: !!(k.chat_enabled && agent), online,
+                 // public-app.js turns this into { siteKey, forms } when the Cloudflare keys are set, or null.
+                 humanCheck: { on: k.human_check, forms: k.human_check_forms },
                  payment: pay?.cliq_enabled && pay.for_online ? { alias: pay.cliq_alias, name: pay.cliq_name, when: pay.pay_when } : null },
     };
   }
@@ -153,7 +157,7 @@ export function createPublicService({ pool, now = () => new Date(), agent = null
     try {
       const online = p.visitType === "online";
       const r = await book(slug, ctx, { serviceId: p.serviceId, doctorId: p.doctorId, startsAt: p.startsAt, name: b.name, phone: b.phone,
-        language: b.language, from: "chat", reminders: false, forOther: false,
+        language: b.language, from: "chat", reminders: false, forOther: false, humanCheck: b.humanCheck ?? null,
         ...(online ? { visitType: "online", onlineConsent: b.onlineConsent, onlineMode: b.onlineMode, linkChannel: b.linkChannel, email: b.email } : {}) });
       await pool.query("update web_chats set appointment_id = $2, proposal = null where id = $1", [chatId, r.id]);
       await event(pool, chatId, `The booking was made: ${p.summary}. ${r.waitingForCheck ? "The clinic will check it and may call or message the patient." : ""} `
@@ -176,8 +180,8 @@ export function createPublicService({ pool, now = () => new Date(), agent = null
     if ((chat.callback?.sent ?? 0) >= 2) throw new HttpError(429, "too_many_requests");      // at most two call-backs per chat
     const phone = normalizePhone(b.phone, k.default_country_code);
     const cb = chat.callback?.reason ? chat.callback : { reason: "patient_request", summary: "Asked to talk to a person." };
-    await pool.query(`insert into web_callbacks (clinic_id, chat_id, kind, reason, summary, full_name, phone_e164)
-                      values ($1, $2, 'call_back', $3, $4, $5, $6)`, [k.id, chatId, cb.reason, cb.summary, b.name.trim(), phone]);
+    await pool.query(`insert into web_callbacks (clinic_id, chat_id, kind, reason, summary, full_name, phone_e164, human_check)
+                      values ($1, $2, 'call_back', $3, $4, $5, $6, $7)`, [k.id, chatId, cb.reason, cb.summary, b.name.trim(), phone, b.humanCheck ?? null]);
     await pool.query(`update web_chats set callback = coalesce(callback, '{}'::jsonb) || jsonb_build_object('sent', coalesce((callback->>'sent')::int, 0) + 1)
                       where id = $1`, [chatId]);
     await event(pool, chatId, "The patient left their name and number for a call-back; the clinic was told.");
@@ -291,11 +295,12 @@ export function createPublicService({ pool, now = () => new Date(), agent = null
         if (k.staff_check && counts.unchecked >= k.max_unchecked_per_phone) throw phoneRefused();
         if (k.max_upcoming && counts.upcoming >= k.max_upcoming) throw phoneRefused();
         if (counts.same_time) throw phoneRefused();
+        // Let through while Cloudflare couldn't be reached: always for a secretary to check, even when the clinic doesn't check others.
         const r = await one(c, `insert into appointments (clinic_id, doctor_id, service_id, patient_id, starts_at, ends_at, source, online_from, booked_name,
-            booked_for_other, needs_check, manage_token_hash, visit_type, online_mode, link_channel, link_email, online_consent_at, online_consent_version)
-            values ($1,$2,$3,$4,$5,$6,'web',$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) returning id`,
-          [k.id, doctorId, s.id, patientId, startsAt, endsAt, b.from ?? null, b.name.trim(), !!b.forOther, k.staff_check, sha256hex(token),
-           isOnline ? "online" : "in_clinic", mode, channel, email, isOnline ? now() : null, isOnline ? ov.consent_version : null]);
+            booked_for_other, needs_check, manage_token_hash, visit_type, online_mode, link_channel, link_email, online_consent_at, online_consent_version, human_check)
+            values ($1,$2,$3,$4,$5,$6,'web',$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) returning id`,
+          [k.id, doctorId, s.id, patientId, startsAt, endsAt, b.from ?? null, b.name.trim(), !!b.forOther, k.staff_check || b.humanCheck === "skipped", sha256hex(token),
+           isOnline ? "online" : "in_clinic", mode, channel, email, isOnline ? now() : null, isOnline ? ov.consent_version : null, b.humanCheck ?? null]);
         if (check?.next_from) await c.query("select public.online_visit_use($1, $2)", [check.next_from, r.id]);
         const out = { ...(await summary(c, r.id)), manageToken: token };
         if (isOnline) out.join = await joinInfo(c, sha256hex(token));

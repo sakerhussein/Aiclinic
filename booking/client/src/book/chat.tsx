@@ -6,6 +6,7 @@
 import { Fragment, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Banner, CalendarButtons, Fail, PaymentCard, Shell, ShareLink, call, hm, longDate, message, useLang, type Info, type Online, type Summary } from "./app";
 import type { Lang, Tx } from "./text";
+import { HumanBox, HumanError, HumanLine, isHumanError, useHuman, type Human } from "./human";
 
 type Proposal = { serviceEn: string; serviceAr: string; doctorEn: string; doctorAr: string; startsAt: string; visitType?: string };
 type OnlineChoice = { consent: boolean; mode: string; channel: string; email: string };
@@ -15,9 +16,9 @@ type Item =
   | { k: "ai" | "me"; text: string }
   | { k: "buttons"; labels: string[]; used?: boolean }
   | { k: "details"; then: Proposal }
-  | { k: "confirm"; p: Proposal; done?: boolean; needMode?: boolean; refused?: boolean }
+  | { k: "confirm"; p: Proposal; done?: boolean; needMode?: boolean; refused?: boolean; human?: string }
   | { k: "booked"; s: Summary & { manageToken?: string }; channel?: string }
-  | { k: "callback"; sent?: boolean }
+  | { k: "callback"; sent?: boolean; human?: string }
   | { k: "emergency"; text: string }
   | { k: "unavailable"; limit?: boolean }
   | { k: "error"; text: string };
@@ -54,6 +55,9 @@ export function ChatPage({ slug }: { slug: string }) {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [details, setDetails] = useState<Details | null>(null);
+  // The human check (design: booking/design/human-check.html) on "Yes, book it", "Call me back" and, when the clinic chose it, starting the chat.
+  const hc = info?.options.humanCheck;
+  const hBook = useHuman(hc, "chat_book", lang), hCall = useHuman(hc, "callback", lang), hStart = useHuman(hc, "chat_start", lang);
   const end = useRef<HTMLDivElement>(null);
   useEffect(() => { end.current?.scrollIntoView({ block: "end", behavior: "smooth" }); }, [items, busy]);
 
@@ -82,7 +86,7 @@ export function ChatPage({ slug }: { slug: string }) {
     setItems((v) => [...v.map((i) => (i.k === "buttons" ? { ...i, used: true } : i)), { k: "me", text: msg }]);
     try {
       let id = chatId;
-      if (!id) { id = (await call<{ chatId: string }>("POST", `/api/c/${slug}/chat`, {})).chatId; setChatId(id); }
+      if (!id) { id = (await call<{ chatId: string }>("POST", `/api/c/${slug}/chat`, { human: await hStart.token() })).chatId; setChatId(id); }
       // The assistant answers in this language: the one the patient wrote in, or the button's choice.
       const r = await call<Turn>("POST", `/api/c/${slug}/chat/${id}/message`, { text: msg, language });
       const out: Item[] = [];
@@ -97,9 +101,11 @@ export function ChatPage({ slug }: { slug: string }) {
 
   async function book(i: number, p: Proposal, d: Details, oc?: OnlineChoice) {
     setBusy(true);
+    setItems((v) => v.map((old, j) => (j === i && old.k === "confirm" ? { ...old, human: undefined } : old)));   // a new try clears the last failure
     try {
+      const human = await hBook.token();
       const s = await call<Summary & { manageToken?: string }>("POST", `/api/c/${slug}/chat/${chatId}/book`,
-        { name: d.name, phone: d.phone, language: lang, agree: true, website: d.website,
+        { name: d.name, phone: d.phone, language: lang, agree: true, website: d.website, human,
           ...(oc ? { onlineConsent: oc.consent, onlineMode: oc.mode || undefined, linkChannel: oc.channel || undefined,
                      email: oc.channel === "email" ? oc.email.trim() || undefined : undefined } : {}) });
       update(i, { k: "confirm", p, done: true });
@@ -109,6 +115,7 @@ export function ChatPage({ slug }: { slug: string }) {
       // Online: the card asks for video or audio when this patient chooses, or says the clinic did not accept an online visit.
       if (oc && code === "choose_mode") update(i, { k: "confirm", p, needMode: true });
       else if (code === "phone_not_accepted") update(i, { k: "confirm", p, refused: true });
+      else if (isHumanError(code)) update(i, { k: "confirm", p, human: code });
       else if (code === "nothing_to_book") { update(i, { k: "confirm", p, done: true }); add({ k: "ai", text: x.cardExpired }); }
       else fail(e);
     } finally { setBusy(false); }
@@ -117,15 +124,22 @@ export function ChatPage({ slug }: { slug: string }) {
   async function callBack(i: number, d: { name: string; phone: string; website: string }) {
     setBusy(true);
     try {
+      update(i, { k: "callback" });
       let id = chatId;
-      if (!id) { id = (await call<{ chatId: string }>("POST", `/api/c/${slug}/chat`, {})).chatId; setChatId(id); }
-      await call("POST", `/api/c/${slug}/chat/${id}/callback`, d);
+      if (!id) { id = (await call<{ chatId: string }>("POST", `/api/c/${slug}/chat`, { human: await hStart.token() })).chatId; setChatId(id); }
+      await call("POST", `/api/c/${slug}/chat/${id}/callback`, { ...d, human: await hCall.token() });
       update(i, { k: "callback", sent: true });
       add({ k: "ai", text: x.callbackSent });
-    } catch (e) { fail(e); } finally { setBusy(false); }
+    } catch (e) {
+      const code = e instanceof Fail ? e.code : "";
+      if (isHumanError(code)) update(i, { k: "callback", human: code }); else fail(e);
+    } finally { setBusy(false); }
   }
 
   const nm = (p: Proposal) => ({ svc: lang === "ar" ? p.serviceAr : p.serviceEn, doc: lang === "ar" ? p.doctorAr : p.doctorEn });
+  // Cloudflare's box lives in one place per form: the newest open card of each kind.
+  const lastConfirm = items.reduce((n, it, j) => (it.k === "confirm" && !it.done && !it.refused ? j : n), -1);
+  const lastCallback = items.reduce((n, it, j) => (it.k === "callback" && !it.sent ? j : n), -1);
   const view = items.map((it, i): ReactNode => {
     switch (it.k) {
       // The bubble keeps the page's side and corner; the text inside reads in its own direction (dir="auto"), so Arabic
@@ -148,16 +162,21 @@ export function ChatPage({ slug }: { slug: string }) {
           <div className="bk-sum"><span>{x.when}</span><b>{longDate(it.p.startsAt, c.timezone, lang)}{lang === "ar" ? "، " : ", "}<span className="mono">{hm(it.p.startsAt, c.timezone)}</span></b></div>
           {online && <div className="bk-sum"><span>{x.visit}</span><b>{x.onlineWhere}</b></div>}
           {details && <div className="bk-sum"><span>{x.name}</span><b>{details.name}</b></div>}
+          {!it.done && !it.refused && <HumanError code={it.human} x={x} phone={c.phone} />}
+          {!it.done && !it.refused && i === lastConfirm && <HumanBox h={hBook} x={x} />}
           {!it.done && (online
             ? <OnlineConfirm key={`o${i}`} on={online} x={x} lang={lang} busy={busy} ready={!!details} needMode={!!it.needMode} refused={!!it.refused} phone={c.phone}
+                label={busy && hBook.checking ? x.checking : it.human ? x.tryAgain : x.yesBook}
                 onBook={(oc) => details && void book(i, it.p, details, oc)}
                 onClinic={() => { update(i, { ...it, done: true }); void send(x.atClinicText); }}
                 onNo={() => { update(i, { ...it, done: true }); void send(x.noChangeText); }} />
             : it.refused ? <Refused x={x} phone={c.phone} busy={busy} onCallBack={() => { update(i, { ...it, done: true }); add({ k: "callback" }); }} />
             : <>
-              <button type="button" className="bk-btn accent" disabled={busy || !details} onClick={() => details && void book(i, it.p, details)}>{x.yesBook}</button>
+              <button type="button" className="bk-btn accent" disabled={busy || !details} onClick={() => details && void book(i, it.p, details)}>
+                {busy && hBook.checking ? x.checking : it.human ? x.tryAgain : x.yesBook}</button>
               <button type="button" className="bk-btn ghost" disabled={busy} onClick={() => { update(i, { ...it, done: true }); void send(x.noChangeText); }}>{x.noChange}</button>
             </>)}
+          {!it.done && !it.refused && i === lastConfirm && <HumanLine h={hBook} x={x} />}
         </div>;
       }
       case "booked": {
@@ -172,7 +191,8 @@ export function ChatPage({ slug }: { slug: string }) {
           {s.manageToken && <CalendarButtons s={s} x={x} lang={lang} link={link} />}
         </div>;
       }
-      case "callback": return it.sent ? null : <CallbackCard key={i} x={x} cc={o.countryCode} phone={c.phone} busy={busy} onSend={(d) => void callBack(i, d)} />;
+      case "callback": return it.sent ? null : <CallbackCard key={i} x={x} cc={o.countryCode} phone={c.phone} busy={busy} onSend={(d) => void callBack(i, d)}
+        human={i === lastCallback ? hCall : null} humanCode={it.human} label={busy && (hCall.checking || hStart.checking) ? x.checking : it.human ? x.tryAgain : x.callMe} />;
       case "emergency": return <Fragment key={i}>
         <Banner kind="bad"><span dir="auto" style={{ display: "block" }}><Rich text={it.text} /></span></Banner>
         <a className="bk-btn danger solid" href="tel:911">{x.call911}</a>
@@ -214,8 +234,8 @@ export function ChatPage({ slug }: { slug: string }) {
 
 // The online part of the Yes card: the clinic's consent (Settings › Online visits), video or audio when the patient chooses it,
 // and how the Join link comes. The same choices as the booking page's details step.
-function OnlineConfirm({ on, x, lang, busy, ready, needMode, refused, phone, onBook, onClinic, onNo }: {
-  on: Online; x: Tx; lang: Lang; busy: boolean; ready: boolean; needMode: boolean; refused: boolean; phone: string | null;
+function OnlineConfirm({ on, x, lang, busy, ready, needMode, refused, phone, label, onBook, onClinic, onNo }: {
+  on: Online; x: Tx; lang: Lang; busy: boolean; ready: boolean; needMode: boolean; refused: boolean; phone: string | null; label: string;
   onBook: (oc: OnlineChoice) => void; onClinic: () => void; onNo: () => void;
 }) {
   const chans = on.channels ?? [];
@@ -237,7 +257,7 @@ function OnlineConfirm({ on, x, lang, busy, ready, needMode, refused, phone, onB
       <small>{x.linkByHint}</small></div>}
     {oc.channel === "email" && <label className="bk-field">{x.email}<input type="email" dir="ltr" autoComplete="email" required maxLength={120} value={oc.email} onChange={(e) => setOc({ ...oc, email: e.target.value })} /><small>{x.emailHint}</small></label>}
     <label className="bk-check"><input type="checkbox" required checked={oc.consent} onChange={(e) => setOc({ ...oc, consent: e.target.checked })} /><span>{lang === "ar" ? on.consentAr : on.consentEn}</span></label>
-    <button className="bk-btn accent" disabled={busy || !ready || !oc.consent || modeMissing || emailMissing}>{x.yesBook}</button>
+    <button className="bk-btn accent" disabled={busy || !ready || !oc.consent || modeMissing || emailMissing}>{label}</button>
     <button type="button" className="bk-btn ghost" disabled={busy} onClick={onNo}>{x.noChange}</button>
   </form>;
 }
@@ -270,15 +290,19 @@ function DetailsCard({ x, cc, privacyUrl, onDone }: { x: Tx; cc: string; privacy
   </form>;
 }
 
-function CallbackCard({ x, cc, phone, busy, onSend }: { x: Tx; cc: string; phone: string | null; busy: boolean; onSend: (d: { name: string; phone: string; website: string }) => void }) {
+function CallbackCard({ x, cc, phone, busy, onSend, human, humanCode, label }: { x: Tx; cc: string; phone: string | null; busy: boolean;
+  onSend: (d: { name: string; phone: string; website: string }) => void; human: Human | null; humanCode?: string; label: string }) {
   const [d, setD] = useState({ name: "", phone: "", website: "" });
   return <form className="ch-card" onSubmit={(e) => { e.preventDefault(); onSend(d); }}>
     <b>{x.callMeTitle}</b>
     <label className="bk-field">{x.fullName}<input autoComplete="name" required minLength={2} maxLength={120} value={d.name} onChange={(e) => setD({ ...d, name: e.target.value })} /></label>
     <label className="bk-field">{x.mobile}<PhoneField cc={cc} value={d.phone} onChange={(v) => setD({ ...d, phone: v })} /></label>
     <label className="hp" aria-hidden="true">Website<input tabIndex={-1} autoComplete="off" value={d.website} onChange={(e) => setD({ ...d, website: e.target.value })} /></label>
-    <button className="bk-btn ink" disabled={busy}>{x.callMe}</button>
+    <HumanError code={humanCode} x={x} phone={phone} />
+    {human && <HumanBox h={human} x={x} />}
+    <button className="bk-btn ink" disabled={busy}>{label}</button>
     {phone && <a className="bk-btn ghost" href={`tel:${phone.replace(/[^\d+]/g, "")}`}><span className="mono">{phone}</span></a>}
     <small className="bk-hint">🔒 {x.detailsSafe}</small>
+    {human && <HumanLine h={human} x={x} />}
   </form>;
 }

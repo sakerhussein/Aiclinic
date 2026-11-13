@@ -264,6 +264,7 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
   const S = svc.settings;
 
   app.get("/api/settings", VIEW, wrap(async (req, res) => res.json({ ...(await S.read(req.ctx)), onlineLink: await svc.onlineLink(req.ctx, config.publicBookingUrl),
+    humanCheckReady: !!config.humanCheckReady,      // the Cloudflare keys are in booking/.env (the keys themselves never leave the server)
     onlineVisits: await svc.online.read(req.ctx) })));
   // Settings › Online visits, Settings › Payment, and each doctor's online settings.
   const text = (lo, hi) => z.string().trim().min(lo).max(hi), minutes = (...v) => z.number().int().refine((x) => v.includes(x));
@@ -298,6 +299,10 @@ export function createApp({ svc, config, fetchImpl = fetch }) {
     chatEnabled: z.boolean(), chatMessagesPerChat: n(5, 200), chatChatsPerIpPerDay: n(1, 100), chatMessagesPerClinicPerDay: n(10, 100000), chatKeepDays: n(1, 365),
     brochureColour: z.string().regex(/^#[0-9A-Fa-f]{6}$/), brochureCardLanguages: z.enum(["ar_en", "ar", "en"]), brochureShowAi: z.boolean(),
     findMessageEn: z.string().trim().min(1).max(600).refine((m) => m.includes("{link}")), findMessageAr: z.string().trim().min(1).max(600).refine((m) => m.includes("{link}")),
+    // The human check: which final buttons it guards, and what happens when Cloudflare can't be reached.
+    humanCheck: z.boolean().optional(),
+    humanCheckForms: z.array(z.enum(["book", "chat_book", "callback", "find", "chat_start"])).max(5).transform((a) => [...new Set(a)]).optional(),
+    humanCheckDown: z.enum(["let_through", "stop"]).optional(), humanCheckSkipPerHour: n(0, 500).optional(),
   }), req.body)))));
   // Settings > AI Scribe. The models and speech services on offer are the ones the plan names; the tests (plan steps 2 and 3) add more.
   const section = z.object({ key: z.string().regex(/^[a-z][a-z0-9_]{0,30}$/), en: z.string().trim().min(1).max(80), ar: z.string().trim().min(1).max(80),

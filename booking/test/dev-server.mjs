@@ -10,6 +10,7 @@ import { createApp as bookingApp } from "../server/app.js";
 import { sha256 } from "../../accounts/server/crypto.js";
 import { createPublicService } from "../server/public-service.js";
 import { createPublicApp } from "../server/public-app.js";
+import { humanChecker } from "../server/human-check.js";
 import { createScribe, sampleDrafter } from "../server/scribe.js";
 import { sampleTidier } from "../server/dictation.js";
 
@@ -72,7 +73,10 @@ const demoAgent = async ({ text, chat_id }) => {
   return { reply: L(`*${s.name_en}* (${s.duration_minutes} min). The first free times:`, `*${s.name_ar}* (${s.duration_minutes} دقيقة). أول الأوقات المتاحة:`), buttons: first.map((x) => local(x.startsAt)) };
 };
 demo.svc = createPublicService({ pool: publicPool, agent: demoAgent });
-createPublicApp({ svc: demo.svc, config: pubConfig }).listen(3005, "127.0.0.1", () => console.log("READY  Online booking http://localhost:3005/demo-derma"));
+// The human check: set TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY to try it (Cloudflare's test keys are in .env.example).
+const human = humanChecker({ siteKey: process.env.TURNSTILE_SITE_KEY, secret: process.env.TURNSTILE_SECRET_KEY });
+if (human) console.log("Human check ON (site key " + human.siteKey.slice(0, 6) + "…)");
+createPublicApp({ svc: demo.svc, config: pubConfig, human }).listen(3005, "127.0.0.1", () => console.log("READY  Online booking http://localhost:3005/demo-derma"));
 // AI Scribe: on for the demo clinic and every doctor, with the worker in this process. The stand-in speech service and a fixed
 // sample draft, so trying the screens costs nothing (the real draft: server/scribe-index.js with ANTHROPIC_API_KEY).
 await t.owner.query("update scribe_settings set enabled = true, dictation_enabled = true where clinic_id = $1", [t.clinicA]);

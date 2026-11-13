@@ -27,14 +27,19 @@ export function counters(now = Date.now) {
   return hit;
 }
 
-export function createPublicApp({ svc, config, now = Date.now }) {
+// human: the human check (server/human-check.js), or null when the Cloudflare keys are not set: then nothing is checked anywhere.
+export function createPublicApp({ svc, config, now = Date.now, human = null }) {
   const app = express();
   app.disable("x-powered-by");
   app.set("trust proxy", config.trustProxy === "false" ? false : Number(config.trustProxy) || config.trustProxy);
 
+  // With the human check set up, Cloudflare's script and its box (an iframe) may load; nothing else changes.
+  const CF = "https://challenges.cloudflare.com";
+  const csp = () => "default-src 'self'; " + (human?.siteKey ? `script-src 'self' ${CF}; frame-src ${CF}; ` : "")
+    + "img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
   app.use((req, res, next) => {
     res.set({
-      "Content-Security-Policy": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+      "Content-Security-Policy": csp(),
       "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", "X-Frame-Options": "DENY",
       ...(config.secure ? { "Strict-Transport-Security": "max-age=31536000; includeSubDomains" } : {}),
     });
@@ -81,7 +86,32 @@ export function createPublicApp({ svc, config, now = Date.now }) {
     try { await svc.ping(); res.json({ ok: true }); } catch { res.status(503).json({ ok: false }); }
   }));
 
-  app.get("/api/c/:slug", limit("lookup"), wrap(async (req, res) => res.json(await svc.info(slugOf(req)))));
+  // ---- the human check (design: booking/design/human-check.html). Runs after the limit per connection and the hidden field, so
+  // a flood or a simple bot never reaches Cloudflare, and before anything is looked up or saved, so a failure saves nothing and
+  // never depends on the phone number. Answers null (not asked: off, keys not set, or this form not chosen), "passed" or
+  // "skipped" (Cloudflare couldn't be reached and the clinic lets bookings through, within its hourly allowance).
+  const skips = counters(now);
+  const asks = (l, form) => !!(human?.siteKey && l?.human_check && l.human_check_forms?.includes(form));
+  async function humanGate(req, form, token) {
+    const slug = slugOf(req), l = await limitsOf(slug);
+    if (!asks(l, form)) return null;
+    const r = await human.check(token, { action: form, hostname: new URL(config.siteUrl).hostname, ip: req.ip });
+    if (r === "passed") return "passed";
+    if (r === "failed") throw new HttpError(403, "human_check_failed");
+    if (l.human_check_down === "let_through" && skips(`skip|${slug}`, l.human_check_skip_per_hour, 3_600_000)) {
+      console.warn(`[${req.ctx.requestId}] human check skipped: Cloudflare could not be reached (${slug}, ${form})`);
+      return "skipped";
+    }
+    throw new HttpError(503, "human_check_unavailable");
+  }
+  const human_ = z.string().max(2048).optional();      // Cloudflare's token (its tokens are at most 2048 characters)
+
+  app.get("/api/c/:slug", limit("lookup"), wrap(async (req, res) => {
+    const i = await svc.info(slugOf(req)), h = i.options.humanCheck;
+    // The page gets the site key (public) and the forms to check, never the secret.
+    i.options.humanCheck = human?.siteKey && h?.on ? { siteKey: human.siteKey, forms: h.forms } : null;
+    res.json(i);
+  }));
   app.get("/api/c/:slug/slots", limit("lookup"), wrap(async (req, res) => {
     const q = parse(z.object({ service: uuid, doctor: uuid.optional(), date: day, days: z.coerce.number().int().min(1).max(31).optional(),
       visit: z.enum(["in_clinic", "online"]).optional() }), req.query);
@@ -93,24 +123,30 @@ export function createPublicApp({ svc, config, now = Date.now }) {
       name: z.string().trim().min(2).max(120), phone: z.string().trim().min(6).max(30),
       language: z.enum(["ar", "en"]), reminders: z.boolean().optional(), forOther: z.boolean().optional(),
       from: z.string().regex(/^[a-z0-9_-]{1,20}$/).nullish().catch(null),
-      agree: z.literal(true), website: z.string().max(200).optional(),
+      agree: z.literal(true), website: z.string().max(200).optional(), human: human_,
       // Online visits: the visit type, the patient's choice of video or audio (when it is theirs), how the Join link reaches them, the consent.
       visitType: z.enum(["in_clinic", "online"]).optional(), onlineMode: z.enum(["video", "audio"]).optional(),
       linkChannel: z.enum(["whatsapp", "email"]).optional(), email: z.string().trim().toLowerCase().email().max(120).optional(), onlineConsent: z.boolean().optional(),
     }), req.body);
     if (b.website) return res.status(201).json({ ok: true });          // hidden field filled in: a bot. Looks like success, does nothing.
-    res.status(201).json(await svc.book(slugOf(req), req.ctx, b));
+    const humanCheck = await humanGate(req, "book", b.human);
+    res.status(201).json(await svc.book(slugOf(req), req.ctx, { ...b, human: undefined, humanCheck }));
   }));
   // "Find my booking": always the same answer, whether or not the number has a booking.
   app.post("/api/c/:slug/find", limit("find"), wrap(async (req, res) => {
-    const b = parse(z.object({ phone: z.string().trim().min(6).max(30), website: z.string().max(200).optional() }), req.body);
+    const b = parse(z.object({ phone: z.string().trim().min(6).max(30), website: z.string().max(200).optional(), human: human_ }), req.body);
     if (b.website) return res.status(202).json({ ok: true });
+    await humanGate(req, "find", b.human);
     res.status(202).json(await svc.find(slugOf(req), req.ctx, b.phone));
   }));
 
   // ---- "Talk to the assistant". The name and number go only to /book and /callback, never with a chat message.
   const chatIdOf = (req) => parse(uuid, req.params.chatId);
-  app.post("/api/c/:slug/chat", limit("lookup"), wrap(async (req, res) => res.status(201).json(await svc.chatStart(slugOf(req), req.ctx))));
+  app.post("/api/c/:slug/chat", limit("lookup"), wrap(async (req, res) => {
+    const b = parse(z.object({ human: human_ }), req.body ?? {});
+    await humanGate(req, "chat_start", b.human);
+    res.status(201).json(await svc.chatStart(slugOf(req), req.ctx));
+  }));
   app.post("/api/c/:slug/chat/:chatId/message", limit("lookup"), wrap(async (req, res) => {
     const b = parse(z.object({ text: z.string().trim().min(1).max(1000), language: z.enum(["ar", "en"]).optional() }), req.body);
     res.json(await svc.chatMessage(slugOf(req), chatIdOf(req), b.text, b.language));
@@ -118,18 +154,21 @@ export function createPublicApp({ svc, config, now = Date.now }) {
   app.post("/api/c/:slug/chat/:chatId/book", limit("book"), wrap(async (req, res) => {
     const b = parse(z.object({
       name: z.string().trim().min(2).max(120), phone: z.string().trim().min(6).max(30), language: z.enum(["ar", "en"]),
-      agree: z.literal(true), website: z.string().max(200).optional(),
+      agree: z.literal(true), website: z.string().max(200).optional(), human: human_,
       // an online visit proposed by the assistant: the card's consent tick and choices (the visit type comes from the proposal)
       onlineMode: z.enum(["video", "audio"]).optional(), linkChannel: z.enum(["whatsapp", "email"]).optional(),
       email: z.string().trim().toLowerCase().email().max(120).optional(), onlineConsent: z.boolean().optional(),
     }), req.body);
     if (b.website) return res.status(201).json({ ok: true });
-    res.status(201).json(await svc.chatBook(slugOf(req), chatIdOf(req), req.ctx, b));
+    const humanCheck = await humanGate(req, "chat_book", b.human);
+    res.status(201).json(await svc.chatBook(slugOf(req), chatIdOf(req), req.ctx, { ...b, human: undefined, humanCheck }));
   }));
   app.post("/api/c/:slug/chat/:chatId/callback", limit("book"), wrap(async (req, res) => {
-    const b = parse(z.object({ name: z.string().trim().min(2).max(120), phone: z.string().trim().min(6).max(30), website: z.string().max(200).optional() }), req.body);
+    const b = parse(z.object({ name: z.string().trim().min(2).max(120), phone: z.string().trim().min(6).max(30), website: z.string().max(200).optional(),
+      human: human_ }), req.body);
     if (b.website) return res.status(201).json({ ok: true });
-    res.status(201).json(await svc.chatCallback(slugOf(req), chatIdOf(req), req.ctx, b));
+    const humanCheck = await humanGate(req, "callback", b.human);
+    res.status(201).json(await svc.chatCallback(slugOf(req), chatIdOf(req), req.ctx, { ...b, human: undefined, humanCheck }));
   }));
 
   // ---- the private change-or-cancel link. The token travels in the body, never in an address that could end up in a log.
@@ -191,6 +230,6 @@ export function createPublicApp({ svc, config, now = Date.now }) {
     console.error(`[${req.ctx?.requestId}]`, err);
     res.status(500).json({ error: "server_error", requestId: req.ctx?.requestId });
   });
-  app.locals.forget = () => { cache.clear(); count.clear(); };     // tests: start each case with fresh limits
+  app.locals.forget = () => { cache.clear(); count.clear(); skips.clear(); };     // tests: start each case with fresh limits
   return app;
 }

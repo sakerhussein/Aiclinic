@@ -47,6 +47,11 @@ const EN = {
   phoneRefused: "We couldn't book online for this number.", phoneRefused2: "Please call the clinic and they will help you.",
   slotTaken: "That time was just taken. Please choose another.", tooMany: "Too many attempts. Please wait a little and try again.",
   invalidPhone: "Please check the mobile number.", invalidInput: "Please check what you typed.", serverError: "Something went wrong. Please try again.",
+  // The human check (Cloudflare Turnstile; design booking/design/human-check.html)
+  checking: "Checking…", humanLine: "A quick automatic check keeps bots out (Cloudflare).", tryAgain: "Try again",
+  humanAsk: "One more step", humanAsk2: "Tick the box so we know a person is booking. Your details are kept.",
+  humanFailed: "We couldn't check that a person is booking.", humanFailed2: "Please try again. If it happens again, call the clinic:",
+  humanDown: "Online booking can't be checked right now.", humanDown2: "Please try again in a few minutes, or call the clinic:",
   bookedBy: "Booking by", hour: "hour", hours: "hours", minutes: "minutes", day: "day", days: "days",
   // Online visits on Microsoft Teams
   howSeen: "How would you like to be seen?", atClinic: "At the clinic", onlineVisit: "Online visit", onlineVisitSub: "A call on Microsoft Teams",
@@ -120,6 +125,10 @@ const AR: typeof EN = {
   phoneRefused: "تعذّر الحجز إلكترونياً لهذا الرقم.", phoneRefused2: "يرجى الاتصال بالعيادة وسيساعدونك.",
   slotTaken: "حُجز هذا الوقت للتو. اختر وقتاً آخر من فضلك.", tooMany: "محاولات كثيرة. انتظر قليلاً ثم حاول مرة أخرى.",
   invalidPhone: "تحقق من رقم الهاتف.", invalidInput: "تحقق مما كتبته.", serverError: "حدث خطأ. حاول مرة أخرى.",
+  checking: "جارٍ التحقق…", humanLine: "فحص تلقائي سريع يمنع البرامج الآلية (Cloudflare).", tryAgain: "حاول مرة أخرى",
+  humanAsk: "خطوة أخيرة", humanAsk2: "ضع علامة في المربع لنعرف أن شخصاً حقيقياً يحجز. بياناتك محفوظة.",
+  humanFailed: "تعذّر التحقق من أن شخصاً حقيقياً يحجز.", humanFailed2: "حاول مرة أخرى من فضلك. وإن تكرر ذلك، اتصل بالعيادة:",
+  humanDown: "لا يمكن التحقق من الحجز الإلكتروني الآن.", humanDown2: "حاول بعد دقائق، أو اتصل بالعيادة:",
   bookedBy: "الحجز عبر", hour: "ساعة", hours: "ساعات", minutes: "دقيقة", day: "يوم", days: "أيام",
   howSeen: "كيف تحب أن تكون الزيارة؟", atClinic: "في العيادة", onlineVisit: "زيارة أونلاين", onlineVisitSub: "مكالمة عبر Microsoft Teams",
   onlineForMarked: "للمرضى الذين سمح لهم الطبيب بالحجز أونلاين.", onlineForSeen: "للمرضى الذين زاروا العيادة من قبل.",

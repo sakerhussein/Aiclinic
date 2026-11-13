@@ -142,7 +142,7 @@ export function createService({ pool, auditPool, now = () => new Date(), audioDi
       p.full_name as patient_name, p.phone_e164 as patient_phone, p.whatsapp_reminders,
       d.name_en as doctor_name_en, d.name_ar as doctor_name_ar, s.name_en as service_name_en, s.name_ar as service_name_ar,
       s.duration_minutes, s.price_jod,
-      a.online_from, a.booked_name, a.booked_for_other, a.needs_check, a.checked_at, a.checked_by,
+      a.online_from, a.booked_name, a.booked_for_other, a.needs_check, a.checked_at, a.checked_by, a.human_check,
       (a.needs_check and a.checked_at is null) as unchecked,
       a.moved_online_at, (a.moved_online_at is not null and a.status = 'booked') as moved_by_patient,
       (a.booked_name is not null and lower(trim(a.booked_name)) is distinct from lower(trim(p.full_name))) as name_differs,

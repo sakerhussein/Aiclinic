@@ -34,6 +34,8 @@ const EN = {
   warnOutside: "Outside the doctor's free times", warnFlag: "outside free times",
   notChecked: "Online, not checked", markChecked: "Mark as checked", checkHint: "Call or message the number to make sure the booking is real, then mark it as checked.",
   nameDiffers: "Typed online as “{name}”. The patient record was not changed.", forOther: "Booked for someone else", onlineFrom: "Came from",
+  humanCheck: "Human check", humanPassed: "passed (Cloudflare)", humanSkipped: "Human check skipped",
+  humanSkippedLong: "skipped: Cloudflare couldn't be reached, so the booking was let through for you to check",
   movedByPatient: "Time changed by patient", movedHint: "The patient chose this new time on their private link. Press Confirm so they see the clinic agrees, or call them.",
   onlyUnchecked: "Online, waiting for the clinic only", sendLink: "Send booking link", openInRecords: "Open in Records ↗", linkCopied: "Message copied. Paste it into WhatsApp.",
   errors: {
@@ -106,6 +108,8 @@ const AR: typeof EN = {
   warnOutside: "خارج الأوقات المتاحة للطبيب", warnFlag: "خارج الأوقات المتاحة",
   notChecked: "إلكتروني، لم يُراجع", markChecked: "تمّت المراجعة", checkHint: "اتصل أو راسل الرقم للتأكد أن الحجز حقيقي، ثم علّمه كمراجَع.",
   nameDiffers: "كُتب في الصفحة باسم «{name}». لم يتغيّر سجل المريض.", forOther: "حُجز لشخص آخر", onlineFrom: "جاء من",
+  humanCheck: "التحقق البشري", humanPassed: "نجح (Cloudflare)", humanSkipped: "تم تخطي التحقق البشري",
+  humanSkippedLong: "تم تخطيه: تعذّر الوصول إلى Cloudflare، فمرّ الحجز لتراجعه أنت",
   movedByPatient: "غيّر المريض الوقت", movedHint: "اختار المريض هذا الوقت الجديد عبر رابطه الخاص. اضغط «تأكيد» ليعرف أن العيادة موافقة، أو اتصل به.",
   onlyUnchecked: "الإلكتروني بانتظار العيادة فقط", sendLink: "إرسال رابط الحجز", openInRecords: "فتح في السجلات الطبية ↗", linkCopied: "نُسخت الرسالة. الصقها في واتساب.",
   errors: {

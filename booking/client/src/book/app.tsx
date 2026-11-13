@@ -1,7 +1,8 @@
 // The online booking page: book.limitsiz.si/<clinic> (Choose it yourself) and /<clinic>/manage#<token> (the private link).
 // Everything it may show, every limit and its texts come from the clinic's Settings > Online booking, through the public server.
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { TEXT, type Lang, type Tx } from "./text";
+import { HumanBox, HumanError, HumanLine, isHumanError, useHuman, type HumanCfg } from "./human";
 
 // ---------------------------------------------------------------- types and the server
 type Service = { id: string; name_en: string; name_ar: string; duration_minutes: number; price_jod: string | null; price_is_from: boolean; online_allowed?: boolean };
@@ -17,7 +18,7 @@ export type Info = {
   services: Service[]; doctors: Doctor[];
   options: { allowAnyDoctor: boolean; allowForOther: boolean; offerReminders: boolean; daysPerPage: number; windowDays: number; countryCode: string;
              introEn: string | null; introAr: string | null; doneNoteEn: string | null; doneNoteAr: string | null; privacyUrl: string; findEnabled?: boolean; chatEnabled?: boolean;
-             online?: Online };
+             online?: Online; humanCheck?: HumanCfg | null };
 };
 export type Summary = {
   id: string; startsAt: string; endsAt: string; status: string; shownStatus?: string; name: string | null; waitingForCheck: boolean;
@@ -45,7 +46,8 @@ export function message(e: unknown, x: Tx) {
   return ({ slot_taken: x.slotTaken, too_many_requests: x.tooMany, invalid_phone: x.invalidPhone, invalid_input: x.invalidInput,
             link_not_found: x.linkNotFound, clinic_not_found: x.clinicNotFound, link_replaced: x.linkReplaced,
             find_not_available: x.findNotAvailable, consent_needed: x.consentNeeded, email_needed: x.emailNeeded, choose_mode: x.chooseMode,
-            online_visits_off: x.onlineOff, service_not_online: x.onlineOff, doctor_not_online: x.onlineOff } as Record<string, string>)[c] ?? x.serverError;
+            online_visits_off: x.onlineOff, service_not_online: x.onlineOff, doctor_not_online: x.onlineOff,
+            human_check_failed: x.humanFailed, human_check_unavailable: x.humanDown } as Record<string, string>)[c] ?? x.serverError;
 }
 
 // ---------------------------------------------------------------- dates in the clinic's time zone
@@ -371,6 +373,11 @@ export function BookPage({ slug }: { slug: string }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<{ code: string; text: string } | null>(null);
   const [done, setDone] = useState<Summary | null>(null);
+  const h = useHuman(info?.options.humanCheck, "book", lang);
+  // A refusal shows its message at the top of the form: bring it into view, or a patient scrolled down to the button never sees it.
+  const formTop = useRef<HTMLFormElement>(null);
+  const showError = () => requestAnimationFrame(() => formTop.current?.scrollIntoView({
+    behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }));
   const loadSlots = useCallback((start: string, days: number) => call<Slot[]>("GET",
     `/api/c/${slug}/slots?service=${serviceId}${doctorId && doctorId !== "any" ? `&doctor=${doctorId}` : ""}&date=${start}&days=${days}${visit === "online" ? "&visit=online" : ""}`), [slug, serviceId, doctorId, visit]);
 
@@ -474,8 +481,9 @@ export function BookPage({ slug }: { slug: string }) {
     const submit = async (e: React.FormEvent) => {
       e.preventDefault(); setBusy(true); setErr(null);
       try {
+        const human = await h.token();
         const r = await call<Summary>("POST", `/api/c/${slug}/book`, { serviceId, doctorId: doctorId === "any" ? null : doctorId, startsAt: slot.startsAt, name: f.name,
-          phone: f.phone, language: lang, reminders: o.offerReminders && f.reminders, forOther: o.allowForOther && f.forOther, from, agree: true, website: f.website || undefined,
+          phone: f.phone, language: lang, reminders: o.offerReminders && f.reminders, forOther: o.allowForOther && f.forOther, from, agree: true, website: f.website || undefined, human,
           ...(isOnline ? { visitType: "online", onlineConsent: f.consent, onlineMode: f.mode || undefined, linkChannel: channel || undefined,
                            email: channel === "email" ? f.email.trim() || undefined : undefined } : {}) });
         setDone(r); setStep("done");
@@ -483,18 +491,18 @@ export function BookPage({ slug }: { slug: string }) {
         const code = e2 instanceof Fail ? e2.code : "server_error";
         if (code === "choose_mode") setNeedMode(true);
         if (code === "slot_taken") { setSlot(null); setErr({ code, text: x.slotTaken }); setStep("time"); }
-        else setErr({ code, text: message(e2, x) });
+        else { setErr({ code, text: message(e2, x) }); showError(); }
       } finally { setBusy(false); }
     };
     const refused = err?.code === "phone_not_accepted";
-    return shell(<form className="bk-stack" onSubmit={submit}>
+    return shell(<form ref={formTop} className="bk-stack" onSubmit={submit}>
       <Steps n={3} />
       <h2 className="bk-title sm">{x.yourDetails}</h2>
       {refused && !isOnline && <Banner kind="bad"><b>{x.phoneRefused}</b><br />{x.phoneRefused2}{c.phone && <> <Phone n={c.phone} /></>}</Banner>}
       {/* The same answer for every number (the page never says whether a number is known); the clinic visit is one tap away. */}
       {refused && isOnline && <Banner kind="bad"><b>{x.onlineRefused}</b><br />{x.onlineRefused2}{c.phone && <> <Phone n={c.phone} /></>}</Banner>}
       {refused && isOnline && <button type="button" className="bk-btn ghost" onClick={() => { setErr(null); pickVisit("in_clinic"); setStep("service"); }}>{x.bookAtClinic}</button>}
-      {err && !refused && <Banner kind="bad">{err.text}</Banner>}
+      {err && !refused && (isHumanError(err.code) ? <HumanError code={err.code} x={x} phone={c.phone} /> : <Banner kind="bad">{err.text}</Banner>)}
       <label className="bk-field">{f.forOther ? x.forOtherName : x.fullName}<input autoComplete="name" required minLength={2} maxLength={120} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></label>
       <label className="bk-field">{x.mobile}
         <span className="bk-tel" dir="ltr"><span className="mono">+{o.countryCode}</span><input className="mono" type="tel" inputMode="tel" autoComplete="tel" required minLength={6} maxLength={30} value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} /></span>
@@ -520,10 +528,13 @@ export function BookPage({ slug }: { slug: string }) {
         <div className="bk-sum"><span>{longDate(slot.startsAt, tz, lang)}</span><b className="mono">{hm(slot.startsAt, tz)}</b></div>
         {isOnline && <div className="bk-sum"><span>{x.visit}</span><b>{x.onlineVisit}{f.mode ? ` · ${f.mode === "video" ? x.video : x.audio}` : ""}</b></div>}
       </div>
+      <HumanBox h={h} x={x} />
       <div className="bk-row">
-        <button type="button" className="bk-btn ghost" onClick={() => { setErr(null); setStep("time"); }}>{x.back}</button>
-        <button className="bk-btn accent" disabled={busy || !f.agree || (isOnline && !f.consent)}>{busy ? x.booking : x.bookThis}</button>
+        <button type="button" className="bk-btn ghost" disabled={busy} onClick={() => { setErr(null); setStep("time"); }}>{x.back}</button>
+        <button className="bk-btn accent" disabled={busy || !f.agree || (isOnline && !f.consent)}>
+          {busy ? (h.checking ? x.checking : x.booking) : isHumanError(err?.code) ? x.tryAgain : x.bookThis}</button>
       </div>
+      <HumanLine h={h} x={x} privacyUrl={o.privacyUrl} />
     </form>);
   }
 
@@ -637,6 +648,7 @@ export function FindPage({ slug }: { slug: string }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<unknown>(null);
   const [sent, setSent] = useState<string | null>(null);
+  const h = useHuman(info?.options.humanCheck, "find", lang);
 
   if (!info) {
     const msg = missing === "clinic_not_found" ? x.clinicNotFound : missing ? x.serverError : "";
@@ -657,17 +669,20 @@ export function FindPage({ slug }: { slug: string }) {
     </> : <form className="bk-stack" onSubmit={(e) => {
         e.preventDefault(); setBusy(true); setErr(null);
         const shown = phone.trim().startsWith("0") ? `+${o.countryCode} ${phone.trim().slice(1)}` : phone.trim().startsWith("+") ? phone.trim() : `+${o.countryCode} ${phone.trim()}`;
-        call<{ ok: boolean }>("POST", `/api/c/${slug}/find`, { phone, website }).then(() => setSent(shown)).catch(setErr).finally(() => setBusy(false));
+        h.token().then((human) => call<{ ok: boolean }>("POST", `/api/c/${slug}/find`, { phone, website, human }))
+          .then(() => setSent(shown)).catch(setErr).finally(() => setBusy(false));
       }}>
       <h1 className="bk-title sm">{x.findLink}</h1>
       <p className="bk-hint">{x.findHint}</p>
-      {err != null && <Banner kind="bad">{message(err, x)}</Banner>}
+      {err != null && (err instanceof Fail && isHumanError(err.code) ? <HumanError code={err.code} x={x} phone={c.phone} /> : <Banner kind="bad">{message(err, x)}</Banner>)}
       <label className="bk-field">{x.mobile}
         <span className="bk-tel" dir="ltr"><span className="mono">+{o.countryCode}</span><input className="mono" type="tel" inputMode="tel" autoComplete="tel" required minLength={6} maxLength={30} value={phone} onChange={(e) => setPhone(e.target.value)} /></span>
       </label>
       <label className="hp" aria-hidden="true">Website<input tabIndex={-1} autoComplete="off" value={website} onChange={(e) => setWebsite(e.target.value)} /></label>
-      <button className="bk-btn wa" disabled={busy}><WaIcon />{busy ? x.sending : x.sendMyLink}</button>
+      <HumanBox h={h} x={x} />
+      <button className="bk-btn wa" disabled={busy}><WaIcon />{busy ? (h.checking ? x.checking : x.sending) : x.sendMyLink}</button>
       <p className="bk-hint">{x.findNote}</p>
+      <HumanLine h={h} x={x} privacyUrl={o.privacyUrl} />
       <a className="bk-btn ghost" href={`/${slug}`}>{x.back}</a>
     </form>;
   return <Shell name={lang === "ar" ? c.nameAr : c.nameEn} place={lang === "ar" ? c.addressAr : c.addressEn} lang={lang} setLang={setLang} x={x} privacyUrl={o.privacyUrl}>{body}</Shell>;

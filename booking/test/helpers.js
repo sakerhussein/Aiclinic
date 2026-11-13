@@ -12,6 +12,7 @@ import { createService } from "../server/service.js";
 import { createApp } from "../server/app.js";
 import { createPublicService } from "../server/public-service.js";
 import { createPublicApp } from "../server/public-app.js";
+import { humanChecker } from "../server/human-check.js";
 
 export { GOOD };
 const SECRET = "x".repeat(40);
@@ -45,7 +46,23 @@ export async function setup() {
   // The assistant is scripted here (its own tests are in agent/tests/test_web_chat.py): agent.next holds the answers.
   const agent = { next: [], calls: [], down: false };
   const callAgent = async (p) => { agent.calls.push(p); if (agent.down) throw new Error("down"); return agent.next.shift() ?? { reply: "OK" }; };
-  const publicApp = createPublicApp({ svc: createPublicService({ pool: publicPool, now: () => new Date(a.clock.t), agent: callAgent }), config: publicConfig, now: () => a.clock.t });
+  // The human check talks to a pretend Cloudflare (its own tests are in test/human-check.test.js). cf.keys: the Cloudflare keys are
+  // set; cf.answer: "pass" (tokens "good:<form>" pass, others fail), "down" (no answer), "500"; cf.hostname: what Cloudflare says
+  // the page was; cf.calls: what our server sent.
+  const cf = { keys: false, answer: "pass", hostname: null, calls: [] };
+  const cfFetch = async (url, init) => {
+    const sent = JSON.parse(init.body); cf.calls.push({ url, ...sent });
+    if (cf.answer === "down") throw new TypeError("fetch failed");
+    if (cf.answer === "500") return new Response("oops", { status: 500 });
+    const [kind, action] = String(sent.response).split(":");
+    const ok = kind === "good";
+    return Response.json({ success: ok, "error-codes": ok ? [] : ["invalid-input-response"], action: ok ? action : undefined,
+      hostname: cf.hostname ?? new URL(publicConfig.siteUrl).hostname });
+  };
+  const checker = humanChecker({ siteKey: "site-key-for-tests", secret: "secret-for-tests" }, { fetch: cfFetch, log: { warn() {} } });
+  const human = { get siteKey() { return cf.keys ? checker.siteKey : null; }, check: checker.check };
+  const publicApp = createPublicApp({ svc: createPublicService({ pool: publicPool, now: () => new Date(a.clock.t), agent: callAgent }), config: publicConfig,
+    now: () => a.clock.t, human });
   const publicServer = await new Promise((r) => { const s = publicApp.listen(0, "127.0.0.1", () => r(s)); });
   const publicBase = `http://127.0.0.1:${publicServer.address().port}`;
   publicConfig.siteUrl = publicBase; publicConfig.origin = publicBase; config.publicBookingUrl = publicBase;
@@ -109,7 +126,7 @@ export async function setup() {
     fetch(`${base}/api/notes/${noteId}/audio/${seq}`, { method: "PUT", headers: { origin: base, cookie: b.cookie, "content-type": type }, body: buf })
       .then(async (r) => ({ status: r.status, json: await r.json().catch(() => null) }));
 
-  async function reset() { agent.next = []; agent.calls = []; agent.down = false; drafter.fail = null; drafter.calls = []; tidier.fail = null; tidier.calls = []; patientMails.length = 0;
+  async function reset() { agent.next = []; agent.calls = []; agent.down = false; Object.assign(cf, { keys: false, answer: "pass", hostname: null, calls: [] }); drafter.fail = null; drafter.calls = []; tidier.fail = null; tidier.calls = []; patientMails.length = 0;
     for (const d of fs.readdirSync(audioDir)) fs.rmSync(path.join(audioDir, d), { recursive: true, force: true });
     await a.owner.query(`delete from prescriptions; delete from form_responses; delete from form_templates; delete from form_links; delete from treatment_courses;
       update record_settings set courses_on = false, forms_on = false, rx_on = false, form_link_hours = 24, form_message_en = default, form_message_ar = default;
@@ -127,7 +144,7 @@ export async function setup() {
       delete from online_visits; insert into online_visits (clinic_id) select id from clinics; delete from clinic_payment; insert into clinic_payment (clinic_id) select id from clinics;
       update doctors set online_enabled = false, online_min_notice_minutes = 60, teams_link = null; update services set online_allowed = false;
       update clinics set wa_phone_number_id = null;`); publicApp.locals.forget(); await a.reset(); }
-  return { ...a, accountsBase: a.base, reset, base, publicBase, pub, agent, forgetPublic: () => publicApp.locals.forget(), bookingJar: jar, login, people, seedIds, pool,
+  return { ...a, accountsBase: a.base, reset, base, publicBase, pub, agent, cf, config, forgetPublic: () => publicApp.locals.forget(), bookingJar: jar, login, people, seedIds, pool,
     audioDir, scribe, drafter, tidier, putAudio, patientMails,
     // Dictation, as the browser sends it: the whole recording at once.
     dictate: (b, noteId, q, buf = Buffer.from("fake-opus-audio"), type = "audio/webm;codecs=opus") =>

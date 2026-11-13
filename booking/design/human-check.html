@@ -1,0 +1,826 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Human check on booking</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;500;600&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap">
+<style>
+/* ---- copied from booking/client/src/styles.css (the live Booking app) ---- */
+:root{
+  --ink:#0A0F14;--ink-2:#121A21;--ink-3:#1E2A33;--ink-line:#2A3640;--on-ink:#E8EEF0;--on-ink-muted:#93A3AD;
+  --paper:#F2F4F3;--text:#0A0F14;--muted:#4B5863;--rule:#C9D6D2;--rule-soft:#E1E6E4;--field:#8A99A3;
+  --accent:#2EE6B5;--accent-ink:#0B7A64;--accent-tint:#DDF7EE;--amber:#FFB23E;--amber-tint:#FFF0D6;--error:#B42318;--error-tint:#FDE7E4;
+  --font-display:"Unbounded","Geist",system-ui,sans-serif;--font-body:"Geist",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"Geist Mono",ui-monospace,Menlo,monospace;--font-ar:"IBM Plex Sans Arabic","Segoe UI",Tahoma,sans-serif;
+}
+*{box-sizing:border-box}
+html{overflow-x:clip;overflow-anchor:auto}
+body{margin:0;background:var(--paper);color:var(--text);font:15px/1.5 var(--font-body);overflow-x:clip;min-height:100vh}
+html[lang="ar"] body,html[lang="ar"] button,html[lang="ar"] input,html[lang="ar"] select,html[lang="ar"] textarea{font-family:var(--font-ar)}
+h1,h2,h3,p{margin:0}
+.display{font-family:var(--font-display);font-weight:500;letter-spacing:-.01em}
+html[lang="ar"] .display{font-family:var(--font-ar);font-weight:600;letter-spacing:0}
+.mono{font-family:var(--font-mono);direction:ltr;unicode-bidi:isolate}
+a{color:var(--accent-ink)}
+.wrap{max-width:1100px;margin-inline:auto;padding-inline:16px}
+
+.bar{background:var(--ink);color:var(--on-ink)}
+.bar .wrap{display:flex;align-items:center;gap:12px;min-height:60px;flex-wrap:wrap;padding-block:6px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--font-display);font-size:17px;white-space:nowrap;color:inherit;text-decoration:none}
+html[lang="ar"] .brand{font-family:var(--font-ar);font-weight:600}
+.grow{flex:1}
+.bar nav{display:flex;gap:4px;flex-wrap:wrap}
+.bar nav a,.bar .linkbtn{color:var(--on-ink);text-decoration:none;padding:8px 12px;border-radius:999px;font-size:14px;background:none;border:0;cursor:pointer;font:inherit}
+.bar nav a[aria-current="page"]{background:var(--ink-3)}
+.bar .iconbtn{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:999px;color:var(--on-ink)}
+.bar .iconbtn.on{background:var(--ink-3)}
+.clinic{color:var(--on-ink-muted);font-size:13px}
+.um>button{display:inline-flex;align-items:center;gap:8px;color:var(--on-ink);background:var(--ink-3);border:0;border-radius:999px;padding:8px 14px;font:inherit;font-size:14px;cursor:pointer}
+.page{padding-block:28px;display:flex;flex-direction:column;gap:20px}
+.panel{background:#fff;border:1px solid var(--rule);border-radius:20px;padding:22px;display:flex;flex-direction:column;gap:14px}
+.panel h2{font-size:18px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;padding:0 24px;border-radius:999px;border:1px solid transparent;font:inherit;font-weight:600;cursor:pointer;text-decoration:none}
+.btn-accent{background:var(--accent);color:var(--ink)}.btn-ink{background:var(--ink);color:#fff}
+.btn-outline{border-color:var(--text);color:var(--text);background:transparent}
+.btn-sm{min-height:38px;padding:0 16px;font-size:14px}
+.field{display:flex;flex-direction:column;gap:6px;font-size:14px;font-weight:600}
+.field input,.field select{font:inherit;font-weight:400;min-height:46px;padding:0 14px;border:1px solid var(--field);border-radius:12px;background:#fff;color:var(--text);width:100%}
+.hint{font-weight:400;color:var(--muted);font-size:13px}
+.banner{padding:12px 14px;border-radius:14px;font-size:14px;border:1px solid}
+.banner.bad{background:var(--error-tint);border-color:var(--error);color:#7a1a12}
+.banner.ok{background:var(--accent-tint);border-color:var(--accent-ink);color:var(--accent-ink)}
+.banner.warn{background:var(--amber-tint);border-color:var(--amber);color:#5c3700}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.row.between{justify-content:space-between}
+.pill{display:inline-flex;align-items:center;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;background:var(--rule-soft);white-space:nowrap}
+.pill.ok{background:var(--accent-tint);color:var(--accent-ink)}.pill.warn{background:var(--amber-tint);color:#8a5200}.pill.bad{background:var(--error-tint);color:var(--error)}
+.stack{display:flex;flex-direction:column;gap:12px}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:14px}
+.check input{width:20px;height:20px;min-height:0;margin-top:3px;accent-color:var(--accent-ink);flex:none}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:640px}
+th,td{text-align:start;padding:10px 8px;border-bottom:1px solid var(--rule-soft);font-size:14px;vertical-align:middle}
+th{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.setwrap{display:grid;grid-template-columns:210px minmax(0,1fr);gap:20px;align-items:start}
+.settabs{display:flex;flex-direction:column;gap:2px;background:#fff;border:1px solid var(--rule);border-radius:16px;padding:8px;position:sticky;top:12px}
+.settabs button{display:flex;align-items:center;gap:8px;font:inherit;font-size:14px;text-align:start;padding:10px 12px;border:0;background:none;border-radius:10px;cursor:pointer;color:var(--text)}
+.settabs button.on{background:var(--ink);color:#fff}
+.setbody{display:flex;flex-direction:column;gap:14px;min-width:0}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start}
+.newtag{flex:none;font-size:10.5px;line-height:1.6;background:var(--accent);color:var(--ink);border-radius:999px;padding:0 7px;margin-inline-start:auto}
+.warntext{color:#8a5200}
+@media (max-width:820px){.setwrap{grid-template-columns:1fr}.settabs{flex-direction:row;overflow-x:auto;position:static}.settabs button{white-space:nowrap}.grid2{grid-template-columns:1fr}}
+.radios{display:flex;flex-direction:column;gap:8px}
+.radio{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--rule);border-radius:14px;padding:12px 14px;background:#fff}
+.radio.on{border:2px solid var(--accent-ink);background:#F6FDFA;padding:11px 13px}
+.radio input{width:18px;height:18px;margin-top:3px;accent-color:var(--accent-ink);flex:none}
+.chan{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px 12px;align-items:start;padding-block:10px;border-bottom:1px solid var(--rule-soft)}
+.chan:last-child{border-bottom:0}
+.chan input[type=checkbox]{width:20px;height:20px;margin-top:2px;accent-color:var(--accent-ink)}
+.chan b{display:block;font-size:14px}
+
+/* ---- copied from booking/client/src/book/book.css (the live booking page) ---- */
+.flip{display:inline-block}[dir="rtl"] .flip{transform:scaleX(-1)}
+.bk{max-width:480px;margin-inline:auto;padding-inline:16px;padding-block:16px 28px;display:flex;flex-direction:column;gap:14px;background:#fff;font-size:16px}
+.bk-head{display:flex;align-items:center;gap:10px}
+.bk-logo{width:42px;height:42px;border-radius:12px;background:var(--ink);display:grid;place-items:center;flex:none}
+.bk-name{min-width:0}.bk-name b{display:block;font-size:15px;line-height:1.25}.bk-name span{font-size:12.5px;color:var(--muted)}
+.bk-lang{margin-inline-start:auto;font-size:13px;border:1px solid var(--rule);border-radius:999px;padding:4px 12px;background:#fff;white-space:nowrap}
+.bk-title{font-family:var(--font-display);font-weight:500;font-size:22px;line-height:1.3;margin:6px 0 0}
+.bk-title.sm{font-size:19px;margin:0}
+html[lang="ar"] .bk-title{font-family:var(--font-ar);font-weight:600}
+.bk-hint{color:var(--muted);font-size:14px;margin:0}
+.bk-stack{display:flex;flex-direction:column;gap:10px}
+.bk-row{display:flex;gap:10px;margin-top:6px}.bk-row>*{flex:1}
+.bk-steps{display:flex;gap:6px}.bk-steps i{flex:1;height:4px;border-radius:2px;background:var(--rule-soft)}.bk-steps i.on{background:var(--accent-ink)}
+.bk-field{display:flex;flex-direction:column;gap:6px;font-size:14px;font-weight:600}
+.bk-field small{font-weight:400;color:var(--muted);font-size:13px}
+.bk-in{min-height:48px;padding:0 14px;border:1px solid var(--field);border-radius:12px;background:#fff;font-weight:400;width:100%;display:flex;align-items:center}
+.bk-tel{display:flex;align-items:center;border:1px solid var(--field);border-radius:12px;background:#fff;overflow:hidden;min-height:48px}
+.bk-tel>span{padding-inline:12px;color:var(--muted);border-inline-end:1px solid var(--rule-soft);font-weight:400}
+.bk-tel>b{padding-inline:12px;font-weight:400}
+.bk-check{display:flex;gap:10px;align-items:flex-start;font-size:14px;font-weight:400}
+.bk-check input{width:20px;height:20px;margin:1px 0 0;accent-color:var(--accent-ink);flex:none}
+.bk-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:50px;padding:0 20px;border-radius:999px;border:1px solid transparent;font-weight:600;cursor:pointer;text-decoration:none;text-align:center;font-size:16px}
+.bk-btn.dis{opacity:.45;cursor:default}
+.bk-btn.ink{background:var(--ink);color:#fff}.bk-btn.accent{background:var(--accent);color:var(--ink)}
+.bk-btn.ghost{border-color:var(--rule);color:var(--text);background:#fff}
+.bk-btn.wa{background:#25D366;color:#06301a}
+.bk-card{border:1px solid var(--rule);border-radius:18px;padding:10px 14px;background:#fff}
+.bk-card.soft{background:var(--paper);border-color:var(--rule-soft)}
+.bk-sum{display:flex;justify-content:space-between;gap:10px;padding-block:8px;border-bottom:1px solid var(--rule-soft);font-size:14px}
+.bk-sum:last-child{border-bottom:0}.bk-sum span{color:var(--muted)}.bk-sum b{text-align:end}
+.bk-banner{padding:12px 14px;border-radius:14px;font-size:14px;border:1px solid}
+.bk-banner.warn{background:var(--amber-tint);border-color:var(--amber);color:#5c3700}
+.bk-banner.info,.bk-banner.ok{background:var(--accent-tint);border-color:var(--accent-ink);color:var(--accent-ink)}
+.bk-banner.bad{background:var(--error-tint);border-color:var(--error);color:#7a1a12}
+.bk-done{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
+.bk-ok{width:56px;height:56px;border-radius:50%;background:var(--accent-tint);display:grid;place-items:center;color:var(--accent-ink);font-size:28px;font-weight:700}
+.bk-ok.wa{background:#E3F9EC;color:#128C4B}
+.bk-foot{margin-top:auto;padding-top:12px;font-size:12px;color:var(--muted);text-align:center}
+.bk-brand{font-family:var(--font-display);font-weight:500}
+.ch{display:flex;flex-direction:column;gap:8px;margin-inline:-16px;padding:12px 14px;background:#EEF2F0}
+.ch-head{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);padding-bottom:4px}
+.ch-ai{font:600 11px var(--font-mono);letter-spacing:.04em;background:var(--ink);color:var(--accent);border-radius:999px;padding:2px 8px}
+.ch-person{margin-inline-start:auto;color:var(--accent-ink);font-weight:600;font-size:13px;padding:4px}
+.ch-b{max-width:86%;padding:8px 11px;border-radius:14px;font-size:14.5px;line-height:1.5;box-shadow:0 1px 0 rgba(10,15,20,.06)}
+.ch-b.ai{align-self:flex-start;background:#fff;border-end-start-radius:4px}
+.ch-b.me{align-self:flex-end;background:#D9FBEF;border-end-end-radius:4px}
+.ch-card{align-self:stretch;background:#fff;border:1px solid var(--rule);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:9px;font-size:14px}
+.ch-card .bk-btn{min-height:46px}
+
+/* ---- new parts drawn for this design ---- */
+.hc-line{display:flex;gap:6px;align-items:flex-start;font-size:12.5px;color:var(--muted);margin:0}
+.hc-line svg{flex:none;margin-top:2px;color:var(--accent-ink)}
+.cf{display:flex;align-items:center;gap:12px;width:100%;max-width:300px;min-height:65px;border:1px solid #d0d0d0;border-radius:6px;background:#fafafa;padding:0 14px;font-size:14px;color:#232323;align-self:center}
+.cf i{width:26px;height:26px;border:2px solid #6b6b6b;border-radius:4px;background:#fff;flex:none}
+.cf .cfr{margin-inline-start:auto;text-align:end;font-size:9.5px;line-height:1.3;color:#6b6b6b}
+.cf .cfr b{display:block;font:700 10.5px var(--font-body);letter-spacing:.06em;color:#f38020;direction:ltr}
+.spin{width:16px;height:16px;border-radius:50%;border:2px solid currentColor;border-top-color:transparent;display:inline-block}
+.code6{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;direction:ltr}
+.code6 span{height:52px;border:1px solid var(--field);border-radius:12px;display:grid;place-items:center;font:500 22px var(--font-mono)}
+.code6 span.on{border:2px solid var(--accent-ink)}
+.wa-sheet{background:#0b141a;color:#e9edef;padding:16px;display:flex;flex-direction:column;gap:10px;min-height:520px}
+.wa-head{display:flex;gap:10px;align-items:center;font-size:14px}
+.wa-av{width:34px;height:34px;border-radius:50%;background:#2a3942;display:grid;place-items:center;flex:none}
+.wa-bubble{align-self:flex-start;background:#202c33;border-radius:12px;padding:8px 10px;max-width:90%;font-size:14px;line-height:1.45}
+.wa-btn{align-self:flex-start;max-width:90%;width:100%;text-align:center;background:#202c33;color:#53bdeb;border-radius:12px;padding:9px;font-size:14px;margin-top:-6px}
+
+/* ---- design page only (as the other pages in booking/design) ---- */
+html[lang="en"] [data-ar], html[lang="ar"] [data-en]{display:none}
+.doc{max-width:1100px;margin-inline:auto;padding-inline:16px;padding-block:28px;display:flex;flex-direction:column;gap:18px}
+.doc>h1{font-size:28px}.doc h2.s{font-size:20px;margin-top:18px}
+.doc ul.notes{margin:0;padding-inline-start:20px;display:flex;flex-direction:column;gap:6px}
+.frame{border:1px solid var(--rule);border-radius:22px;overflow:hidden;background:var(--paper);box-shadow:0 10px 30px #0001}
+.frame .page{padding-block:22px}
+.tag{display:inline-block;font:600 11px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--accent-ink);background:var(--accent-tint);border-radius:999px;padding:3px 10px}
+.new{outline:2px dashed var(--accent-ink);outline-offset:4px;border-radius:16px}
+.toc{display:flex;flex-wrap:wrap;gap:6px}.toc a{font-size:13px;padding:5px 12px;border-radius:999px;border:1px solid var(--rule);background:#fff;text-decoration:none;color:var(--text)}
+.an{background:#fff;border:1px solid var(--rule);border-radius:20px;padding:22px;display:flex;flex-direction:column;gap:14px}
+.an h3{font-size:16px;margin-top:6px}
+.an ul,.an ol{margin:0;padding-inline-start:20px;display:flex;flex-direction:column;gap:6px}
+.dec{border:2px solid var(--accent-ink);background:#F6FDFA}
+.q{background:#fff;border:1px solid var(--rule);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.q .rec{color:var(--accent-ink);font-weight:600}
+.q .alt{color:var(--muted);font-size:14px}
+.phones{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;align-items:start}
+.phone{max-width:370px;width:100%;margin-inline:auto;border-radius:30px;border:10px solid #0A0F14;overflow:hidden;background:#fff}
+.cap{font-size:13px;color:var(--muted);text-align:center;margin-top:6px;max-width:370px;margin-inline:auto}
+.cmp{min-width:860px}.cmp td{vertical-align:top}.cmp td:first-child{font-weight:600;width:18%}
+.good{color:var(--accent-ink)}.bad{color:var(--error)}
+tr.rec td{background:#F6FDFA}
+pre.sql{background:var(--ink);color:#d6e2e6;border-radius:16px;padding:16px;font:12.5px/1.55 var(--font-mono);overflow:auto;direction:ltr;text-align:left;margin:0;white-space:pre}
+pre.sql i{color:#7f9aa6;font-style:normal}
+pre.sql b{color:var(--accent);font-weight:500}
+pre.sql s{color:#ff9b8f;text-decoration:line-through}
+.phase{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.phase>div{border:1px solid var(--rule);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:8px;background:#fff}
+.phase ul{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;gap:4px;font-size:14px}
+.flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:14px}
+.flow span{background:#fff;border:1px solid var(--rule);border-radius:999px;padding:6px 12px}
+.flow span.n{border:2px dashed var(--accent-ink);background:#F6FDFA}
+.flow b{color:var(--muted)}
+.langfix{position:fixed;top:12px;inset-inline-end:12px;z-index:50}
+.langbtn{min-height:38px;padding:0 16px;border-radius:999px;border:1px solid var(--ink-line);background:var(--ink-2);color:var(--on-ink);font:inherit;cursor:pointer}
+.quote{border-inline-start:4px solid var(--accent-ink);background:#F6FDFA;padding:12px 16px;border-radius:0 12px 12px 0;font-size:14.5px}
+html[dir="rtl"] .quote{border-radius:12px 0 0 12px}
+@media (max-width:560px){.doc>h1{font-size:23px}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="loop" viewBox="0 0 40 20"><path d="M20 10 C16.6 5.5 13.2 2 8.8 2 A8 8 0 0 0 8.8 18 C13.2 18 16.6 14.5 20 10 C23.4 5.5 26.8 2 31.2 2 A8 8 0 0 1 38.4 12.9" fill="none" stroke="#2EE6B5" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="33.6" cy="17.2" r="1.8" fill="#2EE6B5"/></symbol>
+  <symbol id="shield" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8.5 12l2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="wa" viewBox="0 0 24 24"><path d="M12 3a9 9 0 0 0-7.8 13.5L3 21l4.6-1.2A9 9 0 1 0 12 3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 8.5c0 3.5 3 6.5 6.5 6.5l1-1.5-2-1-1 .8a5 5 0 0 1-2.3-2.3l.8-1-1-2z" fill="currentColor"/></symbol>
+  <symbol id="gear" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+</svg>
+
+<div class="langfix"><button class="langbtn" type="button" onclick="flip()"><span data-en>العربية</span><span data-ar>English</span></button></div>
+
+<main class="doc">
+  <div><span class="tag"><span data-en>Design · for your approval · nothing built yet</span><span data-ar>تصميم · للموافقة · لم يُبنَ شيء بعد</span></span></div>
+  <h1 class="display"><span data-en>A human check on the booking page</span><span data-ar>التحقق البشري في صفحة الحجز</span></h1>
+  <p><span data-en>You asked whether the online booking page (book.limitsiz.si/&lt;clinic&gt;) needs a check that a person, not a program, is booking. This page answers that, recommends <b>Cloudflare Turnstile</b> on the final button of each form only, and shows every screen. Most patients see nothing at all: the check runs in the background when they tap the last button. New parts have a dashed outline.</span><span data-ar>سألتَ هل تحتاج صفحة الحجز الإلكتروني (book.limitsiz.si/&lt;العيادة&gt;) إلى تحقق من أن من يحجز شخص حقيقي لا برنامج. تجيب هذه الصفحة عن ذلك، وتوصي بـ <b>Cloudflare Turnstile</b> على الزر الأخير في كل نموذج فقط، وتعرض كل الشاشات. معظم المرضى لا يرون شيئاً: يجري الفحص في الخلفية عندما يضغطون الزر الأخير. الأجزاء الجديدة بإطار منقّط.</span></p>
+  <div class="flow">
+    <span><span data-en>Patient fills in the form</span><span data-ar>المريض يملأ النموذج</span></span><b>›</b>
+    <span><span data-en>Taps “Book this time”</span><span data-ar>يضغط «احجز هذا الموعد»</span></span><b>›</b>
+    <span class="n"><span data-en>Cloudflare checks the browser (under a second)</span><span data-ar>Cloudflare يفحص المتصفح (أقل من ثانية)</span></span><b>›</b>
+    <span class="n"><span data-en>Our server confirms with Cloudflare</span><span data-ar>خادمنا يتأكد من Cloudflare</span></span><b>›</b>
+    <span><span data-en>Booking saved, as today</span><span data-ar>يُحفظ الحجز كما اليوم</span></span>
+  </div>
+  <nav class="toc">
+    <a href="#a"><span data-en>A Is it needed?</span><span data-ar>أ هل نحتاجه؟</span></a>
+    <a href="#alt"><span data-en>B The options</span><span data-ar>ب الخيارات</span></a>
+    <a href="#d"><span data-en>C Your decisions</span><span data-ar>ج قراراتك</span></a>
+    <a href="#s1"><span data-en>1 Booking page</span><span data-ar>١ صفحة الحجز</span></a>
+    <a href="#s2"><span data-en>2 Rare challenge</span><span data-ar>٢ التحدي النادر</span></a>
+    <a href="#s3"><span data-en>3 Failure</span><span data-ar>٣ الفشل</span></a>
+    <a href="#s4"><span data-en>4 Chat</span><span data-ar>٤ المحادثة</span></a>
+    <a href="#s5"><span data-en>5 Call-back, Find my booking</span><span data-ar>٥ طلب الاتصال، ابحث عن حجزي</span></a>
+    <a href="#s6"><span data-en>6 Cloudflare down</span><span data-ar>٦ تعطّل Cloudflare</span></a>
+    <a href="#s7"><span data-en>7 Settings</span><span data-ar>٧ الإعدادات</span></a>
+    <a href="#s8"><span data-en>8 Staff view</span><span data-ar>٨ ما يراه الموظفون</span></a>
+    <a href="#s9"><span data-en>9 Later: WhatsApp code</span><span data-ar>٩ لاحقاً: رمز واتساب</span></a>
+    <a href="#fit"><span data-en>D Fit with today</span><span data-ar>د مع الحماية الحالية</span></a>
+    <a href="#tech"><span data-en>E Keys, CSP, server</span><span data-ar>هـ المفاتيح، CSP، الخادم</span></a>
+    <a href="#data"><span data-en>F Migration</span><span data-ar>و الترحيل</span></a>
+    <a href="#tests"><span data-en>G Tests</span><span data-ar>ز الاختبارات</span></a>
+    <a href="#privacy"><span data-en>H Privacy wording</span><span data-ar>ح نص الخصوصية</span></a>
+    <a href="#build"><span data-en>I Build order</span><span data-ar>ط ترتيب البناء</span></a>
+  </nav>
+
+  <!-- ================================================================ A -->
+  <section class="an" id="a">
+    <h2 class="display" style="font-size:20px"><span data-en>A · Is a human check needed?</span><span data-ar>أ · هل نحتاج إلى تحقق بشري؟</span></h2>
+    <p><span data-en><b>Short answer: not urgently, but it is cheap insurance and worth building now.</b> Today's protections stop simple bots and one machine sending many requests. They don't stop a script that uses many internet addresses and a new random phone number each time. Nothing has gone wrong yet; this closes the gap before it does.</span><span data-ar><b>الجواب المختصر: ليس عاجلاً، لكنه تأمين رخيص ويستحق البناء الآن.</b> الحماية الحالية توقف البرامج الآلية البسيطة وجهازاً واحداً يرسل طلبات كثيرة. لكنها لا توقف برنامجاً يستخدم عناوين إنترنت كثيرة ورقم هاتف عشوائياً جديداً في كل مرة. لم يحدث شيء بعد؛ وهذا يسدّ الثغرة قبل أن يحدث.</span></p>
+    <h3><span data-en>What is still open today</span><span data-ar>ما يبقى مفتوحاً اليوم</span></h3>
+    <ul>
+      <li><span data-en><b>Holding the calendar.</b> A script books many free times with made-up names and numbers, from many addresses. Real patients see “no free times”, and the secretary has to call each fake to clear it. This is the main risk.</span><span data-ar><b>حجز التقويم.</b> برنامج يحجز أوقاتاً كثيرة بأسماء وأرقام مختلَقة، من عناوين كثيرة. فيرى المرضى الحقيقيون «لا أوقات متاحة»، وعلى السكرتيرة الاتصال بكل حجز مزيّف لإزالته. وهذا هو الخطر الأكبر.</span></li>
+      <li><span data-en><b>Call-back floods.</b> Many “Call me back” requests in the chat, each one a call the staff must make.</span><span data-ar><b>طوفان طلبات الاتصال.</b> طلبات «اتصلوا بي» كثيرة في المحادثة، وكل طلب مكالمة على الموظفين إجراؤها.</span></li>
+      <li><span data-en><b>“Find my booking” used to send WhatsApp messages.</b> Once it is switched on, a script can type many real numbers, so the clinic's WhatsApp messages people who never asked (each message also costs money). Today's limit is per number, not across numbers.</span><span data-ar><b>استخدام «ابحث عن حجزي» لإرسال رسائل واتساب.</b> بعد تفعيله، يستطيع برنامج كتابة أرقام حقيقية كثيرة، فيراسل واتساب العيادة أشخاصاً لم يطلبوا شيئاً (وكل رسالة تكلّف مالاً). والحد الحالي لكل رقم، لا على مجموع الأرقام.</span></li>
+    </ul>
+    <h3><span data-en>Why Turnstile, on the last button only</span><span data-ar>لماذا Turnstile، وعلى الزر الأخير فقط</span></h3>
+    <ul>
+      <li><span data-en><b>Usually invisible.</b> Most people see nothing. A few (unusual browser, VPN, privacy add-ons) are asked to tick one box. No pictures of traffic lights.</span><span data-ar><b>غير مرئي عادةً.</b> معظم الناس لا يرون شيئاً. وقلة منهم (متصفح غير معتاد، VPN، إضافات خصوصية) يُطلب منهم وضع علامة في مربع واحد. بلا صور إشارات المرور.</span></li>
+      <li><span data-en><b>Free</b>, and Cloudflare says it does not use the check for advertising or set tracking cookies. More private than Google reCAPTCHA. Works with screen readers and the keyboard, and in Arabic.</span><span data-ar><b>مجاني</b>، وتقول Cloudflare إنها لا تستخدم الفحص للإعلانات ولا تضع ملفات تتبّع. أكثر خصوصية من Google reCAPTCHA. ويعمل مع قارئات الشاشة ولوحة المفاتيح، وبالعربية.</span></li>
+      <li><span data-en><b>Only where it matters.</b> Cloudflare's script loads only on the step with the final button. Browsing services and free times never touches Cloudflare.</span><span data-ar><b>فقط حيث يهم.</b> يُحمَّل برنامج Cloudflare فقط في الخطوة التي فيها الزر الأخير. وتصفّح الخدمات والأوقات المتاحة لا يمر عبر Cloudflare أبداً.</span></li>
+      <li><span data-en><b>No domain move.</b> Turnstile works on any site; book.limitsiz.si stays on our VPS and Nginx as today.</span><span data-ar><b>بلا نقل للنطاق.</b> يعمل Turnstile على أي موقع؛ ويبقى book.limitsiz.si على خادمنا وNginx كما اليوم.</span></li>
+    </ul>
+  </section>
+
+  <!-- ================================================================ B -->
+  <section class="an" id="alt">
+    <h2 class="display" style="font-size:20px"><span data-en>B · The options</span><span data-ar>ب · الخيارات</span></h2>
+    <div class="tablewrap"><table class="cmp">
+      <thead><tr><th><span data-en>Way</span><span data-ar>الطريقة</span></th><th><span data-en>What the patient sees</span><span data-ar>ما يراه المريض</span></th><th><span data-en>Good</span><span data-ar>المزايا</span></th><th><span data-en>Not so good</span><span data-ar>العيوب</span></th><th><span data-en>Cost</span><span data-ar>التكلفة</span></th></tr></thead>
+      <tbody>
+        <tr class="rec"><td><span data-en>1. Cloudflare Turnstile (recommended)</span><span data-ar>١. Cloudflare Turnstile (موصى به)</span></td>
+          <td><span data-en>Usually nothing. Rarely, one box to tick.</span><span data-ar>عادةً لا شيء. ونادراً مربع واحد لوضع علامة.</span></td>
+          <td class="good"><span data-en>Strong against scripts, private, accessible, Arabic, small to build.</span><span data-ar>قوي ضد البرامج، خاص، سهل الوصول، بالعربية، صغير البناء.</span></td>
+          <td class="bad"><span data-en>A third party (Cloudflare) sees the IP address and browser details on those steps. Needs a decision for when Cloudflare is down.</span><span data-ar>طرف ثالث (Cloudflare) يرى عنوان IP وتفاصيل المتصفح في تلك الخطوات. ويحتاج قراراً لحالة تعطّل Cloudflare.</span></td>
+          <td><span data-en>Free</span><span data-ar>مجاني</span></td></tr>
+        <tr><td><span data-en>2. Google reCAPTCHA</span><span data-ar>٢. Google reCAPTCHA</span></td>
+          <td><span data-en>v3: nothing (a score). v2: “I'm not a robot”, sometimes picture puzzles.</span><span data-ar>v3: لا شيء (درجة). v2: «لست برنامجاً»، وأحياناً ألغاز صور.</span></td>
+          <td class="good"><span data-en>Well known, strong.</span><span data-ar>معروف وقوي.</span></td>
+          <td class="bad"><span data-en>Google, with its cookies: harder to explain in the privacy notice for a health page. Picture puzzles are hard for older patients. Free only up to a monthly number of checks.</span><span data-ar>Google مع ملفات تعريف الارتباط: أصعب في الشرح بإشعار الخصوصية لصفحة صحية. وألغاز الصور صعبة على كبار السن. ومجاني فقط حتى عدد شهري من الفحوص.</span></td>
+          <td><span data-en>Free to a limit</span><span data-ar>مجاني حتى حد</span></td></tr>
+        <tr><td><span data-en>3. hCaptcha</span><span data-ar>٣. hCaptcha</span></td>
+          <td><span data-en>Often a picture puzzle on the free plan.</span><span data-ar>غالباً لغز صور في الخطة المجانية.</span></td>
+          <td class="good"><span data-en>Privacy-minded company.</span><span data-ar>شركة تهتم بالخصوصية.</span></td>
+          <td class="bad"><span data-en>More visible puzzles than Turnstile; the invisible mode is paid.</span><span data-ar>ألغاز ظاهرة أكثر من Turnstile؛ والوضع الخفي مدفوع.</span></td>
+          <td><span data-en>Free / paid</span><span data-ar>مجاني / مدفوع</span></td></tr>
+        <tr><td><span data-en>4. Our own “proof of work” (for example ALTCHA, open source)</span><span data-ar>٤. «إثبات عمل» خاص بنا (مثل ALTCHA، مفتوح المصدر)</span></td>
+          <td><span data-en>Nothing; the phone solves a small sum for a second.</span><span data-ar>لا شيء؛ يحل الهاتف مسألة صغيرة لثانية.</span></td>
+          <td class="good"><span data-en>No third party at all: nothing leaves our server. No outage risk.</span><span data-ar>بلا طرف ثالث إطلاقاً: لا يخرج شيء من خادمنا. ولا خطر تعطّل خارجي.</span></td>
+          <td class="bad"><span data-en>Only makes bots slower, doesn't tell a person from a script. A determined attacker just pays the computing time.</span><span data-ar>يبطئ البرامج فقط، ولا يميّز الشخص من البرنامج. والمهاجم المصمّم يدفع وقت الحوسبة ببساطة.</span></td>
+          <td><span data-en>Free</span><span data-ar>مجاني</span></td></tr>
+        <tr><td><span data-en>5. Our own question (“type the number shown”)</span><span data-ar>٥. سؤال خاص بنا («اكتب الرقم الظاهر»)</span></td>
+          <td><span data-en>A question on every booking.</span><span data-ar>سؤال في كل حجز.</span></td>
+          <td class="good"><span data-en>Simple.</span><span data-ar>بسيط.</span></td>
+          <td class="bad"><span data-en>Annoys every patient, hard with screen readers, and easy for a script to solve. Not recommended.</span><span data-ar>يزعج كل مريض، وصعب مع قارئات الشاشة، وسهل الحل للبرامج. لا ننصح به.</span></td>
+          <td><span data-en>Free</span><span data-ar>مجاني</span></td></tr>
+        <tr><td><span data-en>6. WhatsApp one-time code (later, see 9)</span><span data-ar>٦. رمز واتساب لمرة واحدة (لاحقاً، انظر ٩)</span></td>
+          <td><span data-en>A 6-digit code to type from WhatsApp.</span><span data-ar>رمز من ٦ أرقام يُكتب من واتساب.</span></td>
+          <td class="good"><span data-en>Proves the number is real and the patient's. Could replace the secretary's check.</span><span data-ar>يثبت أن الرقم حقيقي ويعود للمريض. وقد يحل محل مراجعة السكرتيرة.</span></td>
+          <td class="bad"><span data-en>Needs WhatsApp connected and a Meta “authentication” template. One more step for every patient. Meta charges per message.</span><span data-ar>يحتاج ربط واتساب وقالب «مصادقة» من Meta. وخطوة إضافية لكل مريض. وتتقاضى Meta ثمن كل رسالة.</span></td>
+          <td><span data-en>Per message</span><span data-ar>لكل رسالة</span></td></tr>
+      </tbody>
+    </table></div>
+    <p><span data-en><b>Recommendation:</b> 1 now. Add 6 once WhatsApp is connected, as a clinic choice. If you prefer no third party at all, 4 is the fallback, accepting that it is weaker.</span><span data-ar><b>التوصية:</b> (١) الآن. ونضيف (٦) بعد ربط واتساب، كخيار للعيادة. وإن فضّلت عدم وجود أي طرف ثالث، فـ(٤) هو البديل، مع قبول أنه أضعف.</span></p>
+  </section>
+
+  <!-- ================================================================ C -->
+  <section class="an dec" id="d">
+    <h2 class="display" style="font-size:20px"><span data-en>C · Your decisions</span><span data-ar>ج · قراراتك</span></h2>
+    <div class="q"><b><span data-en>1. Which check?</span><span data-ar>١. أي تحقق؟</span></b>
+      <span class="rec"><span data-en>Recommended: Cloudflare Turnstile, “Managed” mode (invisible unless Cloudflare is unsure).</span><span data-ar>المقترح: Cloudflare Turnstile بوضع «Managed» (غير مرئي إلا إذا شكّ Cloudflare).</span></span>
+      <span class="alt"><span data-en>Other: ALTCHA (no third party, weaker), or nothing for now.</span><span data-ar>بديل: ALTCHA (بلا طرف ثالث، أضعف)، أو لا شيء الآن.</span></span></div>
+    <div class="q"><b><span data-en>2. Which forms?</span><span data-ar>٢. أي نماذج؟</span></b>
+      <span class="rec"><span data-en>Recommended: the four final buttons: “Book this time”, the chat's “Yes, book it”, “Call me back” and “Find my booking”. Starting a chat: off (the chat's daily message limits already cap the AI cost), but a clinic can switch it on.</span><span data-ar>المقترح: الأزرار الأخيرة الأربعة: «احجز هذا الموعد»، و«نعم، احجز» في المحادثة، و«اتصلوا بي»، و«ابحث عن حجزي». وبدء المحادثة: مُطفأ (حدود الرسائل اليومية في المحادثة تحدّ تكلفة الذكاء الاصطناعي)، ويمكن للعيادة تفعيله.</span></span></div>
+    <div class="q"><b><span data-en>3. If Cloudflare can't be reached</span><span data-ar>٣. إذا تعذّر الوصول إلى Cloudflare</span></b>
+      <span class="rec"><span data-en>Recommended: “fail open”, with limits. Let the booking through, but always marked “Online, not checked”, even when the secretary check is off. At most 10 an hour per clinic (Settings), then stop. Only when Cloudflare itself doesn't answer; a “no” from Cloudflare is always a no.</span><span data-ar>المقترح: «السماح عند التعطّل» بحدود. يمر الحجز، لكن يُعلَّم دائماً «إلكتروني، لم يُراجع» حتى لو كانت مراجعة السكرتيرة مُطفأة. وبحد أقصى ١٠ في الساعة لكل عيادة (الإعدادات)، ثم يتوقف. وفقط عندما لا يجيب Cloudflare نفسه؛ أما «لا» من Cloudflare فهي رفض دائماً.</span></span>
+      <span class="alt"><span data-en>Why: a clinic losing real patients during an outage is worse than a few bookings to check by phone. A booking holds a time; it doesn't open data or move money. Other: “fail closed” (stop every booking until Cloudflare is back).</span><span data-ar>السبب: خسارة مرضى حقيقيين أثناء التعطّل أسوأ من بضعة حجوزات تُراجع بالهاتف. فالحجز يشغل وقتاً؛ لا يكشف بيانات ولا ينقل مالاً. البديل: «المنع عند التعطّل» (إيقاف كل حجز حتى يعود Cloudflare).</span></span></div>
+    <div class="q"><b><span data-en>4. On for which clinics?</span><span data-ar>٤. مفعّل لأي عيادات؟</span></b>
+      <span class="rec"><span data-en>Recommended: on by default for every clinic, but it only starts once you put the two keys in the server's .env. Until then Settings says “Not set up on this server” and nothing changes.</span><span data-ar>المقترح: مفعّل افتراضياً لكل العيادات، لكنه لا يبدأ إلا بعد وضع المفتاحين في ملف ‎.env على الخادم. وحتى ذلك الحين تقول الإعدادات «غير مُعدّ على هذا الخادم» ولا يتغير شيء.</span></span></div>
+    <div class="q"><b><span data-en>5. WhatsApp code later?</span><span data-ar>٥. رمز واتساب لاحقاً؟</span></b>
+      <span class="rec"><span data-en>Recommended: yes, as phase 2 after WhatsApp is connected and a separate design approval. A booking with a proven number could skip “Online, not checked” (the clinic decides).</span><span data-ar>المقترح: نعم، كمرحلة ٢ بعد ربط واتساب وبموافقة تصميم منفصلة. والحجز برقم مُثبت يمكن أن يتجاوز «إلكتروني، لم يُراجع» (القرار للعيادة).</span></span></div>
+  </section>
+
+  <!-- ================================================================ 1 -->
+  <h2 class="display s" id="s1"><span data-en>1 · Booking page: the usual case (nothing to do)</span><span data-ar>١ · صفحة الحجز: الحالة المعتادة (لا شيء يُفعل)</span></h2>
+  <p><span data-en>The details step is exactly as today, plus one quiet line under the buttons. On “Book this time” the button says “Checking…” for under a second, then “Booking…” as today. The check is not run earlier, so a patient who leaves the page open for a long time never sees an expired check.</span><span data-ar>خطوة البيانات كما اليوم تماماً، مع سطر هادئ واحد تحت الأزرار. عند «احجز هذا الموعد» يقول الزر «جارٍ التحقق…» لأقل من ثانية، ثم «جارٍ الحجز…» كما اليوم. ولا يجري الفحص قبل ذلك، فالمريض الذي يترك الصفحة مفتوحة طويلاً لا يرى فحصاً منتهي الصلاحية أبداً.</span></p>
+  <div class="phones">
+    <div>
+      <div class="phone"><div class="bk">
+        <div class="bk-head" data-head></div>
+        <div class="bk-steps"><i class="on"></i><i class="on"></i><i class="on"></i></div>
+        <h2 class="bk-title sm"><span data-en>Your details</span><span data-ar>بياناتك</span></h2>
+        <label class="bk-field"><span data-en>Full name</span><span data-ar>الاسم الكامل</span><span class="bk-in"><span data-en>Sara Khalil</span><span data-ar>سارة خليل</span></span></label>
+        <label class="bk-field"><span data-en>Mobile number</span><span data-ar>رقم الهاتف</span><span class="bk-tel" dir="ltr"><span class="mono">+962</span><b class="mono">79 123 4567</b></span><small><span data-en>The clinic will contact you on this number.</span><span data-ar>ستتواصل العيادة معك على هذا الرقم.</span></small></label>
+        <label class="bk-check"><input type="checkbox" checked><span><span data-en>I agree to the <a href="#privacy">privacy notice</a>. My name and number are used only for this booking.</span><span data-ar>أوافق على <a href="#privacy">إشعار الخصوصية</a>. يُستخدم اسمي ورقمي لهذا الحجز فقط.</span></span></label>
+        <div class="bk-card soft">
+          <div class="bk-sum"><span><span data-en>Skin check</span><span data-ar>فحص الجلد</span></span><b><span data-en>Dr. Lina Haddad</span><span data-ar>د. لينا حداد</span></b></div>
+          <div class="bk-sum"><span><span data-en>Sunday 15 November</span><span data-ar>الأحد ١٥ تشرين الثاني</span></span><b class="mono">12:00</b></div>
+        </div>
+        <div class="bk-row"><span class="bk-btn ghost"><span data-en>Back</span><span data-ar>رجوع</span></span><span class="bk-btn accent"><span data-en>Book this time</span><span data-ar>احجز هذا الموعد</span></span></div>
+        <p class="hc-line new"><svg width="14" height="14"><use href="#shield"/></svg><span><span data-en>A quick automatic check keeps bots out (Cloudflare). <a href="#privacy">Privacy notice</a></span><span data-ar>فحص تلقائي سريع يمنع البرامج الآلية (Cloudflare). <a href="#privacy">إشعار الخصوصية</a></span></span></p>
+        <div class="bk-foot"><span data-en>Booking by</span><span data-ar>الحجز عبر</span> <span class="bk-brand">Limitsiz</span></div>
+      </div></div>
+      <p class="cap"><span data-en>Before the tap. The only new thing is the line under the buttons.</span><span data-ar>قبل الضغط. الشيء الجديد الوحيد هو السطر تحت الأزرار.</span></p>
+    </div>
+    <div>
+      <div class="phone"><div class="bk">
+        <div class="bk-head" data-head></div>
+        <div class="bk-steps"><i class="on"></i><i class="on"></i><i class="on"></i></div>
+        <h2 class="bk-title sm"><span data-en>Your details</span><span data-ar>بياناتك</span></h2>
+        <p class="bk-hint">…</p>
+        <div class="bk-card soft">
+          <div class="bk-sum"><span><span data-en>Skin check</span><span data-ar>فحص الجلد</span></span><b><span data-en>Dr. Lina Haddad</span><span data-ar>د. لينا حداد</span></b></div>
+          <div class="bk-sum"><span><span data-en>Sunday 15 November</span><span data-ar>الأحد ١٥ تشرين الثاني</span></span><b class="mono">12:00</b></div>
+        </div>
+        <div class="bk-row"><span class="bk-btn ghost dis"><span data-en>Back</span><span data-ar>رجوع</span></span><span class="bk-btn accent dis new"><span class="spin"></span><span data-en>Checking…</span><span data-ar>جارٍ التحقق…</span></span></div>
+        <p class="hc-line"><svg width="14" height="14"><use href="#shield"/></svg><span><span data-en>A quick automatic check keeps bots out (Cloudflare). <a href="#privacy">Privacy notice</a></span><span data-ar>فحص تلقائي سريع يمنع البرامج الآلية (Cloudflare). <a href="#privacy">إشعار الخصوصية</a></span></span></p>
+        <div class="bk-done" style="margin-top:14px;border-top:1px solid var(--rule-soft);padding-top:16px"><span class="bk-ok" aria-hidden="true">✓</span><h1 class="bk-title sm"><span data-en>Your booking is in</span><span data-ar>تم استلام حجزك</span></h1><p class="bk-hint"><span data-en>…then the usual screen, as today.</span><span data-ar>…ثم الشاشة المعتادة كما اليوم.</span></p></div>
+      </div></div>
+      <p class="cap"><span data-en>The tap: “Checking…” (under a second), “Booking…”, then the usual “Your booking is in”.</span><span data-ar>الضغط: «جارٍ التحقق…» (أقل من ثانية)، «جارٍ الحجز…»، ثم «تم استلام حجزك» المعتادة.</span></p>
+    </div>
+  </div>
+
+  <!-- ================================================================ 2 -->
+  <h2 class="display s" id="s2"><span data-en>2 · The rare challenge: tick one box</span><span data-ar>٢ · التحدي النادر: علامة في مربع واحد</span></h2>
+  <p><span data-en>When Cloudflare is unsure (VPN, privacy add-ons, an old browser), its own box appears where the line was, in the page's language. The patient ticks it and the booking carries on by itself: nothing to type again, nothing lost. If they wait too long, the box simply asks again.</span><span data-ar>عندما يشك Cloudflare (VPN، إضافات خصوصية، متصفح قديم)، يظهر مربعه الخاص مكان السطر، بلغة الصفحة. يضع المريض علامة فيكمل الحجز وحده: لا شيء يُكتب من جديد، ولا شيء يضيع. وإذا انتظر طويلاً، يطلب المربع العلامة مرة أخرى فقط.</span></p>
+  <div class="phones">
+    <div>
+      <div class="phone"><div class="bk">
+        <div class="bk-head" data-head></div>
+        <div class="bk-steps"><i class="on"></i><i class="on"></i><i class="on"></i></div>
+        <h2 class="bk-title sm"><span data-en>Your details</span><span data-ar>بياناتك</span></h2>
+        <p class="bk-hint">…</p>
+        <div class="bk-card soft">
+          <div class="bk-sum"><span><span data-en>Skin check</span><span data-ar>فحص الجلد</span></span><b><span data-en>Dr. Lina Haddad</span><span data-ar>د. لينا حداد</span></b></div>
+          <div class="bk-sum"><span><span data-en>Sunday 15 November</span><span data-ar>الأحد ١٥ تشرين الثاني</span></span><b class="mono">12:00</b></div>
+        </div>
+        <div class="bk-stack new" style="padding:4px">
+          <div class="bk-banner info"><b><span data-en>One more step</span><span data-ar>خطوة أخيرة</span></b><br><span data-en>Tick the box so we know a person is booking. Your details are kept.</span><span data-ar>ضع علامة في المربع لنعرف أن شخصاً حقيقياً يحجز. بياناتك محفوظة.</span></div>
+          <div class="cf"><i></i><span><span data-en>Verify you are human</span><span data-ar>تحقق من أنك إنسان</span></span><span class="cfr"><b>CLOUDFLARE</b><span data-en>Privacy · Terms</span><span data-ar>الخصوصية · الشروط</span></span></div>
+        </div>
+        <div class="bk-row"><span class="bk-btn ghost"><span data-en>Back</span><span data-ar>رجوع</span></span><span class="bk-btn accent dis"><span class="spin"></span><span data-en>Checking…</span><span data-ar>جارٍ التحقق…</span></span></div>
+        <div class="bk-foot"><span data-en>Booking by</span><span data-ar>الحجز عبر</span> <span class="bk-brand">Limitsiz</span></div>
+      </div></div>
+      <p class="cap"><span data-en>The box is Cloudflare's own (drawn roughly here). After the tick the page goes straight on to “Booking…”.</span><span data-ar>المربع من Cloudflare نفسها (مرسوم تقريبياً هنا). بعد العلامة تنتقل الصفحة مباشرة إلى «جارٍ الحجز…».</span></p>
+    </div>
+  </div>
+
+  <!-- ================================================================ 3 -->
+  <h2 class="display s" id="s3"><span data-en>3 · When the check fails</span><span data-ar>٣ · عندما يفشل التحقق</span></h2>
+  <p><span data-en>One message for every failure (Cloudflare said no, the box couldn't load, the check ran out of time). It never depends on the phone number, so it can't tell anyone whether a number is known. The form stays filled in. “Try again” runs a fresh check. The clinic's number is one tap away, as on today's refusal message.</span><span data-ar>رسالة واحدة لكل أنواع الفشل (رفض Cloudflare، تعذّر تحميل المربع، انتهاء وقت الفحص). ولا تعتمد أبداً على رقم الهاتف، فلا تكشف لأحد هل الرقم معروف. ويبقى النموذج مملوءاً. و«حاول مرة أخرى» يجري فحصاً جديداً. ورقم العيادة على بعد ضغطة، كما في رسالة الرفض الحالية.</span></p>
+  <div class="phones">
+    <div>
+      <div class="phone"><div class="bk">
+        <div class="bk-head" data-head></div>
+        <div class="bk-steps"><i class="on"></i><i class="on"></i><i class="on"></i></div>
+        <h2 class="bk-title sm"><span data-en>Your details</span><span data-ar>بياناتك</span></h2>
+        <div class="bk-banner bad new"><b><span data-en>We couldn't check that a person is booking.</span><span data-ar>تعذّر التحقق من أن شخصاً حقيقياً يحجز.</span></b><br><span data-en>Please try again. If it happens again, call the clinic:</span><span data-ar>حاول مرة أخرى من فضلك. وإن تكرر ذلك، اتصل بالعيادة:</span> <a class="mono" href="#">06 592 0000</a></div>
+        <label class="bk-field"><span data-en>Full name</span><span data-ar>الاسم الكامل</span><span class="bk-in"><span data-en>Sara Khalil</span><span data-ar>سارة خليل</span></span></label>
+        <label class="bk-field"><span data-en>Mobile number</span><span data-ar>رقم الهاتف</span><span class="bk-tel" dir="ltr"><span class="mono">+962</span><b class="mono">79 123 4567</b></span></label>
+        <label class="bk-check"><input type="checkbox" checked><span><span data-en>I agree to the <a href="#privacy">privacy notice</a>. …</span><span data-ar>أوافق على <a href="#privacy">إشعار الخصوصية</a>. …</span></span></label>
+        <div class="bk-row"><span class="bk-btn ghost"><span data-en>Back</span><span data-ar>رجوع</span></span><span class="bk-btn accent new"><span data-en>Try again</span><span data-ar>حاول مرة أخرى</span></span></div>
+        <p class="hc-line"><svg width="14" height="14"><use href="#shield"/></svg><span><span data-en>A quick automatic check keeps bots out (Cloudflare). <a href="#privacy">Privacy notice</a></span><span data-ar>فحص تلقائي سريع يمنع البرامج الآلية (Cloudflare). <a href="#privacy">إشعار الخصوصية</a></span></span></p>
+      </div></div>
+      <p class="cap"><span data-en>Failure. Nothing is saved, nothing is sent to the clinic.</span><span data-ar>الفشل. لا يُحفظ شيء، ولا يُرسل شيء إلى العيادة.</span></p>
+    </div>
+    <div>
+      <div class="phone"><div class="bk">
+        <div class="bk-head" data-head></div>
+        <div class="bk-steps"><i class="on"></i><i class="on"></i><i class="on"></i></div>
+        <h2 class="bk-title sm"><span data-en>Your details</span><span data-ar>بياناتك</span></h2>
+        <div class="bk-banner warn new"><b><span data-en>Online booking can't be checked right now.</span><span data-ar>لا يمكن التحقق من الحجز الإلكتروني الآن.</span></b><br><span data-en>Please try again in a few minutes, or call the clinic:</span><span data-ar>حاول بعد دقائق، أو اتصل بالعيادة:</span> <a class="mono" href="#">06 592 0000</a></div>
+        <p class="bk-hint">…</p>
+        <div class="bk-row"><span class="bk-btn ghost"><span data-en>Back</span><span data-ar>رجوع</span></span><span class="bk-btn accent"><span data-en>Try again</span><span data-ar>حاول مرة أخرى</span></span></div>
+        <a class="bk-btn ink" href="#"><span data-en>Call the clinic</span><span data-ar>اتصل بالعيادة</span></a>
+      </div></div>
+      <p class="cap"><span data-en>Only if Cloudflare is down <b>and</b> the clinic chose “Stop” (or the hourly allowance in 6 is used up).</span><span data-ar>فقط إذا تعطّل Cloudflare <b>و</b>اختارت العيادة «إيقاف» (أو استُهلك الحد بالساعة في ٦).</span></p>
+    </div>
+  </div>
+
+  <!-- ================================================================ 4 -->
+  <h2 class="display s" id="s4"><span data-en>4 · Chat: “Yes, book it”</span><span data-ar>٤ · المحادثة: «نعم، احجز»</span></h2>
+  <p><span data-en>The chat itself is not checked (decision 2). The check runs when the patient taps “Yes, book it” on the confirm card, the moment the booking is made. A rare challenge appears inside the card; a failure shows the same message as the booking page, inside the card.</span><span data-ar>المحادثة نفسها لا تُفحص (القرار ٢). يجري الفحص عندما يضغط المريض «نعم، احجز» في بطاقة التأكيد، لحظة إنشاء الحجز. يظهر التحدي النادر داخل البطاقة؛ ويظهر الفشل بنفس رسالة صفحة الحجز، داخل البطاقة.</span></p>
+  <div class="phones">
+    <div>
+      <div class="phone"><div class="bk">
+        <div class="bk-head" data-head></div>
+        <div class="ch">
+          <div class="ch-head"><span class="ch-ai">AI</span><span data-en>Clinic assistant</span><span data-ar>مساعد العيادة</span><span class="ch-person"><span data-en>Talk to a person</span><span data-ar>تحدث مع شخص</span></span></div>
+          <div class="ch-b me"><span data-en>Sunday at 12 is fine</span><span data-ar>الأحد الساعة ١٢ مناسب</span></div>
+          <div class="ch-b ai"><span data-en>Please check and confirm:</span><span data-ar>يرجى المراجعة والتأكيد:</span></div>
+          <div class="ch-card">
+            <div class="bk-sum"><span><span data-en>Skin check</span><span data-ar>فحص الجلد</span></span><b><span data-en>Dr. Lina Haddad</span><span data-ar>د. لينا حداد</span></b></div>
+            <div class="bk-sum"><span><span data-en>Sunday 15 November</span><span data-ar>الأحد ١٥ تشرين الثاني</span></span><b class="mono">12:00</b></div>
+            <div class="bk-sum"><span><span data-en>For</span><span data-ar>باسم</span></span><b><span data-en>Sara Khalil</span><span data-ar>سارة خليل</span></b></div>
+            <span class="bk-btn accent"><span data-en>Yes, book it</span><span data-ar>نعم، احجز</span></span>
+            <span class="bk-btn ghost"><span data-en>No, change something</span><span data-ar>لا، أريد تغيير شيء</span></span>
+            <p class="hc-line new"><svg width="14" height="14"><use href="#shield"/></svg><span><span data-en>A quick automatic check keeps bots out (Cloudflare).</span><span data-ar>فحص تلقائي سريع يمنع البرامج الآلية (Cloudflare).</span></span></p>
+          </div>
+        </div>
+      </div></div>
+      <p class="cap"><span data-en>The confirm card: one new line.</span><span data-ar>بطاقة التأكيد: سطر جديد واحد.</span></p>
+    </div>
+    <div>
+      <div class="phone"><div class="bk">
+        <div class="bk-head" data-head></div>
+        <div class="ch">
+          <div class="ch-head"><span class="ch-ai">AI</span><span data-en>Clinic assistant</span><span data-ar>مساعد العيادة</span><span class="ch-person"><span data-en>Talk to a person</span><span data-ar>تحدث مع شخص</span></span></div>
+          <div class="ch-b ai"><span data-en>Please check and confirm:</span><span data-ar>يرجى المراجعة والتأكيد:</span></div>
+          <div class="ch-card">
+            <div class="bk-sum"><span><span data-en>Sunday 15 November</span><span data-ar>الأحد ١٥ تشرين الثاني</span></span><b class="mono">12:00</b></div>
+            <div class="bk-stack new" style="padding:2px">
+              <div class="bk-banner info"><b><span data-en>One more step</span><span data-ar>خطوة أخيرة</span></b><br><span data-en>Tick the box so we know a person is booking.</span><span data-ar>ضع علامة في المربع لنعرف أن شخصاً حقيقياً يحجز.</span></div>
+              <div class="cf"><i></i><span><span data-en>Verify you are human</span><span data-ar>تحقق من أنك إنسان</span></span><span class="cfr"><b>CLOUDFLARE</b><span data-en>Privacy · Terms</span><span data-ar>الخصوصية · الشروط</span></span></div>
+            </div>
+            <span class="bk-btn accent dis"><span class="spin"></span><span data-en>Checking…</span><span data-ar>جارٍ التحقق…</span></span>
+          </div>
+          <div class="ch-card">
+            <div class="bk-banner bad new"><b><span data-en>We couldn't check that a person is booking.</span><span data-ar>تعذّر التحقق من أن شخصاً حقيقياً يحجز.</span></b><br><span data-en>Please try again. If it happens again, call the clinic:</span><span data-ar>حاول مرة أخرى من فضلك. وإن تكرر ذلك، اتصل بالعيادة:</span> <a class="mono" href="#">06 592 0000</a></div>
+            <span class="bk-btn accent"><span data-en>Try again</span><span data-ar>حاول مرة أخرى</span></span>
+          </div>
+        </div>
+      </div></div>
+      <p class="cap"><span data-en>Top: the rare challenge inside the card. Bottom: a failure, with “Try again”.</span><span data-ar>أعلى: التحدي النادر داخل البطاقة. أسفل: الفشل مع «حاول مرة أخرى».</span></p>
+    </div>
+  </div>
+
+  <!-- ================================================================ 5 -->
+  <h2 class="display s" id="s5"><span data-en>5 · “Call me back” and “Find my booking”</span><span data-ar>٥ · «اتصلوا بي» و«ابحث عن حجزي»</span></h2>
+  <p><span data-en>The same line, “Checking…”, challenge and failure messages on their final buttons. “Find my booking” keeps its one answer for every number: the check happens before the number is looked at.</span><span data-ar>نفس السطر و«جارٍ التحقق…» والتحدي ورسالة الفشل على أزرارها الأخيرة. ويبقى «ابحث عن حجزي» بجواب واحد لكل رقم: يجري الفحص قبل النظر إلى الرقم.</span></p>
+  <div class="phones">
+    <div>
+      <div class="phone"><div class="bk">
+        <div class="bk-head" data-head></div>
+        <div class="ch">
+          <div class="ch-b ai"><span data-en>I'll pass this to the clinic so a person can call you.</span><span data-ar>سأحوّل هذا إلى العيادة ليتصل بك شخص.</span></div>
+          <div class="ch-card">
+            <b><span data-en>Ask the clinic to call me</span><span data-ar>اطلب أن تتصل بي العيادة</span></b>
+            <label class="bk-field"><span data-en>Full name</span><span data-ar>الاسم الكامل</span><span class="bk-in"><span data-en>Sara Khalil</span><span data-ar>سارة خليل</span></span></label>
+            <label class="bk-field"><span data-en>Mobile number</span><span data-ar>رقم الهاتف</span><span class="bk-tel" dir="ltr"><span class="mono">+962</span><b class="mono">79 123 4567</b></span></label>
+            <span class="bk-btn ink"><span data-en>Call me back</span><span data-ar>اتصلوا بي</span></span>
+            <span class="bk-btn ghost"><span class="mono">06 592 0000</span></span>
+            <small class="bk-hint">🔒 <span data-en>Goes straight to the clinic, not to the AI.</span><span data-ar>يذهب مباشرة إلى العيادة، لا إلى الذكاء الاصطناعي.</span></small>
+            <p class="hc-line new"><svg width="14" height="14"><use href="#shield"/></svg><span><span data-en>A quick automatic check keeps bots out (Cloudflare).</span><span data-ar>فحص تلقائي سريع يمنع البرامج الآلية (Cloudflare).</span></span></p>
+          </div>
+        </div>
+      </div></div>
+      <p class="cap"><span data-en>Chat › Call me back.</span><span data-ar>المحادثة › اتصلوا بي.</span></p>
+    </div>
+    <div>
+      <div class="phone"><div class="bk">
+        <div class="bk-head" data-head></div>
+        <h1 class="bk-title sm"><span data-en>Find my booking</span><span data-ar>ابحث عن حجزي</span></h1>
+        <p class="bk-hint"><span data-en>Type the mobile number you booked with. We'll send a new private link to its WhatsApp, to see the status, change or cancel.</span><span data-ar>اكتب رقم الهاتف الذي حجزت به. سنرسل رابطاً خاصاً جديداً إلى واتساب هذا الرقم، لمعرفة حالة الحجز أو تعديله أو إلغائه.</span></p>
+        <label class="bk-field"><span data-en>Mobile number</span><span data-ar>رقم الهاتف</span><span class="bk-tel" dir="ltr"><span class="mono">+962</span><b class="mono">79 123 4567</b></span></label>
+        <span class="bk-btn wa"><svg width="22" height="22"><use href="#wa"/></svg><span data-en>Send my link on WhatsApp</span><span data-ar>أرسل رابطي على واتساب</span></span>
+        <p class="bk-hint"><span data-en>Any link sent before stops working, so only the newest one can change your booking.</span><span data-ar>يتوقف أي رابط أُرسل من قبل، فلا يعدّل حجزك إلا الرابط الأحدث.</span></p>
+        <p class="hc-line new"><svg width="14" height="14"><use href="#shield"/></svg><span><span data-en>A quick automatic check keeps bots out (Cloudflare). <a href="#privacy">Privacy notice</a></span><span data-ar>فحص تلقائي سريع يمنع البرامج الآلية (Cloudflare). <a href="#privacy">إشعار الخصوصية</a></span></span></p>
+        <span class="bk-btn ghost"><span data-en>Back</span><span data-ar>رجوع</span></span>
+      </div></div>
+      <p class="cap"><span data-en>Find my booking (book.limitsiz.si/demo-derma/find).</span><span data-ar>ابحث عن حجزي (book.limitsiz.si/demo-derma/find).</span></p>
+    </div>
+  </div>
+
+  <!-- ================================================================ 6 -->
+  <h2 class="display s" id="s6"><span data-en>6 · When Cloudflare is down (recommended: let through, marked)</span><span data-ar>٦ · عند تعطّل Cloudflare (المقترح: السماح مع التعليم)</span></h2>
+  <div class="an">
+    <p><span data-en>The patient sees the usual result, as if nothing happened. Behind the scenes:</span><span data-ar>يرى المريض النتيجة المعتادة كأن شيئاً لم يحدث. وفي الخلفية:</span></p>
+    <ul>
+      <li><span data-en><b>“Down” means only:</b> our server can't reach Cloudflare's check (no answer within 4 seconds, a network error, or a Cloudflare server error). If the patient's phone couldn't load the box and sent no token, the server asks Cloudflare itself; if Cloudflare answers, it is a normal failure (3), not an outage. So a bot can't claim “Cloudflare is down” to skip the check.</span><span data-ar><b>«التعطّل» يعني فقط:</b> أن خادمنا لا يستطيع الوصول إلى فحص Cloudflare (لا جواب خلال ٤ ثوانٍ، أو خطأ شبكة، أو خطأ في خوادم Cloudflare). وإذا لم يستطع هاتف المريض تحميل المربع ولم يرسل رمزاً، يسأل الخادم Cloudflare بنفسه؛ فإن أجاب، فهو فشل عادي (٣) لا تعطّل. فلا يستطيع برنامج أن يدّعي «Cloudflare معطّل» لتجاوز الفحص.</span></li>
+      <li><span data-en>The booking is saved with <b>“Human check skipped”</b> and is always <b>“Online, not checked”</b>, even when the clinic switched the secretary check off.</span><span data-ar>يُحفظ الحجز مع <b>«تم تخطي التحقق البشري»</b> ويكون دائماً <b>«إلكتروني، لم يُراجع»</b>، حتى لو أطفأت العيادة مراجعة السكرتيرة.</span></li>
+      <li><span data-en>At most <b>10 an hour per clinic</b> (Settings). After that the page shows the “can't be checked right now” message (3, right) until Cloudflare is back.</span><span data-ar>بحد أقصى <b>١٠ في الساعة لكل عيادة</b> (الإعدادات). بعدها تُظهر الصفحة رسالة «لا يمكن التحقق الآن» (٣، يمين) حتى يعود Cloudflare.</span></li>
+      <li><span data-en>The per-connection limits, the hidden field and the per-number limits keep working the whole time.</span><span data-ar>حدود الاتصال والحقل المخفي وحدود الرقم تبقى تعمل طوال الوقت.</span></li>
+      <li><span data-en>The server log gets one line per skip, so an outage is visible.</span><span data-ar>يُسجَّل في سجل الخادم سطر لكل تخطٍّ، فيظهر التعطّل.</span></li>
+    </ul>
+  </div>
+
+  <!-- ================================================================ 7 -->
+  <h2 class="display s" id="s7"><span data-en>7 · Booking › Settings › Online booking (clinic administrator)</span><span data-ar>٧ · المواعيد › الإعدادات › الحجز الإلكتروني (مدير العيادة)</span></h2>
+  <p><span data-en>A new panel after “Limits”. The other panels stay as they are. Every change goes to the audit log, as today.</span><span data-ar>لوحة جديدة بعد «الحدود». وتبقى اللوحات الأخرى كما هي. وكل تغيير يُسجَّل في سجل التدقيق كما اليوم.</span></p>
+  <div class="frame">
+<header class="bar"><div class="wrap">
+  <span class="brand"><svg width="30" height="16" viewBox="0 0 40 20" aria-hidden="true"><use href="#loop"/></svg>Limitsiz Clinic · <span data-en>Booking</span><span data-ar>المواعيد</span></span>
+  <nav><a href="#"><span data-en>Calendar</span><span data-ar>التقويم</span></a><a href="#"><span data-en>Bookings</span><span data-ar>المواعيد</span></a><a href="#"><span data-en>Patients</span><span data-ar>المرضى</span></a></nav>
+  <span class="grow"></span>
+  <span class="clinic"><span data-en>Limitsiz Demo Dermatology</span><span data-ar>عيادة Limitsiz التجريبية للجلدية</span></span>
+  <span class="iconbtn on" aria-label="Settings"><svg width="20" height="20"><use href="#gear"/></svg></span>
+  <button class="linkbtn" type="button" onclick="flip()"><span data-en>العربية</span><span data-ar>English</span></button>
+  <div class="um"><button type="button"><span data-en>Clinic Admin</span><span data-ar>مدير العيادة</span> <span aria-hidden="true">▾</span></button></div>
+</div></header>
+    <div class="wrap page">
+      <h1 class="display"><span data-en>Settings</span><span data-ar>الإعدادات</span></h1>
+      <div class="setwrap">
+        <nav class="settabs">
+          <button><span data-en>Clinic profile</span><span data-ar>ملف العيادة</span></button><button><span data-en>Working hours</span><span data-ar>ساعات العمل</span></button><button><span data-en>Doctors</span><span data-ar>الأطباء</span></button><button><span data-en>Services</span><span data-ar>الخدمات</span></button><button><span data-en>Booking rules</span><span data-ar>قواعد الحجز</span></button>
+          <button class="on"><span data-en>Online booking</span><span data-ar>الحجز الإلكتروني</span></button>
+          <button><span data-en>Online visits</span><span data-ar>الزيارات أونلاين</span></button><button><span data-en>Payment</span><span data-ar>الدفع</span></button><button><span data-en>AI Scribe</span><span data-ar>الكاتب الذكي</span></button><button><span data-en>Reminders</span><span data-ar>التذكيرات</span></button><button><span data-en>WhatsApp assistant</span><span data-ar>مساعد واتساب</span></button><button><span data-en>Security</span><span data-ar>الأمان</span></button><button><span data-en>Audit</span><span data-ar>سجل التدقيق</span></button>
+        </nav>
+        <div class="setbody">
+          <p class="hint"><span data-en>… Online booking, Brochures, What patients can do, Limits: as today …</span><span data-ar>… الحجز الإلكتروني، المطبوعات، ما يستطيع المريض فعله، الحدود: كما اليوم …</span></p>
+          <section class="panel stack new">
+            <div class="row between"><h2><span data-en>Human check (against bots)</span><span data-ar>التحقق البشري (ضد البرامج الآلية)</span></h2><span class="pill ok"><span data-en>Set up on this server</span><span data-ar>مُعدّ على هذا الخادم</span></span></div>
+            <label class="check"><input type="checkbox" checked><span><span data-en>Check that a person, not a program, sends the forms below</span><span data-ar>تحقق من أن شخصاً، لا برنامجاً، يرسل النماذج أدناه</span><br><small class="hint"><span data-en>A quick automatic check by Cloudflare Turnstile when the patient taps the final button. Most people see nothing; a few are asked to tick a box.</span><span data-ar>فحص تلقائي سريع من Cloudflare Turnstile عندما يضغط المريض الزر الأخير. معظم الناس لا يرون شيئاً؛ ويُطلب من قلة وضع علامة في مربع.</span></small></span></label>
+            <div>
+              <b style="font-size:14px"><span data-en>Check these forms</span><span data-ar>افحص هذه النماذج</span></b>
+              <div class="chan"><input type="checkbox" checked><span><b><span data-en>Booking page: “Book this time”</span><span data-ar>صفحة الحجز: «احجز هذا الموعد»</span></b></span><span></span></div>
+              <div class="chan"><input type="checkbox" checked><span><b><span data-en>Chat: “Yes, book it”</span><span data-ar>المحادثة: «نعم، احجز»</span></b></span><span></span></div>
+              <div class="chan"><input type="checkbox" checked><span><b><span data-en>Chat: “Call me back”</span><span data-ar>المحادثة: «اتصلوا بي»</span></b></span><span></span></div>
+              <div class="chan"><input type="checkbox" checked><span><b><span data-en>Find my booking: “Send my link on WhatsApp”</span><span data-ar>ابحث عن حجزي: «أرسل رابطي على واتساب»</span></b></span><span></span></div>
+              <div class="chan"><input type="checkbox"><span><b><span data-en>Starting a chat with the assistant</span><span data-ar>بدء محادثة مع المساعد</span></b><small class="hint"><span data-en>Off by default: the chat's daily message limits already cap its cost. Switch on if bots start many chats.</span><span data-ar>مُطفأ افتراضياً: حدود الرسائل اليومية في المحادثة تحدّ تكلفتها. فعّله إذا بدأت برامج آلية محادثات كثيرة.</span></small></span><span></span></div>
+            </div>
+            <div class="stack">
+              <b style="font-size:14px"><span data-en>If Cloudflare can't be reached</span><span data-ar>إذا تعذّر الوصول إلى Cloudflare</span></b>
+              <div class="radios">
+                <label class="radio on"><input type="radio" checked name="down"><span><b><span data-en>Let it through, marked “Online, not checked”</span><span data-ar>اسمح به، مع تعليمه «إلكتروني، لم يُراجع»</span></b> <span class="pill ok"><span data-en>recommended</span><span data-ar>موصى به</span></span><br><small class="hint"><span data-en>Even if the secretary check is off. Real patients can still book during an outage.</span><span data-ar>حتى لو كانت مراجعة السكرتيرة مُطفأة. يبقى بإمكان المرضى الحقيقيين الحجز أثناء التعطّل.</span></small></span></label>
+                <label class="radio"><input type="radio" name="down"><span><b><span data-en>Stop it and ask to try later or call</span><span data-ar>أوقفه واطلب المحاولة لاحقاً أو الاتصال</span></b><br><small class="hint"><span data-en>No booking without the check. Some patients may be lost during an outage.</span><span data-ar>لا حجز بلا تحقق. قد تخسر العيادة بعض المرضى أثناء التعطّل.</span></small></span></label>
+              </div>
+              <div class="grid2">
+                <label class="field"><span data-en>Let through without the check, per hour</span><span data-ar>المسموح بلا تحقق، في الساعة</span><input type="number" value="10" min="0" max="500"><span class="hint"><span data-en>For the whole clinic. Then the next ones are stopped until Cloudflare is back. 0 = always stop.</span><span data-ar>للعيادة كلها. بعدها يتوقف ما يليه حتى يعود Cloudflare. ‏0 = إيقاف دائماً.</span></span></label>
+              </div>
+            </div>
+            <p class="hint"><span data-en>Patients are told about the check in the privacy notice linked above.</span><span data-ar>يُبلَّغ المرضى بالفحص في إشعار الخصوصية المرتبط أعلاه.</span></p>
+          </section>
+          <section class="panel stack new">
+            <div class="row between"><h2><span data-en>Human check (against bots)</span><span data-ar>التحقق البشري (ضد البرامج الآلية)</span></h2><span class="pill warn"><span data-en>Not set up on this server</span><span data-ar>غير مُعدّ على هذا الخادم</span></span></div>
+            <label class="check" style="opacity:.55"><input type="checkbox" checked disabled><span><span data-en>Check that a person, not a program, sends the forms below</span><span data-ar>تحقق من أن شخصاً، لا برنامجاً، يرسل النماذج أدناه</span></span></label>
+            <p class="warntext"><span data-en>Starts working once Limitsiz adds the Cloudflare keys to the server. Until then the forms work as before.</span><span data-ar>يبدأ العمل بعد أن تضيف Limitsiz مفاتيح Cloudflare إلى الخادم. وحتى ذلك الحين تعمل النماذج كما من قبل.</span></p>
+          </section>
+          <p class="hint"><span data-en>Above: the same panel before the keys are set (the rest of the panel is shown greyed out).</span><span data-ar>أعلاه: اللوحة نفسها قبل ضبط المفاتيح (باقي اللوحة يظهر باهتاً).</span></p>
+          <div class="row"><button class="btn btn-ink btn-sm" type="button"><span data-en>Save</span><span data-ar>حفظ</span></button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================ 8 -->
+  <h2 class="display s" id="s8"><span data-en>8 · What staff see on a booking</span><span data-ar>٨ · ما يراه الموظفون في الحجز</span></h2>
+  <p><span data-en>Nothing changes for a normal booking. Only a booking let through while Cloudflare was down gets a small extra mark beside “Online, not checked”; the secretary checks it by phone as usual. In the booking's details: “Human check: passed” or “skipped (Cloudflare couldn't be reached)”.</span><span data-ar>لا يتغير شيء للحجز العادي. فقط الحجز الذي مرّ أثناء تعطّل Cloudflare يحصل على علامة صغيرة إضافية بجانب «إلكتروني، لم يُراجع»؛ وتراجعه السكرتيرة بالهاتف كالمعتاد. وفي تفاصيل الحجز: «التحقق البشري: نجح» أو «تم تخطيه (تعذّر الوصول إلى Cloudflare)».</span></p>
+  <div class="frame"><div class="wrap page" style="padding-block:18px">
+    <div class="panel">
+      <div class="tablewrap"><table>
+        <thead><tr><th><span data-en>Time</span><span data-ar>الوقت</span></th><th><span data-en>Patient</span><span data-ar>المريض</span></th><th><span data-en>Service</span><span data-ar>الخدمة</span></th><th><span data-en>Doctor</span><span data-ar>الطبيب</span></th><th><span data-en>Status</span><span data-ar>الحالة</span></th></tr></thead>
+        <tbody>
+          <tr><td class="mono">11:30</td><td><span data-en>Omar Nasser</span><span data-ar>عمر ناصر</span></td><td><span data-en>Skin check</span><span data-ar>فحص الجلد</span></td><td><span data-en>Dr. Lina Haddad</span><span data-ar>د. لينا حداد</span></td><td><span class="pill warn"><span data-en>Online, not checked</span><span data-ar>إلكتروني، لم يُراجع</span></span></td></tr>
+          <tr><td class="mono">12:00</td><td><span data-en>Sara Khalil</span><span data-ar>سارة خليل</span></td><td><span data-en>Skin check</span><span data-ar>فحص الجلد</span></td><td><span data-en>Dr. Lina Haddad</span><span data-ar>د. لينا حداد</span></td><td><span class="row" style="gap:6px"><span class="pill warn"><span data-en>Online, not checked</span><span data-ar>إلكتروني، لم يُراجع</span></span><span class="pill new" title="Cloudflare"><span data-en>Human check skipped</span><span data-ar>تم تخطي التحقق البشري</span></span></span></td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </div></div>
+
+  <!-- ================================================================ 9 -->
+  <h2 class="display s" id="s9"><span data-en>9 · Later: a WhatsApp code (phase 2, sketch only)</span><span data-ar>٩ · لاحقاً: رمز واتساب (المرحلة ٢، مسودة فقط)</span></h2>
+  <p><span data-en>Once the clinic's WhatsApp is connected. After “Book this time”, the patient gets a 6-digit code on WhatsApp and types it. This proves the number is real and theirs. A clinic could then let proven numbers skip “Online, not checked”. It needs a Meta “authentication” template (Meta fixes the wording) and Meta charges per message. It gets its own design page before building; shown here only so you can see where this is going.</span><span data-ar>بعد ربط واتساب العيادة. بعد «احجز هذا الموعد» يصل المريض رمز من ٦ أرقام على واتساب فيكتبه. وهذا يثبت أن الرقم حقيقي ويعود له. ويمكن للعيادة حينها أن تجعل الأرقام المُثبتة تتجاوز «إلكتروني، لم يُراجع». ويحتاج قالب «مصادقة» من Meta (تحدد Meta نصه) وتتقاضى Meta ثمن كل رسالة. وستكون له صفحة تصميم خاصة قبل البناء؛ ونعرضه هنا فقط لترى الاتجاه.</span></p>
+  <div class="phones">
+    <div>
+      <div class="phone"><div class="bk">
+        <div class="bk-head" data-head></div>
+        <div class="bk-done"><span class="bk-ok wa"><svg width="28" height="28"><use href="#wa"/></svg></span><h1 class="bk-title sm"><span data-en>Check your WhatsApp</span><span data-ar>تفقّد واتساب</span></h1></div>
+        <p class="bk-hint"><span data-en>We sent a 6-digit code to</span><span data-ar>أرسلنا رمزاً من ٦ أرقام إلى</span> <b class="mono">+962 79 123 4567</b>. <span data-en>Type it to finish booking.</span><span data-ar>اكتبه لإتمام الحجز.</span></p>
+        <div class="code6"><span class="on">4</span><span class="on">8</span><span class="on">2</span><span></span><span></span><span></span></div>
+        <span class="bk-btn accent dis"><span data-en>Finish booking</span><span data-ar>أتمّ الحجز</span></span>
+        <p class="bk-hint"><span data-en>Didn't get it?</span><span data-ar>لم يصلك؟</span> <a href="#"><span data-en>Send again</span><span data-ar>أعد الإرسال</span></a> <span class="mono">0:45</span> · <a href="#"><span data-en>Use another number</span><span data-ar>استخدم رقماً آخر</span></a></p>
+      </div></div>
+      <p class="cap"><span data-en>The code step (later).</span><span data-ar>خطوة الرمز (لاحقاً).</span></p>
+    </div>
+    <div>
+      <div class="phone"><div class="wa-sheet">
+        <div class="wa-head"><div class="wa-av"><svg width="22" height="11"><use href="#loop"/></svg></div><div><b><span data-en>Limitsiz Demo Dermatology</span><span data-ar>عيادة Limitsiz التجريبية للجلدية</span></b><div style="font-size:12px;color:#8696a0"><span data-en>Business account</span><span data-ar>حساب أعمال</span></div></div></div>
+        <div style="flex:1;min-height:260px"></div>
+        <div class="wa-bubble"><span data-en><b class="mono">482913</b> is your verification code. For your security, do not share this code.</span><span data-ar>رمز التحقق الخاص بك هو <b class="mono">482913</b>. حفاظاً على أمانك، لا تشارك هذا الرمز.</span></div>
+        <div class="wa-btn"><span data-en>Copy code</span><span data-ar>نسخ الرمز</span></div>
+      </div></div>
+      <p class="cap"><span data-en>Meta's own wording for authentication messages (approximate).</span><span data-ar>نص Meta الخاص برسائل المصادقة (تقريبي).</span></p>
+    </div>
+  </div>
+
+  <!-- ================================================================ D -->
+  <section class="an" id="fit">
+    <h2 class="display" style="font-size:20px"><span data-en>D · How it fits with today's protections</span><span data-ar>د · كيف يتكامل مع الحماية الحالية</span></h2>
+    <p><span data-en>In the order a request meets them. Nothing is removed. The new check sits after the cheap checks, so a flood never reaches Cloudflare, and before the database, so a failed check saves nothing.</span><span data-ar>بالترتيب الذي يمر به الطلب. لا يُزال شيء. يأتي الفحص الجديد بعد الفحوص الرخيصة، فلا يصل الطوفان إلى Cloudflare، وقبل قاعدة البيانات، فلا يُحفظ شيء عند الفشل.</span></p>
+    <div class="tablewrap"><table class="cmp">
+      <thead><tr><th><span data-en>Protection</span><span data-ar>الحماية</span></th><th><span data-en>Stops</span><span data-ar>توقف</span></th><th><span data-en>Gets past it</span><span data-ar>يتجاوزها</span></th><th><span data-en>With the human check</span><span data-ar>مع التحقق البشري</span></th></tr></thead>
+      <tbody>
+        <tr><td><span data-en>1. Limits per connection (IP)</span><span data-ar>١. حدود الاتصال (IP)</span></td><td><span data-en>One machine sending many requests.</span><span data-ar>جهاز واحد يرسل طلبات كثيرة.</span></td><td class="bad"><span data-en>Many addresses (cheap proxies).</span><span data-ar>عناوين كثيرة (وسطاء رخيصة).</span></td><td><span data-en>Unchanged. Runs first; also keeps floods away from Cloudflare.</span><span data-ar>دون تغيير. يعمل أولاً؛ ويبعد الطوفان عن Cloudflare أيضاً.</span></td></tr>
+        <tr><td><span data-en>2. Hidden “Website” field</span><span data-ar>٢. حقل «الموقع» المخفي</span></td><td><span data-en>Simple form-filling bots (they get a fake “done”).</span><span data-ar>البرامج البسيطة التي تملأ النماذج (تحصل على «تم» مزيّف).</span></td><td class="bad"><span data-en>Bots written for this page.</span><span data-ar>برامج مكتوبة لهذه الصفحة.</span></td><td><span data-en>Unchanged. Runs before the check; Cloudflare is not asked for them.</span><span data-ar>دون تغيير. يعمل قبل الفحص؛ ولا يُسأل Cloudflare عنها.</span></td></tr>
+        <tr class="rec"><td><span data-en>3. Human check (new)</span><span data-ar>٣. التحقق البشري (جديد)</span></td><td><span data-en>Scripts, even from many addresses with random numbers.</span><span data-ar>البرامج، حتى من عناوين كثيرة وبأرقام عشوائية.</span></td><td class="bad"><span data-en>A real person typing fakes by hand; paid “solving farms” (rare, costly).</span><span data-ar>شخص حقيقي يكتب حجوزات مزيّفة يدوياً؛ و«مزارع الحل» المدفوعة (نادرة ومكلفة).</span></td><td><span data-en>Its failure message never depends on the number.</span><span data-ar>رسالة فشله لا تعتمد أبداً على الرقم.</span></td></tr>
+        <tr><td><span data-en>4. Limits per number, unchecked bookings per number</span><span data-ar>٤. حدود الرقم، والمواعيد غير المراجَعة لكل رقم</span></td><td><span data-en>Many bookings on one number.</span><span data-ar>حجوزات كثيرة على رقم واحد.</span></td><td class="bad"><span data-en>A new random number each time.</span><span data-ar>رقم عشوائي جديد في كل مرة.</span></td><td><span data-en>Unchanged, runs after the check. Now each new number costs a human check.</span><span data-ar>دون تغيير، يعمل بعد الفحص. والآن كل رقم جديد يكلّف تحققاً بشرياً.</span></td></tr>
+        <tr><td><span data-en>5. Same answer for every refused number</span><span data-ar>٥. الجواب نفسه لكل رقم مرفوض</span></td><td><span data-en>Learning who is a patient.</span><span data-ar>معرفة من هو مريض.</span></td><td>–</td><td><span data-en>Unchanged. The check runs before any number is looked up.</span><span data-ar>دون تغيير. يجري الفحص قبل البحث عن أي رقم.</span></td></tr>
+        <tr><td><span data-en>6. Secretary check, “Online, not checked”</span><span data-ar>٦. مراجعة السكرتيرة، «إلكتروني، لم يُراجع»</span></td><td><span data-en>Fakes, after the fact (by phone).</span><span data-ar>المزيّف، بعد وقوعه (بالهاتف).</span></td><td class="bad"><span data-en>The fake already holds the time until someone calls.</span><span data-ar>المزيّف يشغل الوقت حتى يتصل أحد.</span></td><td><span data-en>Unchanged. Far fewer fakes reach it. Always on for bookings let through during an outage. Later, the WhatsApp code (9) can replace it for proven numbers.</span><span data-ar>دون تغيير. يصله مزيّف أقل بكثير. ومفعّل دائماً للحجوزات التي مرّت أثناء التعطّل. ولاحقاً قد يحل رمز واتساب (٩) محله للأرقام المُثبتة.</span></td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ================================================================ E -->
+  <section class="an" id="tech">
+    <h2 class="display" style="font-size:20px"><span data-en>E · Keys, content-security-policy and the server</span><span data-ar>هـ · المفاتيح وسياسة أمان المحتوى والخادم</span></h2>
+    <h3><span data-en>1. Setting up Cloudflare (you, once, about 10 minutes)</span><span data-ar>١. إعداد Cloudflare (أنت، مرة واحدة، نحو ١٠ دقائق)</span></h3>
+    <ol>
+      <li><span data-en>Make a free Cloudflare account (the domain does <b>not</b> move to Cloudflare).</span><span data-ar>أنشئ حساب Cloudflare مجانياً (النطاق <b>لا</b> ينتقل إلى Cloudflare).</span></li>
+      <li><span data-en>Turnstile › Add widget: name “Limitsiz booking”, hostname <span class="mono">book.limitsiz.si</span>, mode “Managed”.</span><span data-ar>Turnstile › Add widget: الاسم «Limitsiz booking»، والنطاق <span class="mono">book.limitsiz.si</span>، والوضع «Managed».</span></li>
+      <li><span data-en>Copy the site key and the secret key into <span class="mono">/root/Aiclinic/booking/.env</span> on the VPS (below), then restart Booking. I don't touch the server without your go-ahead.</span><span data-ar>انسخ مفتاح الموقع والمفتاح السري إلى <span class="mono">/root/Aiclinic/booking/.env</span> على الخادم (أدناه)، ثم أعد تشغيل المواعيد. لا ألمس الخادم دون موافقتك.</span></li>
+    </ol>
+    <h3><span data-en>2. booking/.env (and .env.example, with empty values)</span><span data-ar>٢. booking/.env (و‎.env.example بقيم فارغة)</span></h3>
+<pre class="sql"><i># Human check on the booking page (Cloudflare Turnstile). Both empty = no check (Settings says "Not set up on this server").</i>
+<i># The site key is public (it goes to the page); the secret key never leaves the server.</i>
+<b>TURNSTILE_SITE_KEY</b>=
+<b>TURNSTILE_SECRET_KEY</b>=
+<i># Optional: how long the server waits for Cloudflare before treating it as down (milliseconds). Default 4000.</i>
+<b>TURNSTILE_TIMEOUT_MS</b>=
+<i># On your computer, Cloudflare's published test keys: site 1x00000000000000000000AA (always passes),</i>
+<i># 2x00000000000000000000AB (always fails), 3x00000000000000000000FF (always asks for the tick).</i></pre>
+    <p><span data-en>Both servers read them: the booking page server (to check), and the staff server only to show “Set up / Not set up” in Settings. Every clinic setting (the switch, the forms, the outage choice, the hourly allowance) is in Settings, not in .env.</span><span data-ar>يقرأها الخادمان: خادم صفحة الحجز (للفحص)، وخادم الموظفين فقط ليعرض «مُعدّ / غير مُعدّ» في الإعدادات. وكل إعدادات العيادة (المفتاح، النماذج، خيار التعطّل، الحد بالساعة) في الإعدادات، لا في ‎.env.</span></p>
+
+    <h3><span data-en>3. Content-security-policy (booking page only)</span><span data-ar>٣. سياسة أمان المحتوى (صفحة الحجز فقط)</span></h3>
+    <p><span data-en>In <span class="mono">server/public-app.js</span>. Two directives are added, and only when the keys are set. The staff app's policy doesn't change.</span><span data-ar>في <span class="mono">server/public-app.js</span>. يُضاف أمران فقط، وفقط عند ضبط المفاتيح. ولا تتغير سياسة تطبيق الموظفين.</span></p>
+<pre class="sql"><i>// today</i>
+default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+font-src https://fonts.gstatic.com; frame-ancestors 'none'; base-uri 'none'; form-action 'self'
+
+<i>// with the keys set</i>
+default-src 'self'; <b>script-src 'self' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com;</b>
+img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+font-src https://fonts.gstatic.com; frame-ancestors 'none'; base-uri 'none'; form-action 'self'</pre>
+    <p class="hint"><span data-en>Our own frame-ancestors 'none' and X-Frame-Options stay: they stop others framing us, not us framing Cloudflare's box. Referrer-Policy stays no-referrer; a test confirms the box works with it.</span><span data-ar>يبقى frame-ancestors 'none' وX-Frame-Options: فهما يمنعان الآخرين من تضميننا، لا تضميننا لمربع Cloudflare. ويبقى Referrer-Policy على no-referrer؛ ويتأكد اختبار أن المربع يعمل معه.</span></p>
+
+    <h3><span data-en>4. The server: one check, before the booking</span><span data-ar>٤. الخادم: فحص واحد قبل الحجز</span></h3>
+    <div class="flow">
+      <span><span data-en>Origin check</span><span data-ar>فحص المصدر</span></span><b>›</b>
+      <span><span data-en>Limit per connection</span><span data-ar>حد الاتصال</span></span><b>›</b>
+      <span><span data-en>Form fields</span><span data-ar>حقول النموذج</span></span><b>›</b>
+      <span><span data-en>Hidden field → fake “done”</span><span data-ar>الحقل المخفي ← «تم» مزيّف</span></span><b>›</b>
+      <span class="n"><span data-en>Human check → passed / failed / skipped</span><span data-ar>التحقق البشري ← نجح / فشل / تُخطّي</span></span><b>›</b>
+      <span><span data-en>Per-number limits (same answer)</span><span data-ar>حدود الرقم (الجواب نفسه)</span></span><b>›</b>
+      <span><span data-en>Saved</span><span data-ar>حُفظ</span></span>
+    </div>
+<pre class="sql"><i>// server/human-check.js (new). Answers "passed", "failed" or "unavailable"; never throws.</i>
+const VERIFY = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
+export function humanChecker({ secret, hostname, timeoutMs = 4000, fetch = globalThis.fetch }) {
+  if (!secret) return null;                                         <i>// keys not set: no check anywhere</i>
+  return async function check(token, { action, ip }) {
+    let r;
+    try {
+      r = await fetch(VERIFY, { method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ secret, response: token || "none", remoteip: ip }), signal: AbortSignal.timeout(timeoutMs) });
+    } catch { return "unavailable"; }                               <i>// no answer, timeout, network error</i>
+    if (r.status >= 500) return "unavailable";
+    const j = await r.json().catch(() => null);
+    if (!j || j["error-codes"]?.includes("internal-error")) return "unavailable";
+    <i>// A missing token is still sent ("none"): Cloudflare answering "invalid" proves it is up, so it is a failure, not an outage.</i>
+    return j.success === true && j.action === action && j.hostname === hostname ? "passed" : "failed";
+  };
+}
+
+<i>// server/public-app.js: each protected route, after the hidden field</i>
+app.post("/api/c/:slug/book", limit("book"), wrap(async (req, res) => {
+  const b = parse(z.object({ ...today, <b>human: z.string().max(2048).optional()</b> }), req.body);
+  if (b.website) return res.status(201).json({ ok: true });
+  <b>const human = await humanGate(slugOf(req), "book", b.human, req.ip);</b>  <i>// 403 human_check_failed | 503 human_check_unavailable | null | "passed" | "skipped"</i>
+  res.status(201).json(await svc.book(slugOf(req), req.ctx, { ...b, human }));
+}));
+<i>// humanGate: off, keys missing or form not chosen → null (as today). "passed" → go on. "failed" → 403.
+// "unavailable" → clinic chose "let through" and this hour's allowance not used (counter per clinic) → "skipped", else 503.
+// svc.book: human === "skipped" → needs_check = true whatever staff_check says; human_check stored on the booking.
+// The same for /chat/:id/book ("chat_book"), /chat/:id/callback ("callback"), /find ("find"), and /chat ("chat_start") when chosen.</i></pre>
+    <ul>
+      <li><span data-en><b>GET /api/c/:slug</b> adds <span class="mono">humanCheck: { siteKey, forms }</span> (or null). The secret is never sent.</span><span data-ar><b>GET /api/c/:slug</b> يضيف <span class="mono">humanCheck: { siteKey, forms }</span> (أو null). ولا يُرسل المفتاح السري أبداً.</span></li>
+      <li><span data-en>Tokens are single-use and last 5 minutes, so the page asks for one only on the tap (Cloudflare's “execute” mode) and asks for a fresh one after any error, for example “That time was just taken”.</span><span data-ar>الرموز لمرة واحدة وتدوم ٥ دقائق، لذا تطلب الصفحة رمزاً عند الضغط فقط (وضع «execute» في Cloudflare) وتطلب رمزاً جديداً بعد أي خطأ، مثل «حُجز هذا الوقت للتو».</span></li>
+      <li><span data-en>The server checks that Cloudflare's answer names our hostname and the same form (“action”), so a token from another site or another form is refused.</span><span data-ar>يتأكد الخادم أن جواب Cloudflare يذكر نطاقنا والنموذج نفسه («action»)، فيُرفض رمز من موقع آخر أو نموذج آخر.</span></li>
+      <li><span data-en>Only the token and the IP address go to Cloudflare from our server, never the name, number or booking.</span><span data-ar>لا يذهب من خادمنا إلى Cloudflare إلا الرمز وعنوان IP، لا الاسم ولا الرقم ولا الحجز أبداً.</span></li>
+    </ul>
+
+    <h3><span data-en>5. The page (book/human.ts, new)</span><span data-ar>٥. الصفحة (book/human.ts، جديد)</span></h3>
+<pre class="sql"><i>// Loads Cloudflare's script the first time a protected step is shown, never on the first page or while choosing a time.</i>
+<i>// render(box, { sitekey, action, language: lang, appearance: "interaction-only", execution: "execute" })</i>
+<i>// On the final tap: execute() → token → POST with { ..., human: token }. "before-interactive-callback" shows the</i>
+<i>// "One more step" banner; "error-callback" / script not loading → POST without a token (the server decides: see 6).</i>
+export function useHuman(cfg: HumanCfg | null, action: HumanAction, lang: Lang): { box: Ref&lt;HTMLDivElement&gt;; asking: boolean; token(): Promise&lt;string | undefined&gt; }</pre>
+    <p class="hint"><span data-en>New texts in book/text.ts, English and Arabic: checking, humanLine, humanAsk, humanAsk2, humanFailed, humanFailed2, humanDown, humanDown2, tryAgain. Staff texts in settings-text.ts and i18n.tsx, both languages.</span><span data-ar>نصوص جديدة في book/text.ts بالإنجليزية والعربية: checking وhumanLine وhumanAsk وhumanAsk2 وhumanFailed وhumanFailed2 وhumanDown وhumanDown2 وtryAgain. ونصوص الموظفين في settings-text.ts وi18n.tsx باللغتين.</span></p>
+  </section>
+
+  <!-- ================================================================ F -->
+  <section class="an" id="data">
+    <h2 class="display" style="font-size:20px"><span data-en>F · Migration sketch (0026), only adds</span><span data-ar>و · مسودة الترحيل (0026)، إضافة فقط</span></h2>
+    <p><span data-en>Run only with your go-ahead. Undo file alongside. No new table, no new function.</span><span data-ar>يُشغَّل فقط بموافقتك. مع ملف للتراجع. بلا جدول جديد وبلا دالة جديدة.</span></p>
+<pre class="sql"><i>-- Human check on the online booking page (design: booking/design/human-check.html). Only adds.
+-- Undo: db/rollback/0026_down.sql</i>
+alter table online_booking
+  add column human_check               boolean not null default true,
+  add column human_check_forms         text[]  not null default '{book,chat_book,callback,find}'
+    check (human_check_forms &lt;@ array['book','chat_book','callback','find','chat_start']::text[]),
+  add column human_check_down          text    not null default 'let_through' check (human_check_down in ('let_through', 'stop')),
+  add column human_check_skip_per_hour integer not null default 10 check (human_check_skip_per_hour between 0 and 500);
+
+<i>-- How it went: 'passed' (Cloudflare said a person), 'skipped' (Cloudflare couldn't be reached; let through and marked for a check).
+-- Null: no check asked (booked by staff, switch off, keys not set, or made before this change).</i>
+alter table appointments  add column human_check text check (human_check in ('passed', 'skipped'));
+alter table web_callbacks add column human_check text check (human_check in ('passed', 'skipped'));
+
+grant insert (human_check) on appointments to public_app;   <i>-- web_callbacks: public_app already inserts every column
+-- online_booking: public_app already reads it; booking_app already updates it; the audit trigger records every change.</i>
+
+do $$ declare r text; begin
+  foreach r in array array['anon', 'authenticated'] loop
+    if exists (select from pg_roles where rolname = r) then
+      execute format('revoke all on table public.online_booking, public.appointments, public.web_callbacks from %I', r);
+    end if;
+  end loop;
+end $$;</pre>
+<pre class="sql"><i>-- db/rollback/0026_down.sql. Roll the code back first. Lost on undo: the clinic's human-check choices, and which bookings passed or skipped it.</i>
+alter table web_callbacks  drop column if exists human_check;
+alter table appointments   drop column if exists human_check;
+alter table online_booking drop column if exists human_check_skip_per_hour, drop column if exists human_check_down,
+                           drop column if exists human_check_forms, drop column if exists human_check;</pre>
+  </section>
+
+  <!-- ================================================================ G -->
+  <section class="an" id="tests">
+    <h2 class="display" style="font-size:20px"><span data-en>G · Tests</span><span data-ar>ز · الاختبارات</span></h2>
+    <p><span data-en>In <span class="mono">test/human-check.test.js</span> (new) and <span class="mono">test/public.test.js</span>, <span class="mono">test/settings.test.js</span>. Cloudflare is never called by the tests: a fake <span class="mono">fetch</span> plays its answers.</span><span data-ar>في <span class="mono">test/human-check.test.js</span> (جديد) و<span class="mono">test/public.test.js</span> و<span class="mono">test/settings.test.js</span>. لا تتصل الاختبارات بـ Cloudflare أبداً: <span class="mono">fetch</span> مزيّف يؤدي أجوبته.</span></p>
+    <div class="phase">
+      <div><b><span data-en>The checker</span><span data-ar>دالة الفحص</span></b><ul>
+        <li><span data-en>success, right hostname and action → passed</span><span data-ar>نجاح، النطاق والنموذج صحيحان ← نجح</span></li>
+        <li><span data-en>success but another hostname, or another action → failed</span><span data-ar>نجاح لكن نطاق آخر أو نموذج آخر ← فشل</span></li>
+        <li><span data-en>success: false (also “already used”) → failed</span><span data-ar>success: false (ومنها «مستخدم من قبل») ← فشل</span></li>
+        <li><span data-en>no token and Cloudflare answers → failed</span><span data-ar>بلا رمز وCloudflare يجيب ← فشل</span></li>
+        <li><span data-en>timeout, network error, 5xx, internal-error → unavailable</span><span data-ar>انتهاء الوقت، خطأ شبكة، 5xx، internal-error ← غير متاح</span></li>
+        <li><span data-en>no secret → no checker</span><span data-ar>بلا مفتاح سري ← لا فحص</span></li>
+      </ul></div>
+      <div><b><span data-en>The routes</span><span data-ar>المسارات</span></b><ul>
+        <li><span data-en>switch off, keys missing, or form not chosen → books as today, without a token</span><span data-ar>المفتاح مُطفأ، أو المفاتيح غائبة، أو النموذج غير مختار ← يحجز كما اليوم بلا رمز</span></li>
+        <li><span data-en>on: no or bad token → 403 human_check_failed, nothing saved, for each of the 4 (5) forms</span><span data-ar>مفعّل: بلا رمز أو برمز خاطئ ← 403 human_check_failed، لا يُحفظ شيء، لكل نموذج من الأربعة (الخمسة)</span></li>
+        <li><span data-en>good token → 201, human_check = passed</span><span data-ar>رمز صحيح ← 201، human_check = passed</span></li>
+        <li><span data-en>hidden field filled → fake 201, Cloudflare not called</span><span data-ar>الحقل المخفي مملوء ← 201 مزيّف، ولا يُسأل Cloudflare</span></li>
+        <li><span data-en>over the per-connection limit → 429, Cloudflare not called</span><span data-ar>تجاوز حد الاتصال ← 429، ولا يُسأل Cloudflare</span></li>
+        <li><span data-en>refused number: failed check → human_check_failed; passed check → the usual phone_not_accepted (same as any refused number)</span><span data-ar>رقم مرفوض: فحص فاشل ← human_check_failed؛ فحص ناجح ← phone_not_accepted المعتاد (كأي رقم مرفوض)</span></li>
+        <li><span data-en>Find my booking: same 202 for known and unknown numbers when the check passes</span><span data-ar>ابحث عن حجزي: نفس 202 للرقم المعروف وغير المعروف عند نجاح الفحص</span></li>
+      </ul></div>
+      <div><b><span data-en>Cloudflare down</span><span data-ar>تعطّل Cloudflare</span></b><ul>
+        <li><span data-en>let through → 201, human_check = skipped, needs_check = true even with staff_check off</span><span data-ar>السماح ← 201، human_check = skipped، needs_check = true حتى مع إطفاء staff_check</span></li>
+        <li><span data-en>the 11th in the hour (allowance 10) → 503 human_check_unavailable; allowance 0 → always 503</span><span data-ar>الحادي عشر في الساعة (الحد ١٠) ← 503 human_check_unavailable؛ الحد 0 ← دائماً 503</span></li>
+        <li><span data-en>stop → 503, nothing saved</span><span data-ar>الإيقاف ← 503، لا يُحفظ شيء</span></li>
+        <li><span data-en>skipped call-back stored with human_check = skipped</span><span data-ar>طلب الاتصال المتخطّى يُحفظ مع human_check = skipped</span></li>
+      </ul></div>
+      <div><b><span data-en>Headers, info, Settings</span><span data-ar>الترويسات، المعلومات، الإعدادات</span></b><ul>
+        <li><span data-en>CSP has challenges.cloudflare.com only when the keys are set</span><span data-ar>CSP يحتوي challenges.cloudflare.com فقط عند ضبط المفاتيح</span></li>
+        <li><span data-en>GET /api/c/:slug gives the site key and forms, never the secret; null when off</span><span data-ar>GET /api/c/:slug يعطي مفتاح الموقع والنماذج، لا المفتاح السري أبداً؛ وnull عند الإطفاء</span></li>
+        <li><span data-en>Settings: unknown form name or allowance out of range → 400; change written to the audit log</span><span data-ar>الإعدادات: اسم نموذج غير معروف أو حد خارج النطاق ← 400؛ والتغيير يُكتب في سجل التدقيق</span></li>
+        <li><span data-en>staff booking never asks for a check (human_check null)</span><span data-ar>حجز الموظفين لا يطلب فحصاً أبداً (human_check فارغ)</span></li>
+      </ul></div>
+      <div><b><span data-en>In the browser, before you approve the switch-on</span><span data-ar>في المتصفح، قبل موافقتك على التفعيل</span></b><ul>
+        <li><span data-en>On my computer with Cloudflare's test keys: always passes, always fails, always asks for the tick. English and Arabic, phone width, keyboard only.</span><span data-ar>على جهازي بمفاتيح Cloudflare التجريبية: ينجح دائماً، يفشل دائماً، يطلب العلامة دائماً. بالإنجليزية والعربية، بعرض الهاتف، وبلوحة المفاتيح فقط.</span></li>
+        <li><span data-en>The box works with Referrer-Policy no-referrer and our CSP (no console errors).</span><span data-ar>المربع يعمل مع Referrer-Policy no-referrer وسياستنا (بلا أخطاء في الوحدة).</span></li>
+        <li><span data-en>“That time was just taken” then booking another time gets a new token.</span><span data-ar>«حُجز هذا الوقت للتو» ثم حجز وقت آخر يحصل على رمز جديد.</span></li>
+        <li><span data-en>npm test and the client build (tsc + vite) pass.</span><span data-ar>npm test وبناء الواجهة (tsc + vite) ينجحان.</span></li>
+      </ul></div>
+    </div>
+  </section>
+
+  <!-- ================================================================ H -->
+  <section class="an" id="privacy">
+    <h2 class="display" style="font-size:20px"><span data-en>H · Privacy-policy wording</span><span data-ar>ح · نص سياسة الخصوصية</span></h2>
+    <p><span data-en>The booking page links to the privacy notice in Settings › Online booking (by default <span class="mono">limitsiz.si/privacy</span>). That page today describes the website's contact form only, so it needs a section on the booking pages anyway. Proposed paragraph, in both languages (and the same in any clinic's own notice):</span><span data-ar>تربط صفحة الحجز بإشعار الخصوصية المحدد في الإعدادات › الحجز الإلكتروني (افتراضياً <span class="mono">limitsiz.si/privacy</span>). وتلك الصفحة اليوم تصف نموذج التواصل في الموقع فقط، فهي تحتاج قسماً عن صفحات الحجز على أي حال. الفقرة المقترحة باللغتين (والنص نفسه في إشعار أي عيادة لديها إشعارها الخاص):</span></p>
+    <div class="quote" lang="en" dir="ltr"><b>Checking for bots.</b> When you book online, ask the clinic to call you back, or ask for your booking link again, the page runs a quick automatic check by Cloudflare Turnstile to make sure a person, not a program, is sending it. For this check only, Cloudflare receives your IP address and technical information about your browser and device. Cloudflare does not receive your name, phone number or booking, and does not use this information for advertising. Cloudflare may process it outside Jordan. The check is loaded only on those steps, not while you look at free times.</div>
+    <div class="quote" lang="ar" dir="rtl" style="font-family:var(--font-ar)"><b>التحقق من البرامج الآلية.</b> عندما تحجز إلكترونياً، أو تطلب أن تتصل بك العيادة، أو تطلب رابط حجزك مرة أخرى، تُجري الصفحة فحصاً تلقائياً سريعاً من Cloudflare Turnstile للتأكد من أن شخصاً، لا برنامجاً، هو من يرسل الطلب. ولهذا الفحص فقط، تتلقى Cloudflare عنوان IP الخاص بك ومعلومات تقنية عن متصفحك وجهازك. ولا تتلقى Cloudflare اسمك أو رقم هاتفك أو حجزك، ولا تستخدم هذه المعلومات للإعلانات. وقد تعالجها Cloudflare خارج الأردن. ولا يُحمَّل الفحص إلا في هذه الخطوات، لا أثناء تصفّح الأوقات المتاحة.</div>
+    <ul>
+      <li><span data-en>Goes into <span class="mono">app/client/src/translations.ts</span> (the website's privacy page) as a new section, English and Arabic, without any “draft” note.</span><span data-ar>يدخل في <span class="mono">app/client/src/translations.ts</span> (صفحة الخصوصية في الموقع) كقسم جديد بالإنجليزية والعربية، بلا أي ملاحظة «مسودة».</span></li>
+      <li><span data-en>For the legal review already on your list: Cloudflare as a processor (its Turnstile privacy terms), the transfer outside Jordan under the Personal Data Protection Law No. 24 of 2023, and whether the line on the page is enough notice. Check Cloudflare's current Turnstile privacy text before publishing; the “no advertising” sentence follows it.</span><span data-ar>للمراجعة القانونية الموجودة على قائمتك: Cloudflare كمعالج بيانات (شروط خصوصية Turnstile)، والنقل خارج الأردن وفق قانون حماية البيانات الشخصية رقم 24 لسنة 2023، وهل السطر في الصفحة إشعار كافٍ. وتحقق من نص خصوصية Turnstile الحالي لدى Cloudflare قبل النشر؛ فجملة «لا إعلانات» مبنية عليه.</span></li>
+    </ul>
+  </section>
+
+  <!-- ================================================================ I -->
+  <section class="an" id="build">
+    <h2 class="display" style="font-size:20px"><span data-en>I · Build order (after your approval)</span><span data-ar>ط · ترتيب البناء (بعد موافقتك)</span></h2>
+    <div class="phase">
+      <div><b><span data-en>1. Data</span><span data-ar>١. البيانات</span></b><ul><li><span data-en>db/migrations/0026_human_check.sql and its undo. Run with your go-ahead.</span><span data-ar>db/migrations/0026_human_check.sql وملف التراجع. يُشغَّل بموافقتك.</span></li></ul></div>
+      <div><b><span data-en>2. Server</span><span data-ar>٢. الخادم</span></b><ul><li>server/human-check.js</li><li>server/public-app.js <span data-en>(5 routes, CSP)</span><span data-ar>(٥ مسارات، CSP)</span></li><li>server/public-service.js <span data-en>(store, needs_check, info)</span><span data-ar>(الحفظ، needs_check، المعلومات)</span></li><li>server/config.js, server/settings.js, .env.example</li></ul></div>
+      <div><b><span data-en>3. Booking page</span><span data-ar>٣. صفحة الحجز</span></b><ul><li>book/human.ts</li><li>book/app.tsx <span data-en>(details step, Find my booking)</span><span data-ar>(خطوة البيانات، ابحث عن حجزي)</span></li><li>book/chat.tsx <span data-en>(Yes card, call-back card)</span><span data-ar>(بطاقة نعم، بطاقة الاتصال)</span></li><li>book/text.ts, book/book.css</li></ul></div>
+      <div><b><span data-en>4. Staff app</span><span data-ar>٤. تطبيق الموظفين</span></b><ul><li>pages/settings.tsx, settings-text.ts</li><li><span data-en>the “Human check skipped” mark (bookings list, booking details), i18n.tsx</span><span data-ar>علامة «تم تخطي التحقق البشري» (قائمة المواعيد، تفاصيل الحجز)، i18n.tsx</span></li></ul></div>
+      <div><b><span data-en>5. Tests, then you</span><span data-ar>٥. الاختبارات، ثم أنت</span></b><ul><li><span data-en>Tests in G, client build.</span><span data-ar>اختبارات (ز)، وبناء الواجهة.</span></li><li><span data-en>You: Cloudflare widget, keys in the VPS .env, privacy paragraph live, then switch on.</span><span data-ar>أنت: أداة Cloudflare، والمفاتيح في ‎.env على الخادم، ونشر فقرة الخصوصية، ثم التفعيل.</span></li></ul></div>
+    </div>
+    <p class="hint"><span data-en>About a day of work. Nothing is built, committed or pushed until you approve this page.</span><span data-ar>نحو يوم عمل. لا يُبنى ولا يُحفظ ولا يُرفع شيء حتى توافق على هذه الصفحة.</span></p>
+  </section>
+</main>
+
+<script>
+(function(){
+  var head='<div class="bk-logo"><svg width="28" height="14"><use href="#loop"/></svg></div><div class="bk-name"><b><span data-en>Limitsiz Demo Dermatology</span><span data-ar>عيادة Limitsiz التجريبية للجلدية</span></b><span><span data-en>Abdoun, Amman</span><span data-ar>عبدون، عمّان</span></span></div><span class="bk-lang"><span data-en>العربية</span><span data-ar>English</span></span>';
+  document.querySelectorAll('[data-head]').forEach(function(e){e.innerHTML=head});
+})();
+function flip(){
+  var h=document.documentElement, ar=h.lang!=='ar';
+  h.lang=ar?'ar':'en'; h.dir=ar?'rtl':'ltr';
+  try{localStorage.setItem('hc_lang',h.lang)}catch(e){}
+}
+try{if(localStorage.getItem('hc_lang')==='ar')flip()}catch(e){}
+</script>
+</body>
+</html>

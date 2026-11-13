@@ -4,8 +4,8 @@ interface Props {
   kind: "privacy" | "terms";
 }
 
-// Section keys: privacy uses priv_h1..9 / priv_p1..9, terms uses terms_h1..7 / terms_p1..7.
-const COUNTS = { privacy: 9, terms: 7 } as const;
+// Section keys: privacy uses priv_h1..10 / priv_p1..10, terms uses terms_h1..7 / terms_p1..7.
+const COUNTS = { privacy: 10, terms: 7 } as const;
 
 export default function Legal({ kind }: Props) {
   const { t } = useI18n();

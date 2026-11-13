@@ -24,6 +24,8 @@ export const ONLINE_FIELDS = {
   chatEnabled: "chat_enabled", chatMessagesPerChat: "chat_messages_per_chat", chatChatsPerIpPerDay: "chat_chats_per_ip_per_day",
   chatMessagesPerClinicPerDay: "chat_messages_per_clinic_per_day", chatKeepDays: "chat_keep_days",
   brochureColour: "brochure_colour", brochureCardLanguages: "brochure_card_languages", brochureShowAi: "brochure_show_ai",
+  // The human check (design: booking/design/human-check.html). Left out of the body: kept as it was.
+  humanCheck: "human_check", humanCheckForms: "human_check_forms", humanCheckDown: "human_check_down", humanCheckSkipPerHour: "human_check_skip_per_hour",
 };
 const ONLINE_COLS = Object.values(ONLINE_FIELDS);
 
@@ -216,7 +218,7 @@ export function createSettings({ pool, tx, now = () => new Date() }) {
 
   // Settings > Online booking. Every limit and text of the public page is here.
   async function updateOnline(ctx, b) {
-    const keys = Object.keys(ONLINE_FIELDS);
+    const keys = Object.keys(ONLINE_FIELDS).filter((k) => b[k] !== undefined);
     const sets = keys.map((k, i) => `${ONLINE_FIELDS[k]} = $${i + 2}`).join(", ");
     const vals = keys.map((k) => (typeof b[k] === "string" ? b[k].trim() || null : b[k] ?? null));
     await write(ctx, (c) => c.query(`update online_booking set ${sets} where clinic_id = $1`, [ctx.clinicId, ...vals]));

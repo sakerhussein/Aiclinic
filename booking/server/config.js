@@ -26,6 +26,8 @@ export function loadConfig(env = process.env) {
     smtp: env.SMTP_HOST ? { host: env.SMTP_HOST, port: Number(env.SMTP_PORT || 587), user: env.SMTP_USER, pass: env.SMTP_PASS, from: env.MAIL_FROM || env.SMTP_USER } : null,
     // AI Scribe: where recordings wait (on this server only) until they become text. The same folder for Booking and the Scribe.
     scribeAudioDir: env.SCRIBE_AUDIO_DIR || DEFAULT_AUDIO_DIR,
+    // The human check on the booking page: Settings › Online booking only shows whether the keys are set; it never reads them.
+    humanCheckReady: !!(env.TURNSTILE_SITE_KEY && env.TURNSTILE_SECRET_KEY),
   };
 }
 
@@ -42,6 +44,9 @@ export function loadPublicConfig(env = process.env) {
     // (WEB_CHAT_SECRET, the same in agent/.env). Without a secret the chat is not offered.
     agentUrl: (env.AGENT_INTERNAL_URL || "http://127.0.0.1:3002").replace(/\/+$/, ""),
     chatSecret: env.WEB_CHAT_SECRET && env.WEB_CHAT_SECRET.length >= 32 ? env.WEB_CHAT_SECRET : null,
+    // The human check (Cloudflare Turnstile; design booking/design/human-check.html). Both keys or no check anywhere.
+    turnstile: { siteKey: env.TURNSTILE_SITE_KEY || null, secret: env.TURNSTILE_SECRET_KEY || null,
+                 timeoutMs: Number(env.TURNSTILE_TIMEOUT_MS) > 0 ? Number(env.TURNSTILE_TIMEOUT_MS) : 4000 },
   };
 }
 

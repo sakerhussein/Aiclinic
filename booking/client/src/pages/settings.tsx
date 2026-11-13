@@ -37,10 +37,14 @@ type Online = { enabled: boolean; staff_check: boolean; show_prices: boolean; al
   done_note_en: string | null; done_note_ar: string | null; share_message_en: string; share_message_ar: string; privacy_url: string;
   find_enabled: boolean; find_per_phone_per_day: number; find_per_ip_per_hour: number; find_message_en: string; find_message_ar: string; whatsapp_connected: boolean;
   chat_enabled: boolean; chat_messages_per_chat: number; chat_chats_per_ip_per_day: number; chat_messages_per_clinic_per_day: number; chat_keep_days: number;
-  brochure_colour: string; brochure_card_languages: "ar_en" | "ar" | "en"; brochure_show_ai: boolean };
+  brochure_colour: string; brochure_card_languages: "ar_en" | "ar" | "en"; brochure_show_ai: boolean;
+  human_check: boolean; human_check_forms: HumanForm[]; human_check_down: "let_through" | "stop"; human_check_skip_per_hour: number };
+// The human check on the booking page (design: booking/design/human-check.html): the final buttons it can guard.
+type HumanForm = "book" | "chat_book" | "callback" | "find" | "chat_start";
+const HUMAN_FORMS: HumanForm[] = ["book", "chat_book", "callback", "find", "chat_start"];
 type OnlineLink = { enabled: boolean; url?: string; qrUrl?: string };
 type Data = { profile: Profile; hours: Period[]; closures: TimeOff[]; doctors: Doctor[]; services: Service[]; faqs: Faq[]; rules: Rule[]; general: General; outside: Outside[];
-  online: Online; onlineLink: OnlineLink; scribe: Scribe; onlineVisits: OVData;
+  online: Online; onlineLink: OnlineLink; scribe: Scribe; onlineVisits: OVData; humanCheckReady?: boolean;
   options: { slotMinutes: number[]; bufferMinutes: number[]; idleMinutes: number[]; lockMinutes: number[]; reminderMinutes: number[]; recoveryWarnAt: number[]; dictationFieldSeconds: number[]; dictationNoteMinutes: number[];
     onlineNoticeMinutes: number[]; joinOpensMinutes: number[]; joinClosesMinutes: number[] } };
 
@@ -611,7 +615,8 @@ function OnlineTab({ data, reload }: P) {
     findMessageEn: o.find_message_en, findMessageAr: o.find_message_ar,
     chatEnabled: o.chat_enabled, chatMessagesPerChat: o.chat_messages_per_chat, chatChatsPerIpPerDay: o.chat_chats_per_ip_per_day,
     chatMessagesPerClinicPerDay: o.chat_messages_per_clinic_per_day, chatKeepDays: o.chat_keep_days,
-    brochureColour: o.brochure_colour, brochureCardLanguages: o.brochure_card_languages, brochureShowAi: o.brochure_show_ai });
+    brochureColour: o.brochure_colour, brochureCardLanguages: o.brochure_card_languages, brochureShowAi: o.brochure_show_ai,
+    humanCheck: o.human_check, humanCheckForms: o.human_check_forms, humanCheckDown: o.human_check_down, humanCheckSkipPerHour: o.human_check_skip_per_hour });
   type K = keyof typeof f;
   const { a, ok, submit } = useSave(reload);
   const sw = (k: K, label: string, hint?: string) => (
@@ -680,6 +685,35 @@ function OnlineTab({ data, reload }: P) {
           {num("managePerIpPerHour", s.managePerHour, s.managePerHourHint, 5, 1000)}
           {num("daysPerPage", s.daysPerPage, s.daysPerPageHint, 1, 31)}
         </div>
+      </section>
+      {/* The human check: works once the Cloudflare keys are in booking/.env; until then the panel says so and is greyed out. */}
+      <section className="panel stack">
+        <div className="row between"><h2>{s.humanTitle}</h2>
+          <span className={`pill ${data.humanCheckReady ? "ok" : "warn"}`}>{data.humanCheckReady ? s.humanReady : s.humanNotReady}</span></div>
+        <div className="stack" style={data.humanCheckReady ? undefined : { opacity: 0.55 }}>
+          {sw("humanCheck", s.humanOn, s.humanOnHint)}
+          <div>
+            <b style={{ fontSize: 14 }}>{s.humanForms}</b>
+            {HUMAN_FORMS.map((k) => (
+              <label key={k} className="chan">
+                <input type="checkbox" checked={f.humanCheckForms.includes(k)} disabled={!f.humanCheck}
+                  onChange={(e) => setF({ ...f, humanCheckForms: e.target.checked ? [...f.humanCheckForms, k] : f.humanCheckForms.filter((v) => v !== k) })} />
+                <span><b>{s.humanFormNames[k]}</b>{k === "chat_start" && <small className="hint">{s.humanChatStartHint}</small>}</span><span />
+              </label>))}
+          </div>
+          <b style={{ fontSize: 14 }}>{s.humanDown}</b>
+          <div className="radios" role="radiogroup" aria-label={s.humanDown}>
+            {(["let_through", "stop"] as const).map((v) => (
+              <label key={v} className={`radio${f.humanCheckDown === v ? " on" : ""}`}>
+                <input type="radio" name="humanDown" checked={f.humanCheckDown === v} disabled={!f.humanCheck} onChange={() => setF({ ...f, humanCheckDown: v })} />
+                <span><b>{v === "let_through" ? s.humanLet : s.humanStop}</b>{v === "let_through" && <> <span className="pill ok">{s.humanRecommended}</span></>}<br />
+                  <small className="hint">{v === "let_through" ? s.humanLetHint : s.humanStopHint}</small></span>
+              </label>))}
+          </div>
+          {f.humanCheckDown === "let_through" && <div className="grid2">{num("humanCheckSkipPerHour", s.humanSkip, s.humanSkipHint, 0, 500)}</div>}
+        </div>
+        {!data.humanCheckReady && <p className="warntext">{s.humanNeedsKeys}</p>}
+        <p className="hint">{s.humanPrivacy}</p>
       </section>
       <section className="panel stack">
         <h2>{s.texts}</h2>
